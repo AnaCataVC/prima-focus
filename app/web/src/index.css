@@ -1,0 +1,7 @@
+@import '../../../design/tokens/colors.css';
+
+/* Estilos globales básicos */
+body {
+  margin: 0;
+  font-family: var(--font-family, system-ui, sans-serif);
+}

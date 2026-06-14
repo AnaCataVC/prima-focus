@@ -1,0 +1,110 @@
+:root {
+  --color-primary: #0A84FF;
+  --color-primary-700: #005BB5;
+  --color-accent: #34C759;
+  --color-surface: #F6F7FB;
+  --color-background: #FFFFFF;
+  --color-text: #0B1226;
+  --color-muted: #6B7280;
+  --color-warn: #FFCC00;
+  --color-danger: #FF3B30;
+  --shadow: rgba(11, 18, 38, 0.08);
+
+  /* Dimensions & Spacing */
+  --grid: 8px;
+  --screen-padding: 16px;
+  --card-width: 328px;
+  --card-padding: 16px;
+  
+  --btn-start-size: 72px;
+  --btn-icon-size: 48px;
+  --btn-primary-height: 56px;
+  --chip-height: 32px;
+
+  /* Radius */
+  --radius-card: 8px;
+  --radius-icon: 12px;
+  --radius-pill: 999px;
+
+  /* Typography */
+  --font-family: 'Inter', system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-family);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1 { font-size: 22px; font-weight: 600; line-height: 28px; margin: 0; }
+h2 { font-size: 18px; font-weight: 500; line-height: 24px; margin: 0; }
+p { font-size: 14px; font-weight: 400; line-height: 20px; margin: 0; }
+.micro { font-size: 12px; font-weight: 400; line-height: 16px; color: var(--color-muted); }
+
+/* Base utility classes */
+.card {
+  width: var(--card-width);
+  padding: var(--card-padding);
+  background-color: var(--color-surface);
+  box-shadow: 0 4px 12px var(--shadow);
+  border-radius: var(--radius-card);
+  box-sizing: border-box;
+}
+
+.btn-primary {
+  height: var(--btn-primary-height);
+  padding: 0 24px;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-primary);
+  color: #FFFFFF;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  min-width: var(--btn-icon-size); /* Ensure min touch target */
+}
+
+.btn-start {
+  width: var(--btn-start-size);
+  height: var(--btn-start-size);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon {
+  width: var(--btn-icon-size);
+  height: var(--btn-icon-size);
+  border-radius: var(--radius-icon);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chip {
+  height: var(--chip-height);
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-accent);
+  color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 500;
+}
