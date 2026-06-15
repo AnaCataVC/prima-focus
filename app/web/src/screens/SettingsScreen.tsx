@@ -1,10 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../components/BaseComponents';
+import { requestNotificationPermission } from '../sync/messaging';
 
 export const SettingsScreen: React.FC = () => {
   const [manualBoost, setManualBoost] = useState<number>(5);
   const [autoSplit, setAutoSplit] = useState<boolean>(false);
   const [rrule, setRrule] = useState<string>('Diario');
+
+  useEffect(() => {
+    const savedBoost = localStorage.getItem('prima_manualBoost');
+    if (savedBoost) setManualBoost(Number(savedBoost));
+    const savedAutoSplit = localStorage.getItem('prima_autoSplit');
+    if (savedAutoSplit) setAutoSplit(savedAutoSplit === 'true');
+    const savedRrule = localStorage.getItem('prima_rrule');
+    if (savedRrule) setRrule(savedRrule);
+  }, []);
+
+  const handleSave = () => {
+    localStorage.setItem('prima_manualBoost', manualBoost.toString());
+    localStorage.setItem('prima_autoSplit', autoSplit.toString());
+    localStorage.setItem('prima_rrule', rrule);
+    alert('Ajustes guardados localmente.');
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', padding: '24px', maxWidth: '640px', margin: '0 auto', width: '100%' }}>
@@ -72,8 +89,18 @@ export const SettingsScreen: React.FC = () => {
         </div>
       </Card>
 
+      <Card>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h3>Notificaciones (FCM)</h3>
+            <p className="micro">Recibe recordatorios de tus tareas</p>
+          </div>
+          <button className="btn-icon" onClick={requestNotificationPermission}>Habilitar</button>
+        </div>
+      </Card>
+
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
-        <button className="btn-primary">Guardar Cambios</button>
+        <button className="btn-primary" onClick={handleSave}>Guardar Cambios</button>
       </div>
     </div>
   );
