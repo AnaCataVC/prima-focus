@@ -12,8 +12,12 @@ export function createTask(partial: Partial<Task>): Task {
   // but we also keep track of it here.
   const estimatedMinutes = partial.estimatedMinutes ?? 0;
   
-  // Manual boost defaults to 5
-  const manualBoost = partial.manualBoost ?? 5;
+  // Manual boost defaults to local storage or 5
+  let manualBoost = partial.manualBoost;
+  if (manualBoost === undefined) {
+    const savedBoost = localStorage.getItem('prima_manualBoost');
+    manualBoost = savedBoost ? Number(savedBoost) : 5;
+  }
 
   const now = Date.now();
 
@@ -31,6 +35,7 @@ export function createTask(partial: Partial<Task>): Task {
     estimatedMinutes,
     subtasksCount: partial.subtasksCount ?? 0,
     isProject: partial.isProject ?? false,
+    parentId: partial.parentId,
     recurrence: partial.recurrence || '',
     manualBoost,
     nonPostponable,

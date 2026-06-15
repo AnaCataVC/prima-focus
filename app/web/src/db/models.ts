@@ -12,6 +12,7 @@ export interface Task {
   estimatedMinutes: number;
   subtasksCount: number;
   isProject: boolean;
+  parentId?: string;
   recurrence: string;
   manualBoost: number; // default 5
   nonPostponable: boolean;
