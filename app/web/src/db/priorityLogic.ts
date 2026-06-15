@@ -1,4 +1,4 @@
-import { Task } from './models';
+import type { Task } from './models';
 
 export function calculatePriorityScore(task: Partial<Task>, ageDays: number = 0): number {
   const categoryWeight = task.categoryWeight ?? 1.0;

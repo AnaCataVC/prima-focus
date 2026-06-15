@@ -1,5 +1,6 @@
-import { openDB, DBSchema, IDBPDatabase } from 'idb';
-import { Task, Session, Event } from './models';
+import { openDB } from 'idb';
+import type { DBSchema, IDBPDatabase } from 'idb';
+import type { Task, Session, Event } from './models';
 
 // Interfaz para TypeScript y auto-completado
 interface PrimaFocusDB extends DBSchema {

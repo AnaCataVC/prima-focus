@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Chip } from '../components/BaseComponents';
+import { Card } from '../components/BaseComponents';
 
 export const SettingsScreen: React.FC = () => {
   const [manualBoost, setManualBoost] = useState<number>(5);
@@ -37,7 +37,7 @@ export const SettingsScreen: React.FC = () => {
               checked={autoSplit} 
               onChange={(e) => setAutoSplit(e.target.checked)} 
             />
-            Auto-split en tareas largas (>120min)
+            Auto-split en tareas largas (&gt;120min)
           </label>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>

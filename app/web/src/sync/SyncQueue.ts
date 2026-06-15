@@ -1,4 +1,4 @@
-import { Task, Event, Session } from '../db/models';
+
 
 export interface SyncOperation {
   collection: 'tasks' | 'events' | 'sessions';
@@ -21,6 +21,7 @@ export class SyncQueue {
   }
 
   public enqueueMutation(collection: string, payload: any) {
+    console.log('Enqueue', collection, payload);
     // 1. Mark item as dirty locally and increment version
     // 2. Save to IndexedDB
     // 3. Try to process queue

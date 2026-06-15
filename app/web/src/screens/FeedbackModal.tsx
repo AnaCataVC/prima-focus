@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Chip } from '../components/BaseComponents';
+import { Chip } from '../components/BaseComponents';
 
 export const FeedbackModal: React.FC = () => {
   return (

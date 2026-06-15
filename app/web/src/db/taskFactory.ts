@@ -1,4 +1,4 @@
-import { Task } from './models';
+import type { Task } from './models';
 
 export function createTask(partial: Partial<Task>): Task {
   const isMedicalOrUrgent = 
