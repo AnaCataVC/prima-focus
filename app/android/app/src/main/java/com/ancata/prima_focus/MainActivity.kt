@@ -1,0 +1,155 @@
+package com.ancata.prima_focus
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.ancata.prima_focus.ui.screens.HomeScreen
+import com.ancata.prima_focus.ui.screens.InboxModal
+import com.ancata.prima_focus.ui.screens.TimerScreen
+import com.ancata.prima_focus.ui.screens.QuickReviewModal
+import com.ancata.prima_focus.ui.screens.SettingsScreen
+import com.ancata.prima_focus.ui.theme.PrimaFocusTheme
+import com.ancata.prima_focus.ui.viewmodel.TaskViewModel
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            PrimaFocusTheme {
+                MainApp()
+            }
+        }
+    }
+}
+
+@Composable
+fun MainApp() {
+    val navController = rememberNavController()
+    val viewModel: TaskViewModel = viewModel()
+    var showInboxModal by remember { mutableStateOf(false) }
+    var taskForReview by remember { mutableStateOf<String?>(null) }
+
+    Scaffold(
+        bottomBar = {
+            val navBackStackEntry by navController.currentBackStackEntryAsState()
+            val currentRoute = navBackStackEntry?.destination?.route
+
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surface
+            ) {
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+                    label = { Text("Hoy") },
+                    selected = currentRoute == "home",
+                    onClick = {
+                        navController.navigate("home") {
+                            popUpTo(navController.graph.startDestinationId)
+                            launchSingleTop = true
+                        }
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Settings, contentDescription = "Ajustes") },
+                    label = { Text("Ajustes") },
+                    selected = currentRoute == "settings",
+                    onClick = {
+                        navController.navigate("settings") {
+                            popUpTo(navController.graph.startDestinationId)
+                            launchSingleTop = true
+                        }
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                )
+            }
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { showInboxModal = true },
+                containerColor = MaterialTheme.colorScheme.primary
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Inbox", tint = MaterialTheme.colorScheme.onPrimary)
+            }
+        }
+    ) { innerPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = "home",
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            composable("home") {
+                HomeScreen(
+                    viewModel = viewModel,
+                    onStartTimer = { id, title, minutes ->
+                        val encodedTitle = android.net.Uri.encode(title)
+                        navController.navigate("timer/$id/$encodedTitle/$minutes")
+                    }
+                )
+            }
+            composable("settings") {
+                SettingsScreen(viewModel = viewModel)
+            }
+            composable(
+                route = "timer/{taskId}/{title}/{minutes}",
+                arguments = listOf(
+                    navArgument("taskId") { type = NavType.StringType },
+                    navArgument("title") { type = NavType.StringType },
+                    navArgument("minutes") { type = NavType.IntType }
+                )
+            ) { backStackEntry ->
+                val taskId = backStackEntry.arguments?.getString("taskId") ?: ""
+                val title = backStackEntry.arguments?.getString("title") ?: ""
+                val decodedTitle = android.net.Uri.decode(title)
+                val minutes = backStackEntry.arguments?.getInt("minutes") ?: 25
+                
+                TimerScreen(
+                    taskId = taskId,
+                    taskTitle = decodedTitle,
+                    estimatedMinutes = minutes,
+                    onMinimize = { navController.popBackStack() },
+                    onComplete = {
+                        navController.popBackStack()
+                        taskForReview = taskId
+                    }
+                )
+            }
+        }
+
+        if (showInboxModal) {
+            InboxModal(
+                viewModel = viewModel,
+                onDismiss = { showInboxModal = false }
+            )
+        }
+
+        taskForReview?.let { taskId ->
+            QuickReviewModal(
+                viewModel = viewModel,
+                taskId = taskId,
+                onDismiss = { taskForReview = null }
+            )
+        }
+    }
+}
