@@ -1,4 +1,4 @@
--- Versión inicial: schema_version = 1
+-- Versión inicial: schema_version = 1 (Local Room Database)
 
 CREATE TABLE IF NOT EXISTS tasks (
   taskId TEXT PRIMARY KEY,
@@ -20,11 +20,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   priorityScore REAL DEFAULT 0.0,
   status TEXT NOT NULL DEFAULT 'pending', -- pending|in_progress|completed|archived
   posponedReason TEXT,
-  encrypted INTEGER NOT NULL DEFAULT 0, -- 0/1
   createdAt INTEGER NOT NULL, -- epoch ms
   updatedAt INTEGER NOT NULL, -- epoch ms
-  version INTEGER NOT NULL DEFAULT 1,
-  dirty INTEGER NOT NULL DEFAULT 1, -- 0/1
   meta TEXT
 );
 
@@ -34,7 +31,6 @@ CREATE INDEX IF NOT EXISTS idx_tasks_updatedAt ON tasks(updatedAt);
 CREATE TABLE IF NOT EXISTS sessions (
   sessionId TEXT PRIMARY KEY,
   taskId TEXT,
-  userId TEXT,
   startAt INTEGER NOT NULL,
   endAt INTEGER,
   mode TEXT,
@@ -43,7 +39,6 @@ CREATE TABLE IF NOT EXISTS sessions (
   feeling INTEGER,
   createdAt INTEGER NOT NULL,
   updatedAt INTEGER NOT NULL,
-  dirty INTEGER NOT NULL DEFAULT 1,
   FOREIGN KEY(taskId) REFERENCES tasks(taskId) ON DELETE SET NULL
 );
 
@@ -58,8 +53,7 @@ CREATE TABLE IF NOT EXISTS events (
   action TEXT,
   status TEXT,
   createdAt INTEGER NOT NULL,
-  updatedAt INTEGER NOT NULL,
-  dirty INTEGER NOT NULL DEFAULT 1
+  updatedAt INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS analytics (

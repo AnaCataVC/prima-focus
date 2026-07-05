@@ -1,25 +1,19 @@
-# Implementation and Synchronization Notes
+# Implementation Notes
 
-## Offline-First Strategy (Local Sync Queue)
-The core tenet of Prima-Focus is that the user must never be blocked by a poor network connection.
-- **Local Writes First:** All modifications immediately persist to Room (Android) or IndexedDB (Web).
-- Keep `dirty = true` and increment `version` on every change at the record level.
-- A `SyncQueue` (background agent) processes writes in batch when network is available and marks `dirty = false` asynchronously upon Firestore confirmation.
-
-## Conflict Resolution
-- Compare `version` and `updatedAt` before overwriting.
-- Prefer client-side merging when possible.
-- Fallback to *last-write-wins* based on `updatedAt`.
-
-## Client-Side Encryption (E2EE)
-- If E2EE is enabled, encrypt `title` and `description` before persisting locally and uploading to the cloud.
-- Leave `categoryWeight`, `hasTime` and `timeUrgency` in plain text to allow the prioritization logic to run locally without decrypting everything.
+## Local-First Strategy
+The core tenet of Prima-Focus is privacy and speed. 
+- All modifications immediately persist to the Room Database (SQLite) on the Android device.
+- There is no cloud synchronization or background syncing queue.
+- No network connection is required to use the app.
 
 ## Recurrence
 - Store rules in `RRULE` format in the `recurrence` field and generate local instances.
-- Upon completing a recurring task, create the next instance based on the rule and send it to the sync queue.
+- Upon completing a recurring task, create the next instance based on the rule and save it to the local database.
 
 ## Migrations
 - Strictly version the database schema.
-- Provide migrations in Room (Android).
-- For IndexedDB (Web), use `openDB` with an `upgrade` function that transforms existing objects if there are version changes in the schema.
+- Provide migrations in Room using `Migration` classes to handle schema updates without data loss.
+
+## UI Implementation
+- The visual interface is natively built with **Jetpack Compose** following Material 3 guidelines and enforcing a Dark Mode aesthetic.
+- The Pomodoro timer relies on an Android `Foreground Service` (`TimerService`) to ensure persistence and reliability even when the app is backgrounded.

@@ -76,5 +76,3 @@ flowchart TD
 
 ## Defined Infrastructure
 **Android**: Kotlin, Room, WorkManager, ForegroundService, NotificationManager.
-**Web**: JS, IndexedDB, Service Worker, Notification API, Background Sync (if available).
-**Backend**: Firestore, optional Cloud Functions.

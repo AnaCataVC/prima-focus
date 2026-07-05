@@ -1,6 +1,6 @@
 # Wireframe Scope (Textual)
 
-Visual specifications ready for implementation in Native Android and PWA (Desktop). Includes 4 key screens + settings/recurrence screen, visual specifications (layout, sizes, suggested colors), microinteractions, states, and exact copy for each control, aligned with the data model and priority rules.
+Visual specifications ready for implementation in Native Android. Includes 4 key screens + settings/recurrence screen, visual specifications (layout, sizes, suggested colors), microinteractions, states, and exact copy for each control, aligned with the data model and priority rules.
 
 ## Visual Conventions and Tokens
 - **Typography**: Roboto (Android) / Inter (Web).
@@ -19,9 +19,6 @@ Visual specifications ready for implementation in Native Android and PWA (Deskto
 - **Actions**: Guardar (Primary, blue, 56dp pill) and Cancelar (text).
 - **Microinteraction**: tap mic -> show waveform and real-time transcription; if transcription is empty after 2s, save as "Nota rápida X".
 - **Shortcut**: FAB on all screens bottom right (icon + label "Inbox").
-### PWA modal (desktop)
-- **Layout**: centered modal 640×360 px; mic and text field inline; date and category as chips; Save button on the right.
-- **Exact Microcopy**: Placeholder: "Anotar en 2s", Save: "Añadir", Date chips: "Hoy", "Sin fecha".
 
 ## Screen 2: Today Task Home (main screen)
 **Goal**: show exactly 1 priority task with minimal steps and a large Start button.
@@ -37,10 +34,6 @@ Visual specifications ready for implementation in Native Android and PWA (Deskto
 - **States**:
   - No tasks: show empty card with "Añadir tarea" CTA and microcopy "Tu Tarea Hoy aparecerá aquí".
   - IsProject true: show yellow banner "Proyecto grande — dividir en subtareas" with Auto-split button.
-### PWA (desktop)
-- **3-column Layout**: left short Inbox; center Today Task (large 640px card); right history and points.
-- **Start**: launches timer in modal or right panel.
-- **Exact Card Copy**: Title example: "Enviar informe trimestral", Subtext: "Trabajo · entrega · 45 min", Start label: "Empezar".
 
 ## Screen 3: Start Screen and Timer
 **Goal**: initiate adapted Pomodoro, show progress and visible options.
@@ -52,8 +45,6 @@ Visual specifications ready for implementation in Native Android and PWA (Deskto
 - **Auto-fallback**: if not started within 10 min of Start tap, suggest "¿Prefieres 15/3 en vez de 25/5?" with CTA Cambiar.
 - **Foreground service**: persistence if app is backgrounded.
 - **Microinteractions**: Upon tapping Terminé, 600 ms confetti animation + subtle sound; then open Quick Review modal.
-### PWA
-- Timer in right panel; browser notifications if tab is backgrounded.
 
 ## Screen 4: Post-Session Quick Review
 **Goal**: 2 quick questions for feedback and logging.
@@ -87,7 +78,6 @@ Visual specifications ready for implementation in Native Android and PWA (Deskto
 ## Pre-Implementation Checklist
 - [x] Implement unique listener for Today Task to minimize reads.
 - [x] Foreground service in Android for timer.
-- [x] Service Worker + Notifications API in PWA with fallback UI.
 - [x] Confirm manualBoost UI and default value 5.
 - [x] NonPostponable defaults applied for medication and urgent paperwork.
 - [x] Auto-split prompt on create when estimatedMinutes > 120.
