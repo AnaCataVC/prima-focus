@@ -17,6 +17,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = PrimaFocusDatabase.getDatabase(application)
     private val taskDao = db.taskDao()
+    private val sessionDao = db.sessionDao()
     private val priorityEngine = PriorityEngine()
 
     private val _topTask = MutableStateFlow<TaskEntity?>(null)
@@ -61,6 +62,45 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         
         viewModelScope.launch(Dispatchers.IO) {
             taskDao.insertTask(processedTask)
+        }
+    }
+
+    fun completeTask(taskId: String, feeling: Int, result: String) {
+        val now = System.currentTimeMillis()
+        
+        viewModelScope.launch(Dispatchers.IO) {
+            val task = taskDao.getTaskById(taskId)
+            task?.let {
+                taskDao.updateTask(it.copy(status = "completed", updatedAt = now))
+            }
+            
+            val session = com.ancata.prima_focus.data.local.entity.SessionEntity(
+                sessionId = "session_$now",
+                taskId = taskId,
+                startAt = now - (25 * 60 * 1000), // Approximate for MVP
+                endAt = now,
+                mode = "focus",
+                durationMinutes = 25,
+                result = result,
+                feeling = feeling,
+                createdAt = now,
+                updatedAt = now
+            )
+            sessionDao.insertSession(session)
+        }
+    }
+
+    fun postponeTask(taskId: String, reason: String) {
+        val now = System.currentTimeMillis()
+        viewModelScope.launch(Dispatchers.IO) {
+            val task = taskDao.getTaskById(taskId)
+            task?.let {
+                taskDao.updateTask(it.copy(
+                    status = "pending",
+                    postponedReason = reason,
+                    updatedAt = now
+                ))
+            }
         }
     }
 }

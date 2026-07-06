@@ -125,10 +125,13 @@ fun QuickReviewModal(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            OutlinedButton(onClick = { /* TODO */ }) {
+                            OutlinedButton(onClick = {
+                                viewModel.postponeTask(taskId, reason = completedState ?: "postponed")
+                                onDismiss()
+                            }) {
                                 Text("Posponer")
                             }
-                            OutlinedButton(onClick = { /* TODO */ }) {
+                            OutlinedButton(onClick = { /* TODO Phase 5 */ }) {
                                 Text("Dividir")
                             }
                         }
@@ -139,8 +142,16 @@ fun QuickReviewModal(
             // Save Button
             Button(
                 onClick = {
+                    val feelingInt = when (moodState) {
+                        "bad" -> 1
+                        "ok" -> 3
+                        "good" -> 5
+                        else -> 3
+                    }
                     if (completedState == "yes") {
-                        // TODO: Update task status in viewmodel
+                        viewModel.completeTask(taskId, feeling = feelingInt, result = "completed")
+                    } else {
+                        viewModel.postponeTask(taskId, reason = completedState ?: "postponed")
                     }
                     onDismiss()
                 },
