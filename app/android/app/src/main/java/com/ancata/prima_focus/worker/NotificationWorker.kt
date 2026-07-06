@@ -1,0 +1,113 @@
+package com.ancata.prima_focus.worker
+
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import androidx.core.app.NotificationCompat
+import androidx.work.CoroutineWorker
+import androidx.work.WorkerParameters
+import com.ancata.prima_focus.MainActivity
+import com.ancata.prima_focus.R
+import com.ancata.prima_focus.data.local.PrimaFocusDatabase
+import com.ancata.prima_focus.domain.PriorityEngine
+import kotlinx.coroutines.flow.first
+
+class NotificationWorker(
+    private val context: Context,
+    workerParams: WorkerParameters
+) : CoroutineWorker(context, workerParams) {
+
+    override suspend fun doWork(): Result {
+        return try {
+            val db = PrimaFocusDatabase.getDatabase(context)
+            val taskDao = db.taskDao()
+            val priorityEngine = PriorityEngine()
+
+            // 1. Get all pending tasks
+            // We use first() to get the first emitted list from the Flow
+            val pendingTasks = taskDao.getPendingTasksOrderedByPriority().first()
+
+            if (pendingTasks.isEmpty()) {
+                return Result.success()
+            }
+
+            // 2. Recalculate priority
+            val updatedTasks = pendingTasks.map { task ->
+                priorityEngine.calculatePriority(task)
+            }
+
+            // 3. Save to DB
+            updatedTasks.forEach {
+                taskDao.updateTask(it)
+            }
+
+            // 4. Get Top Task (highest priorityScore)
+            val topTask = updatedTasks.maxByOrNull { it.priorityScore ?: 0.0 }
+            
+            topTask?.let {
+                val score = it.priorityScore ?: 0.0
+                
+                // 5. Dispatch notification
+                createNotificationChannel()
+                
+                val title = "Prima-Focus: ${it.title}"
+                val text = when {
+                    score >= 70.0 -> "¡Urgentísimo! Inicia esta tarea ahora."
+                    score >= 40.0 -> "Deberías enfocarte en esta tarea pronto."
+                    else -> "Para cuando tengas un tiempo libre."
+                }
+                
+                val priority = when {
+                    score >= 70.0 -> NotificationCompat.PRIORITY_MAX
+                    score >= 40.0 -> NotificationCompat.PRIORITY_DEFAULT
+                    else -> NotificationCompat.PRIORITY_LOW
+                }
+
+                val intent = Intent(context, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                }
+                
+                val pendingIntent: PendingIntent = PendingIntent.getActivity(
+                    context, 0, intent, PendingIntent.FLAG_IMMUTABLE
+                )
+
+                val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+                    .setSmallIcon(android.R.drawable.ic_dialog_info) // Placeholder
+                    .setContentTitle(title)
+                    .setContentText(text)
+                    .setPriority(priority)
+                    .setContentIntent(pendingIntent)
+                    .setAutoCancel(true)
+
+                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                notificationManager.notify(NOTIFICATION_ID, builder.build())
+            }
+
+            Result.success()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.retry()
+        }
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = "Prima-Focus Tasks"
+            val descriptionText = "Notificaciones de la tarea más importante"
+            val importance = NotificationManager.IMPORTANCE_HIGH
+            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
+                description = descriptionText
+            }
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    companion object {
+        const val CHANNEL_ID = "prima_focus_channel"
+        const val NOTIFICATION_ID = 101
+    }
+}
