@@ -1,117 +1,260 @@
 package com.ancata.prima_focus.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ancata.prima_focus.ui.theme.LocalPremiumGlows
 import com.ancata.prima_focus.ui.viewmodel.TaskViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(viewModel: TaskViewModel) {
     val scrollState = rememberScrollState()
+    val glows = LocalPremiumGlows.current
 
-    var manualBoost by remember { mutableFloatStateOf(5f) }
+    var manualBoost by remember { mutableFloatStateOf(viewModel.getManualBoostAmount().toFloat()) }
     var autoSplit by remember { mutableStateOf(false) }
     var nonPostponableHealth by remember { mutableStateOf(true) }
     var nonPostponableUrgent by remember { mutableStateOf(true) }
 
-    Column(
+    val glassModifier = Modifier
+        .fillMaxWidth()
+        .clip(RoundedCornerShape(24.dp))
+        .background(glows.glassSurface)
+        .border(
+            1.dp,
+            Brush.linearGradient(listOf(glows.glassBorderStart, glows.glassBorderEnd)),
+            RoundedCornerShape(24.dp)
+        )
+        .padding(24.dp)
+
+    val switchColors = SwitchDefaults.colors(
+        checkedThumbColor = glows.primaryAccent,
+        checkedTrackColor = glows.primaryGlow.copy(alpha = 0.3f),
+        uncheckedThumbColor = Color.White.copy(alpha = 0.7f),
+        uncheckedTrackColor = glows.glassSurface.copy(alpha = 0.5f),
+        uncheckedBorderColor = Color.Transparent
+    )
+    
+    val checkboxColors = CheckboxDefaults.colors(
+        checkedColor = glows.primaryAccent,
+        uncheckedColor = glows.glassBorderStart,
+        checkmarkColor = Color.White
+    )
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(scrollState)
-    ) {
-        Text(
-            text = "Ajustes",
-            style = MaterialTheme.typography.headlineLarge,
-            modifier = Modifier.padding(bottom = 24.dp)
-        )
-
-        // Recurrence section placeholder
-        SectionTitle("Recurrencia por defecto")
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = false, onClick = { /*TODO*/ }, label = { Text("Diaria") })
-            FilterChip(selected = false, onClick = { /*TODO*/ }, label = { Text("Semanal") })
-            FilterChip(selected = false, onClick = { /*TODO*/ }, label = { Text("Mensual") })
-        }
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Priority Settings
-        SectionTitle("Motor de Prioridades")
-        
-        // Auto-split
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Dividir automáticamente", fontWeight = FontWeight.SemiBold)
-                Text("Sugerir dividir tareas largas (>120m)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+            .drawBehind {
+                drawRect(
+                    brush = Brush.radialGradient(
+                        colors = listOf(glows.backgroundCenter, glows.backgroundEdge),
+                        center = Offset(size.width / 2f, 0f),
+                        radius = size.height * 0.8f
+                    )
+                )
             }
-            Switch(checked = autoSplit, onCheckedChange = { autoSplit = it })
-        }
-        
-        // Manual Boost
-        Spacer(modifier = Modifier.height(16.dp))
-        Text("Manual Boost: ${manualBoost.toInt()}", fontWeight = FontWeight.SemiBold)
-        Text("Incremento de prioridad base para nuevas tareas.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
-        Slider(
-            value = manualBoost,
-            onValueChange = { manualBoost = it },
-            valueRange = 0f..30f,
-            steps = 30
-        )
-        Spacer(modifier = Modifier.height(24.dp))
+            .padding(horizontal = 16.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+        ) {
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            Text(
+                text = "Ajustes",
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                modifier = Modifier.padding(bottom = 24.dp, start = 8.dp)
+            )
 
-        // Non-postponable rules
-        SectionTitle("Reglas No-Posponibles")
-        Text("Desactiva posponer en estas categorías:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
-        
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text("Salud -> Medicación")
-            Checkbox(checked = nonPostponableHealth, onCheckedChange = { nonPostponableHealth = it })
+            // Recurrence section placeholder
+            Column(modifier = glassModifier) {
+                SectionTitle("Recurrencia por defecto")
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp), 
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = false, 
+                        onClick = { /*TODO*/ }, 
+                        label = { Text("Diaria") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = Color.Transparent,
+                            labelColor = Color.White.copy(alpha = 0.7f)
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            borderColor = glows.glassBorderStart,
+                            enabled = true,
+                            selected = false
+                        )
+                    )
+                    FilterChip(
+                        selected = false, 
+                        onClick = { /*TODO*/ }, 
+                        label = { Text("Semanal") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = Color.Transparent,
+                            labelColor = Color.White.copy(alpha = 0.7f)
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            borderColor = glows.glassBorderStart,
+                            enabled = true,
+                            selected = false
+                        )
+                    )
+                    FilterChip(
+                        selected = false, 
+                        onClick = { /*TODO*/ }, 
+                        label = { Text("Mensual") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = Color.Transparent,
+                            labelColor = Color.White.copy(alpha = 0.7f)
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            borderColor = glows.glassBorderStart,
+                            enabled = true,
+                            selected = false
+                        )
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Priority Settings
+            Column(modifier = glassModifier) {
+                SectionTitle("Motor de Prioridades")
+                
+                // Auto-split
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
+                        Text("Dividir automáticamente", fontWeight = FontWeight.SemiBold, color = Color.White)
+                        Text("Sugerir dividir tareas largas (>120m)", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.6f))
+                    }
+                    Switch(checked = autoSplit, onCheckedChange = { autoSplit = it }, colors = switchColors)
+                }
+                
+                Divider(color = glows.glassBorderStart, modifier = Modifier.padding(vertical = 12.dp))
+                
+                // Manual Boost
+                Text("Boost Manual: ${manualBoost.toInt()}", fontWeight = FontWeight.SemiBold, color = Color.White)
+                Text("Puntos de prioridad que se sumarán al presionar el botón de Boost manual en la tarea.", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(bottom = 8.dp))
+                Slider(
+                    value = manualBoost,
+                    onValueChange = { manualBoost = it },
+                    valueRange = 0f..30f,
+                    steps = 30,
+                    colors = SliderDefaults.colors(
+                        thumbColor = glows.primaryAccent,
+                        activeTrackColor = glows.primaryGlow,
+                        inactiveTrackColor = glows.glassSurface
+                    )
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Non-postponable rules
+            Column(modifier = glassModifier) {
+                SectionTitle("Reglas No-Posponibles")
+                Text("Desactiva posponer en estas categorías:", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(bottom = 16.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Salud -> Medicación", color = Color.White)
+                    Checkbox(checked = nonPostponableHealth, onCheckedChange = { nonPostponableHealth = it }, colors = checkboxColors)
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Trámites -> Urgente", color = Color.White)
+                    Checkbox(checked = nonPostponableUrgent, onCheckedChange = { nonPostponableUrgent = it }, colors = checkboxColors)
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Active Categories
+            Column(modifier = glassModifier) {
+                SectionTitle("Categorías Activas")
+                Text("Oculta las categorías que no utilizas en el menú de Inbox.", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(bottom = 16.dp))
+                
+                val disabledCats = viewModel.getDisabledCategories()
+                viewModel.categoriesData.keys.forEach { categoryName ->
+                    var isEnabled by remember { mutableStateOf(!disabledCats.contains(categoryName)) }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(categoryName.replaceFirstChar { it.uppercase() }, color = Color.White)
+                        Switch(
+                            checked = isEnabled,
+                            onCheckedChange = { 
+                                isEnabled = it
+                                viewModel.setCategoryDisabled(categoryName, !it) 
+                            },
+                            colors = switchColors
+                        )
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            Button(
+                onClick = { 
+                    viewModel.setManualBoostAmount(manualBoost)
+                    // TODO: Save other settings when implemented
+                },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = glows.primaryAccent),
+                shape = RoundedCornerShape(16.dp),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
+            ) {
+                Text("Guardar Cambios", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            }
+            
+            Spacer(modifier = Modifier.height(96.dp)) // padding for bottom nav FAB
         }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text("Trámites -> Urgente")
-            Checkbox(checked = nonPostponableUrgent, onCheckedChange = { nonPostponableUrgent = it })
-        }
-        
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        Button(
-            onClick = { /* TODO: Save settings */ },
-            modifier = Modifier.fillMaxWidth().height(56.dp)
-        ) {
-            Text("Guardar Cambios", fontSize = 16.sp)
-        }
-        
-        Spacer(modifier = Modifier.height(64.dp)) // padding for bottom nav
     }
 }
 
 @Composable
 fun SectionTitle(title: String) {
+    val glows = LocalPremiumGlows.current
     Text(
         text = title,
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(bottom = 8.dp)
+        color = glows.primaryAccent
     )
 }

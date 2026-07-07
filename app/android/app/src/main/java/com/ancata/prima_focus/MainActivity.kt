@@ -113,7 +113,10 @@ fun MainApp(pendingIntentAction: MutableStateFlow<Intent?>) {
         }
     }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = navBackStackEntry?.destination?.route
@@ -170,6 +173,7 @@ fun MainApp(pendingIntentAction: MutableStateFlow<Intent?>) {
             composable("home") {
                 HomeScreen(
                     viewModel = viewModel,
+                    snackbarHostState = snackbarHostState,
                     onStartTimer = { id, title, minutes ->
                         val encodedTitle = android.net.Uri.encode(title)
                         navController.navigate("timer/$id/$encodedTitle/$minutes")
