@@ -37,8 +37,12 @@ import androidx.work.WorkManager
 import androidx.work.ExistingPeriodicWorkPolicy
 import java.util.concurrent.TimeUnit
 import com.ancata.prima_focus.worker.NotificationWorker
+import android.content.Intent
+import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {
+
+    private val pendingIntentAction = MutableStateFlow<Intent?>(null)
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -69,20 +73,45 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         askNotificationPermission()
         setupWorkManager()
+        
+        intent?.let { pendingIntentAction.value = it }
+        
         setContent {
             PrimaFocusTheme {
-                MainApp()
+                MainApp(pendingIntentAction)
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        pendingIntentAction.value = intent
     }
 }
 
 @Composable
-fun MainApp() {
+fun MainApp(pendingIntentAction: MutableStateFlow<Intent?>) {
     val navController = rememberNavController()
     val viewModel: TaskViewModel = viewModel()
     var showInboxModal by remember { mutableStateOf(false) }
     var taskForReview by remember { mutableStateOf<String?>(null) }
+    var navigateToTimer by remember { mutableStateOf<Intent?>(null) }
+    
+    val currentIntent by pendingIntentAction.collectAsState()
+
+    LaunchedEffect(currentIntent) {
+        currentIntent?.let { intent ->
+            when (intent.action) {
+                "com.ancata.prima_focus.ACTION_ADD_TASK" -> {
+                    showInboxModal = true
+                }
+                "com.ancata.prima_focus.ACTION_START_TIMER" -> {
+                    navigateToTimer = intent
+                }
+            }
+            pendingIntentAction.value = null
+        }
+    }
 
     Scaffold(
         bottomBar = {
@@ -146,6 +175,23 @@ fun MainApp() {
                         navController.navigate("timer/$id/$encodedTitle/$minutes")
                     }
                 )
+
+                LaunchedEffect(navigateToTimer) {
+                    navigateToTimer?.let { intent ->
+                        val id = intent.getStringExtra("taskId") ?: return@let
+                        val title = intent.getStringExtra("title") ?: return@let
+                        val minutes = intent.getIntExtra("minutes", 25)
+                        val encodedTitle = android.net.Uri.encode(title)
+                        
+                        // Prevent multiple navigations
+                        if (navController.currentDestination?.route != "timer/{taskId}/{title}/{minutes}") {
+                            navController.navigate("timer/$id/$encodedTitle/$minutes") {
+                                popUpTo("home")
+                            }
+                        }
+                        navigateToTimer = null
+                    }
+                }
             }
             composable("settings") {
                 SettingsScreen(viewModel = viewModel)

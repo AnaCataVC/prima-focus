@@ -13,6 +13,9 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE status = 'pending' ORDER BY priorityScore DESC")
     fun getPendingTasksOrderedByPriority(): Flow<List<TaskEntity>>
 
+    @Query("SELECT * FROM tasks WHERE status = 'pending' ORDER BY priorityScore DESC LIMIT 1")
+    suspend fun getTopTaskNow(): TaskEntity?
+
     @Query("SELECT * FROM tasks WHERE taskId = :taskId")
     fun getTaskById(taskId: String): TaskEntity?
 
