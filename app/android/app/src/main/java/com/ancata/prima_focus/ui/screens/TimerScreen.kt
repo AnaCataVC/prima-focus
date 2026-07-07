@@ -1,23 +1,31 @@
 package com.ancata.prima_focus.ui.screens
 
+import android.content.Intent
+import android.os.Build
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
-import android.content.Intent
-import android.os.Build
 import com.ancata.prima_focus.service.TimerService
+import com.ancata.prima_focus.ui.theme.LocalPremiumGlows
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -29,13 +37,13 @@ fun TimerScreen(
     onMinimize: () -> Unit,
     onComplete: () -> Unit
 ) {
-    // Basic timer state
     var totalSeconds by remember { mutableIntStateOf(estimatedMinutes * 60) }
     var remainingSeconds by remember { mutableIntStateOf(totalSeconds) }
     var isRunning by remember { mutableStateOf(true) }
     var showMenu by remember { mutableStateOf(false) }
     var showConfetti by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val glows = LocalPremiumGlows.current
 
     LaunchedEffect(isRunning) {
         val intent = Intent(context, TimerService::class.java).apply {
@@ -50,13 +58,9 @@ fun TimerScreen(
 
     LaunchedEffect(showConfetti) {
         if (showConfetti) {
-            // Simulate 600ms confetti + sound
             delay(600L)
-            
-            // Stop service
             val stopIntent = Intent(context, TimerService::class.java).apply { action = "STOP" }
             context.startService(stopIntent)
-            
             onComplete()
         }
     }
@@ -68,123 +72,166 @@ fun TimerScreen(
         }
     }
 
-    val progress = if (totalSeconds > 0) remainingSeconds.toFloat() / totalSeconds.toFloat() else 0f
-    val minutes = remainingSeconds / 60
-    val seconds = remainingSeconds % 60
-    val timeString = String.format("%02d:%02d", minutes, seconds)
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { 
-                    Text(
-                        text = taskTitle, 
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1
-                    ) 
-                },
-                navigationIcon = {
-                    IconButton(onClick = onMinimize) {
-                        Icon(Icons.Default.Close, contentDescription = "Minimize")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showMenu = !showMenu }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Options")
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Ajustar a 15 min") },
-                            onClick = {
-                                totalSeconds = 15 * 60
-                                remainingSeconds = totalSeconds
-                                showMenu = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Silenciar notificaciones") },
-                            onClick = { showMenu = false }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Abandonar") },
-                            onClick = { 
-                                showMenu = false
-                                onMinimize()
-                            }
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+    // Isolate recomposition for timer by keeping state read local to the text/progress
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .drawBehind {
+                drawRect(
+                    brush = Brush.radialGradient(
+                        colors = listOf(glows.backgroundCenter, glows.backgroundEdge),
+                        center = Offset(size.width / 2f, size.height / 3f),
+                        radius = size.height * 0.7f
+                    )
                 )
-            )
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            // Circular Counter
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.size(260.dp)
+            }
+    ) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                TopAppBar(
+                    title = { 
+                        Text(
+                            text = taskTitle, 
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color.White,
+                            maxLines = 1
+                        ) 
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onMinimize) {
+                            Icon(Icons.Default.Close, contentDescription = "Minimize", tint = Color.White)
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { showMenu = !showMenu }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "Options", tint = Color.White)
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Ajustar a 15 min") },
+                                onClick = {
+                                    totalSeconds = 15 * 60
+                                    remainingSeconds = totalSeconds
+                                    showMenu = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Abandonar") },
+                                onClick = { 
+                                    showMenu = false
+                                    onMinimize()
+                                }
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent
+                    )
+                )
+            }
+        ) { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                CircularProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f),
-                    strokeWidth = 12.dp
-                )
-                if (showConfetti) {
-                    Text("🎉", fontSize = 64.sp)
-                } else {
+                // Focus Pill
+                Box(
+                    modifier = Modifier
+                        .background(glows.glassSurface, CircleShape)
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                ) {
                     Text(
-                        text = timeString,
-                        style = MaterialTheme.typography.displayLarge.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onBackground
+                        text = "Modo Focus",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White.copy(alpha = 0.9f)
                     )
                 }
-            }
 
-            Spacer(modifier = Modifier.height(48.dp))
+                Spacer(modifier = Modifier.height(48.dp))
 
-            // Buttons Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                OutlinedButton(
-                    onClick = { isRunning = !isRunning },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp)
-                        .padding(end = 8.dp)
+                // Circular Counter
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(280.dp)
                 ) {
-                    Text(if (isRunning) "Pausa" else "Reanudar")
+                    // Glass background for timer
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                            .background(glows.glassSurface)
+                            .border(
+                                1.dp,
+                                Brush.linearGradient(listOf(glows.glassBorderStart, glows.glassBorderEnd)),
+                                CircleShape
+                            )
+                    )
+                    
+                    CircularProgressIndicator(
+                        progress = { if (totalSeconds > 0) remainingSeconds.toFloat() / totalSeconds.toFloat() else 0f },
+                        modifier = Modifier.fillMaxSize().padding(16.dp),
+                        color = glows.primaryGlow,
+                        trackColor = Color.Transparent,
+                        strokeWidth = 4.dp
+                    )
+                    
+                    if (showConfetti) {
+                        Text("🎉", fontSize = 64.sp)
+                    } else {
+                        val minutes = remainingSeconds / 60
+                        val seconds = remainingSeconds % 60
+                        Text(
+                            text = String.format("%02d:%02d", minutes, seconds),
+                            style = MaterialTheme.typography.displayLarge.copy(
+                                fontWeight = FontWeight.Light,
+                                fontSize = 72.sp
+                            ),
+                            color = Color.White
+                        )
+                    }
                 }
 
-                Button(
+                Spacer(modifier = Modifier.height(64.dp))
+
+                // Big prominent play/pause button
+                FloatingActionButton(
+                    onClick = { isRunning = !isRunning },
+                    shape = CircleShape,
+                    containerColor = glows.primaryAccent,
+                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 16.dp),
+                    modifier = Modifier.size(96.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isRunning) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        contentDescription = if (isRunning) "Pausar" else "Reanudar",
+                        tint = Color.White,
+                        modifier = Modifier.size(48.dp)
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Done button
+                OutlinedButton(
                     onClick = {
                         isRunning = false
                         showConfetti = true
                     },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp)
-                        .padding(start = 8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF34C759) // Accent Green
-                    )
+                    modifier = Modifier.height(48.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color.White
+                    ),
+                    border = null // No hard border, rely on text
                 ) {
-                    Text("Terminé", color = Color.White)
+                    Text("Terminé", color = Color.White.copy(alpha = 0.7f), fontSize = 16.sp)
                 }
             }
         }

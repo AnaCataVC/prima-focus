@@ -4,15 +4,33 @@ import android.app.Activity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+data class PremiumGlowColors(
+    val primaryGlow: Color,
+    val primaryAccent: Color,
+    val coloredShadow: Color,
+    val glassSurface: Color,
+    val glassBorderStart: Color,
+    val glassBorderEnd: Color,
+    val bottomNavBg: Color,
+    val backgroundCenter: Color,
+    val backgroundEdge: Color
+)
+
+val LocalPremiumGlows = staticCompositionLocalOf<PremiumGlowColors> {
+    error("No PremiumGlowColors provided")
+}
+
 private val DarkColorScheme = darkColorScheme(
-    primary = PrimaryBlue,
-    secondary = AccentGreen,
+    primary = PurpleNeonLight,
+    secondary = PurpleNeon,
     tertiary = AccentGreen,
     background = DarkBackground,
     surface = DarkSurface,
@@ -28,21 +46,36 @@ private val DarkColorScheme = darkColorScheme(
 fun PrimaFocusTheme(
     content: @Composable () -> Unit
 ) {
-    // Forzamos el modo oscuro según la decisión del usuario
     val colorScheme = DarkColorScheme
+    
+    val premiumGlows = PremiumGlowColors(
+        primaryGlow = PurpleNeon,
+        primaryAccent = PurpleNeonLight,
+        coloredShadow = NeonShadow,
+        glassSurface = GlassSurface,
+        glassBorderStart = GlassBorderStart,
+        glassBorderEnd = GlassBorderEnd,
+        bottomNavBg = BottomNavBackground,
+        backgroundCenter = DeepSpaceBackground,
+        backgroundEdge = DarkBackground
+    )
 
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.background.toArgb()
+            window.statusBarColor = premiumGlows.backgroundEdge.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
         }
     }
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+        typography = Typography
+    ) {
+        CompositionLocalProvider(
+            LocalPremiumGlows provides premiumGlows,
+            content = content
+        )
+    }
 }
