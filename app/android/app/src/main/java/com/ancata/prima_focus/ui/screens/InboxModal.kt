@@ -3,7 +3,6 @@ package com.ancata.prima_focus.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,6 +18,16 @@ fun InboxModal(
 ) {
     var text by remember { mutableStateOf("") }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    
+    val categories = listOf(
+        "Trabajo" to 5.0,
+        "Estudio" to 4.0,
+        "Personal" to 3.0,
+        "Salud" to 4.0,
+        "General" to 2.0
+    )
+    var expanded by remember { mutableStateOf(false) }
+    var selectedCategory by remember { mutableStateOf(categories[0]) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -36,14 +45,6 @@ fun InboxModal(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                IconButton(onClick = { /* TODO: Voice input */ }) {
-                    Icon(
-                        imageVector = Icons.Default.Mic,
-                        contentDescription = "Micrófono",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
@@ -64,6 +65,41 @@ fun InboxModal(
                 )
             }
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Category Selector
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !expanded },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 48.dp)
+            ) {
+                OutlinedTextField(
+                    value = selectedCategory.first,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Categoría") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                    },
+                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                )
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    categories.forEach { categoryItem ->
+                        DropdownMenuItem(
+                            text = { Text(categoryItem.first) },
+                            onClick = {
+                                selectedCategory = categoryItem
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
 
             Row(
@@ -77,7 +113,7 @@ fun InboxModal(
                 Button(
                     onClick = {
                         if (text.isNotBlank()) {
-                            viewModel.quickAdd(text)
+                            viewModel.quickAdd(text, selectedCategory.first, selectedCategory.second)
                             onDismiss()
                         }
                     },

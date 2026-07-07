@@ -36,16 +36,16 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun quickAdd(title: String) {
+    fun quickAdd(title: String, category: String = "General", weight: Double = 2.0) {
         val now = System.currentTimeMillis()
         val tempId = "task_$now"
         val newTask = TaskEntity(
             taskId = tempId,
             title = title,
             description = null,
-            category = "General",
+            category = category,
             subcategory = null,
-            categoryWeight = 2.0, // Default weight
+            categoryWeight = weight,
             date = null,
             time = null,
             estimatedMinutes = 15,
