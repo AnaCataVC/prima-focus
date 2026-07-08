@@ -18,13 +18,25 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
     private val sharedPrefs = application.getSharedPreferences("prima_focus_prefs", Context.MODE_PRIVATE)
 
-    fun getManualBoostAmount(): Double {
-        return sharedPrefs.getFloat("manual_boost_amount", 10.0f).toDouble()
-    }
+    var manualBoostAmount: Double
+        get() = sharedPrefs.getFloat("manual_boost_amount", 10.0f).toDouble()
+        set(value) = sharedPrefs.edit().putFloat("manual_boost_amount", value.toFloat()).apply()
 
-    fun setManualBoostAmount(amount: Float) {
-        sharedPrefs.edit().putFloat("manual_boost_amount", amount).apply()
-    }
+    var defaultRecurrence: String
+        get() = sharedPrefs.getString("default_recurrence", "none") ?: "none"
+        set(value) = sharedPrefs.edit().putString("default_recurrence", value).apply()
+
+    var autoSplit: Boolean
+        get() = sharedPrefs.getBoolean("auto_split", false)
+        set(value) = sharedPrefs.edit().putBoolean("auto_split", value).apply()
+
+    var nonPostponableHealth: Boolean
+        get() = sharedPrefs.getBoolean("non_postponable_health", true)
+        set(value) = sharedPrefs.edit().putBoolean("non_postponable_health", value).apply()
+
+    var nonPostponableUrgent: Boolean
+        get() = sharedPrefs.getBoolean("non_postponable_urgent", true)
+        set(value) = sharedPrefs.edit().putBoolean("non_postponable_urgent", value).apply()
 
     val categoriesData = mapOf(
         "trabajo" to listOf("comunicación" to 2.0, "entrega" to 3.5, "tarea adicional" to 2.0, "administrativo" to 1.0, "revisión" to 1.0, "documentación" to 2.0),
@@ -69,9 +81,18 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun quickAdd(title: String, category: String = "General", subcategory: String? = null, weight: Double = 2.0) {
+    fun quickAdd(
+        title: String, 
+        category: String = "General", 
+        subcategory: String? = null, 
+        weight: Double = 2.0,
+        estimatedMinutes: Int? = 15,
+        date: String? = null,
+        subtasksCount: Int = 0
+    ) {
         val now = System.currentTimeMillis()
         val tempId = "task_$now"
+        val isProject = (estimatedMinutes ?: 0) > 120
         val newTask = TaskEntity(
             taskId = tempId,
             title = title,
@@ -79,9 +100,11 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             category = category,
             subcategory = subcategory,
             categoryWeight = weight,
-            date = null,
+            date = date,
             time = null,
-            estimatedMinutes = 15,
+            estimatedMinutes = estimatedMinutes,
+            subtasksCount = subtasksCount,
+            isProject = isProject,
             status = "pending",
             createdAt = now,
             updatedAt = now,
@@ -141,7 +164,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             val task = taskDao.getTaskById(taskId)
             task?.let {
-                val boostAmount = getManualBoostAmount()
+                val boostAmount = manualBoostAmount
                 val updatedTask = priorityEngine.calculatePriority(it.copy(manualBoost = it.manualBoost + boostAmount))
                 taskDao.updateTask(updatedTask)
             }
@@ -158,5 +181,13 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             taskDao.insertTask(task)
         }
+    }
+
+    fun splitTask(taskId: String) {
+        // TODO: Phase 5 - Implement task splitting logic (e.g. mark as project and create subtasks)
+    }
+
+    fun snoozeTask(taskId: String) {
+        // TODO: Implement snooze logic
     }
 }

@@ -27,10 +27,11 @@ fun SettingsScreen(viewModel: TaskViewModel) {
     val scrollState = rememberScrollState()
     val glows = LocalPremiumGlows.current
 
-    var manualBoost by remember { mutableFloatStateOf(viewModel.getManualBoostAmount().toFloat()) }
-    var autoSplit by remember { mutableStateOf(false) }
-    var nonPostponableHealth by remember { mutableStateOf(true) }
-    var nonPostponableUrgent by remember { mutableStateOf(true) }
+    var manualBoost by remember { mutableFloatStateOf(viewModel.manualBoostAmount.toFloat()) }
+    var autoSplit by remember { mutableStateOf(viewModel.autoSplit) }
+    var nonPostponableHealth by remember { mutableStateOf(viewModel.nonPostponableHealth) }
+    var nonPostponableUrgent by remember { mutableStateOf(viewModel.nonPostponableUrgent) }
+    var defaultRecurrence by remember { mutableStateOf(viewModel.defaultRecurrence) }
 
     val glassModifier = Modifier
         .fillMaxWidth()
@@ -94,8 +95,8 @@ fun SettingsScreen(viewModel: TaskViewModel) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     FilterChip(
-                        selected = false, 
-                        onClick = { /*TODO*/ }, 
+                        selected = defaultRecurrence == "daily", 
+                        onClick = { defaultRecurrence = "daily" }, 
                         label = { Text("Diaria") },
                         colors = FilterChipDefaults.filterChipColors(
                             containerColor = Color.Transparent,
@@ -104,12 +105,12 @@ fun SettingsScreen(viewModel: TaskViewModel) {
                         border = FilterChipDefaults.filterChipBorder(
                             borderColor = glows.glassBorderStart,
                             enabled = true,
-                            selected = false
+                            selected = defaultRecurrence == "daily"
                         )
                     )
                     FilterChip(
-                        selected = false, 
-                        onClick = { /*TODO*/ }, 
+                        selected = defaultRecurrence == "weekly", 
+                        onClick = { defaultRecurrence = "weekly" }, 
                         label = { Text("Semanal") },
                         colors = FilterChipDefaults.filterChipColors(
                             containerColor = Color.Transparent,
@@ -118,12 +119,12 @@ fun SettingsScreen(viewModel: TaskViewModel) {
                         border = FilterChipDefaults.filterChipBorder(
                             borderColor = glows.glassBorderStart,
                             enabled = true,
-                            selected = false
+                            selected = defaultRecurrence == "weekly"
                         )
                     )
                     FilterChip(
-                        selected = false, 
-                        onClick = { /*TODO*/ }, 
+                        selected = defaultRecurrence == "monthly", 
+                        onClick = { defaultRecurrence = "monthly" }, 
                         label = { Text("Mensual") },
                         colors = FilterChipDefaults.filterChipColors(
                             containerColor = Color.Transparent,
@@ -132,7 +133,7 @@ fun SettingsScreen(viewModel: TaskViewModel) {
                         border = FilterChipDefaults.filterChipBorder(
                             borderColor = glows.glassBorderStart,
                             enabled = true,
-                            selected = false
+                            selected = defaultRecurrence == "monthly"
                         )
                     )
                 }
@@ -157,7 +158,7 @@ fun SettingsScreen(viewModel: TaskViewModel) {
                     Switch(checked = autoSplit, onCheckedChange = { autoSplit = it }, colors = switchColors)
                 }
                 
-                Divider(color = glows.glassBorderStart, modifier = Modifier.padding(vertical = 12.dp))
+                HorizontalDivider(color = glows.glassBorderStart, modifier = Modifier.padding(vertical = 12.dp))
                 
                 // Manual Boost
                 Text("Boost Manual: ${manualBoost.toInt()}", fontWeight = FontWeight.SemiBold, color = Color.White)
@@ -232,8 +233,11 @@ fun SettingsScreen(viewModel: TaskViewModel) {
             
             Button(
                 onClick = { 
-                    viewModel.setManualBoostAmount(manualBoost)
-                    // TODO: Save other settings when implemented
+                    viewModel.manualBoostAmount = manualBoost.toDouble()
+                    viewModel.autoSplit = autoSplit
+                    viewModel.nonPostponableHealth = nonPostponableHealth
+                    viewModel.nonPostponableUrgent = nonPostponableUrgent
+                    viewModel.defaultRecurrence = defaultRecurrence
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = glows.primaryAccent),
