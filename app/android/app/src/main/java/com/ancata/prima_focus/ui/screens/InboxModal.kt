@@ -14,6 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
@@ -30,6 +32,7 @@ fun InboxModal(
     var text by remember { mutableStateOf(taskToEdit?.title ?: "") }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val glows = LocalPremiumGlows.current
+    val context = LocalContext.current
     
     val disabledCats = viewModel.getDisabledCategories()
     val categoriesData = viewModel.categoriesData.filterKeys { !disabledCats.contains(it) }
@@ -114,6 +117,7 @@ fun InboxModal(
                                         subtasksCount = parsedSubtasks
                                     )
                                 )
+                                Toast.makeText(context, "Tarea actualizada", Toast.LENGTH_SHORT).show()
                             } else {
                                 viewModel.quickAdd(
                                     title = text, 
@@ -124,6 +128,7 @@ fun InboxModal(
                                     estimatedMinutes = finalMinutes,
                                     subtasksCount = parsedSubtasks
                                 )
+                                Toast.makeText(context, "Tarea guardada", Toast.LENGTH_SHORT).show()
                             }
                             onDismiss()
                         }
@@ -150,7 +155,7 @@ fun InboxModal(
                     modifier = Modifier.weight(1f)
                 ) {
                     OutlinedTextField(
-                        value = selectedCategory,
+                        value = selectedCategory.replaceFirstChar { it.uppercase() },
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Categoría", color = Color.White.copy(alpha = 0.6f)) },
@@ -171,7 +176,7 @@ fun InboxModal(
                     ) {
                         categoryNames.forEach { cat ->
                             DropdownMenuItem(
-                                text = { Text(cat, color = Color.White) },
+                                text = { Text(cat.replaceFirstChar { it.uppercase() }, color = Color.White) },
                                 onClick = {
                                     selectedCategory = cat
                                     categoryExpanded = false
@@ -189,7 +194,7 @@ fun InboxModal(
                     modifier = Modifier.weight(1f)
                 ) {
                     OutlinedTextField(
-                        value = selectedSubcategory?.first ?: "",
+                        value = selectedSubcategory?.first?.replaceFirstChar { it.uppercase() } ?: "",
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Subcategoría", color = Color.White.copy(alpha = 0.6f)) },
@@ -210,7 +215,7 @@ fun InboxModal(
                     ) {
                         currentSubcategories.forEach { subcat ->
                             DropdownMenuItem(
-                                text = { Text(subcat.first, color = Color.White) },
+                                text = { Text(subcat.first.replaceFirstChar { it.uppercase() }, color = Color.White) },
                                 onClick = {
                                     selectedSubcategory = subcat
                                     subcategoryExpanded = false

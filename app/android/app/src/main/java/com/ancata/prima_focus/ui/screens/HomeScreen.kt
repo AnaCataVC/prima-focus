@@ -10,10 +10,11 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material3.*
+import androidx.compose.runtime.key
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.runtime.Composable
@@ -29,6 +30,8 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -47,6 +50,7 @@ fun HomeScreen(
     val topTask by viewModel.topTask.collectAsState()
     val glows = LocalPremiumGlows.current
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     Box(
         modifier = Modifier
@@ -106,14 +110,16 @@ fun HomeScreen(
                         }
                         SwipeToDismissBoxValue.EndToStart -> {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            viewModel.deleteTask(task.taskId)
                             coroutineScope.launch {
+                                dismissState.snapTo(SwipeToDismissBoxValue.Settled)
+                                viewModel.deleteTask(task.taskId)
                                 val result = snackbarHostState.showSnackbar(
                                     message = "Tarea eliminada",
                                     actionLabel = "Deshacer"
                                 )
                                 if (result == SnackbarResult.ActionPerformed) {
                                     viewModel.restoreTask(task)
+                                    Toast.makeText(context, "Tarea restaurada", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }
@@ -121,9 +127,10 @@ fun HomeScreen(
                     }
                 }
 
-                SwipeToDismissBox(
-                    state = dismissState,
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)),
+                key(task.taskId) {
+                    SwipeToDismissBox(
+                        state = dismissState,
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)),
                     backgroundContent = {
                         val isBoost = dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd
                         val isDelete = dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart
@@ -139,7 +146,7 @@ fun HomeScreen(
                         }
                         
                         val icon = when {
-                            isBoost -> Icons.Default.KeyboardArrowUp
+                            isBoost -> Icons.Default.ArrowUpward
                             isDelete -> Icons.Default.Delete
                             else -> null
                         }
@@ -224,14 +231,19 @@ fun HomeScreen(
                             Box(
                                 modifier = Modifier
                                     .background(
-                                        color = if (task.priorityScore >= 70) MaterialTheme.colorScheme.error.copy(alpha = 0.2f) 
+                                        color = if (task.priorityScore >= 70) Color(0xFFE65100).copy(alpha = 0.2f) 
                                                 else glows.glassSurface.copy(alpha = 0.3f),
                                         shape = CircleShape
                                     )
                                     .padding(horizontal = 12.dp, vertical = 6.dp)
                             ) {
+                                val priorityText = when {
+                                    task.priorityScore >= 70 -> "Urgente"
+                                    task.priorityScore >= 40 -> "Alta"
+                                    else -> "Normal"
+                                }
                                 Text(
-                                    text = "Score: ${task.priorityScore.toInt()}",
+                                    text = priorityText,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = Color.White.copy(alpha = 0.87f)
                                 )
@@ -247,7 +259,9 @@ fun HomeScreen(
                             modifier = Modifier.padding(bottom = 12.dp)
                         )
 
-                        val catStr = if (!task.subcategory.isNullOrBlank()) "${task.category} - ${task.subcategory}" else task.category
+                        val catCap = task.category.replaceFirstChar { it.uppercase() }
+                        val subCatCap = task.subcategory?.replaceFirstChar { it.uppercase() }
+                        val catStr = if (!subCatCap.isNullOrBlank()) "$catCap - $subCatCap" else catCap
                         val minutesStr = task.estimatedMinutes?.takeIf { it > 0 }?.let { "$it min" } ?: "∞"
                         Text(
                             text = "$catStr • $minutesStr",
@@ -265,24 +279,51 @@ fun HomeScreen(
                             )
                         }
 
-                        FloatingActionButton(
-                            onClick = { 
-                                onStartTimer(task.taskId, task.title, task.estimatedMinutes ?: 25)
-                            },
-                            shape = CircleShape,
-                            containerColor = glows.primaryAccent,
-                            elevation = FloatingActionButtonDefaults.elevation(
-                                defaultElevation = 12.dp,
-                                pressedElevation = 16.dp
-                            ),
-                            modifier = Modifier.size(80.dp)
+                        Row(
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.PlayArrow,
-                                contentDescription = "Empezar",
-                                tint = Color.White,
-                                modifier = Modifier.size(40.dp)
-                            )
+                            FloatingActionButton(
+                                onClick = { 
+                                    onStartTimer(task.taskId, task.title, task.estimatedMinutes ?: 25)
+                                },
+                                shape = CircleShape,
+                                containerColor = glows.primaryAccent,
+                                elevation = FloatingActionButtonDefaults.elevation(
+                                    defaultElevation = 12.dp,
+                                    pressedElevation = 16.dp
+                                ),
+                                modifier = Modifier.size(80.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = "Empezar",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(40.dp)
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.width(32.dp))
+                            
+                            FloatingActionButton(
+                                onClick = { 
+                                    viewModel.completeTask(task.taskId, feeling = 3, result = "Quick complete")
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("¡Tarea completada!")
+                                    }
+                                },
+                                shape = CircleShape,
+                                containerColor = glows.glassSurface.copy(alpha = 0.5f),
+                                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 0.dp),
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Completar Rápido",
+                                    tint = Color.White.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
                         
                         Spacer(modifier = Modifier.height(24.dp))
@@ -302,12 +343,18 @@ fun HomeScreen(
                             IconButton(onClick = { onEditTask(task) }) {
                                 Icon(Icons.Default.Edit, contentDescription = "Editar", tint = Color.White.copy(alpha = 0.5f))
                             }
-                            IconButton(onClick = { viewModel.snoozeTask(task.taskId) }) {
-                                Icon(Icons.Default.DateRange, contentDescription = "Posponer", tint = Color.White.copy(alpha = 0.5f))
+                            IconButton(onClick = {
+                                viewModel.snoozeTask(task.taskId)
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("Tarea pospuesta para mañana")
+                                }
+                            }) {
+                                Icon(Icons.Default.ArrowForward, contentDescription = "Posponer", tint = Color.White.copy(alpha = 0.5f))
                             }
                         }
                     }
                     }
+                }
                 }
             } else {
                 Spacer(modifier = Modifier.weight(1f))

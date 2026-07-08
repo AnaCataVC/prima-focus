@@ -33,8 +33,10 @@ class TopTaskWidgetProvider : AppWidgetProvider() {
 
                     if (topTask != null) {
                         views.setTextViewText(R.id.widget_top_task_title, topTask.title)
-                        val baseCat = if (topTask.category.isNotBlank()) topTask.category else "Sin categoría"
-                        val catStr = if (!topTask.subcategory.isNullOrBlank()) "$baseCat - ${topTask.subcategory}" else baseCat
+                        val catCap = topTask.category.replaceFirstChar { it.uppercase() }
+                        val subCatCap = topTask.subcategory?.replaceFirstChar { it.uppercase() }
+                        val baseCat = if (catCap.isNotBlank()) catCap else "Sin categoría"
+                        val catStr = if (!subCatCap.isNullOrBlank()) "$baseCat - $subCatCap" else baseCat
                         views.setTextViewText(R.id.widget_top_task_category, "$catStr • ${topTask.estimatedMinutes} min")
                         views.setViewVisibility(R.id.widget_top_task_play, View.VISIBLE)
 
