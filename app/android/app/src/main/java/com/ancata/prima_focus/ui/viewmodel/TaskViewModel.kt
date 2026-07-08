@@ -18,8 +18,11 @@ import androidx.work.WorkManager
 import androidx.work.ExistingPeriodicWorkPolicy
 import java.util.concurrent.TimeUnit
 import com.ancata.prima_focus.worker.NotificationWorker
+import com.ancata.prima_focus.worker.RecurrenceReconciliationWorker
+import java.time.LocalDate
 import java.util.UUID
 import com.ancata.prima_focus.utils.Constants
+import com.ancata.prima_focus.utils.RecurrenceCalculator
 import com.ancata.prima_focus.utils.TimeUtils
 
 class TaskViewModel(application: Application) : AndroidViewModel(application) {
@@ -152,6 +155,18 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+        scheduleRecurrenceWorker()
+    }
+
+    /** Registers the daily recurrence reconciliation worker (idempotent — safe to call repeatedly). */
+    private fun scheduleRecurrenceWorker() {
+        val workRequest = PeriodicWorkRequestBuilder<RecurrenceReconciliationWorker>(24, TimeUnit.HOURS)
+            .build()
+        WorkManager.getInstance(getApplication()).enqueueUniquePeriodicWork(
+            Constants.WORKER_RECURRENCE,
+            ExistingPeriodicWorkPolicy.KEEP,
+            workRequest
+        )
     }
 
     private fun updateWidgets() {
@@ -177,18 +192,21 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun quickAdd(
-        title: String, 
-        category: String = "General", 
-        subcategory: String? = null, 
+        title: String,
+        category: String = "General",
+        subcategory: String? = null,
         weight: Double = 2.0,
         estimatedMinutes: Int? = 15,
         date: String? = null,
-        subtasksCount: Int = 0
+        subtasksCount: Int = 0,
+        recurrence: String? = null
     ) {
         val now = System.currentTimeMillis()
-        val tempId = UUID.randomUUID().toString()
+        val newTaskId = UUID.randomUUID().toString()
+        // If recurring, use the taskId as the group anchor for this series
+        val groupId = if (recurrence != null) newTaskId else null
         val newTask = TaskEntity(
-            taskId = tempId,
+            taskId = newTaskId,
             title = title,
             description = null,
             category = category,
@@ -204,12 +222,13 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             updatedAt = now,
             meta = null,
             postponedReason = null,
-            recurrence = null
+            recurrence = recurrence,
+            recurrenceGroupId = groupId
         )
-        
+
         // Pass through engine
         val processedTask = priorityEngine.calculatePriority(newTask)
-        
+
         viewModelScope.launch(Dispatchers.IO) {
             taskDao.insertTask(processedTask)
             updateWidgets()
@@ -218,17 +237,49 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
     fun completeTask(taskId: String, feeling: Int, result: String) {
         val now = System.currentTimeMillis()
-        
+
         viewModelScope.launch(Dispatchers.IO) {
             val task = taskDao.getTaskById(taskId)
             task?.let {
-                taskDao.updateTask(it.copy(status = "completed", updatedAt = now))
+                val completedTask = it.copy(status = "completed", updatedAt = now)
+
+                if (it.recurrence != null) {
+                    // Spawn next occurrence immediately after completing a recurring task
+                    val baseDate = try {
+                        if (it.date != null) LocalDate.parse(it.date) else LocalDate.now()
+                    } catch (e: Exception) {
+                        LocalDate.now()
+                    }
+                    val nextDate = RecurrenceCalculator.computeNextDate(it.recurrence, baseDate)
+
+                    if (nextDate != null) {
+                        val groupId = it.recurrenceGroupId ?: it.taskId
+                        val nextTask = priorityEngine.calculatePriority(
+                            it.copy(
+                                taskId = UUID.randomUUID().toString(),
+                                date = nextDate.toString(),
+                                status = "pending",
+                                manualBoost = 0.0,
+                                postponedReason = null,
+                                recurrenceGroupId = groupId,
+                                createdAt = now,
+                                updatedAt = now
+                            )
+                        )
+                        taskDao.completeAndSpawnNext(completedTask, nextTask)
+                    } else {
+                        // Unrecognized rule: just complete without spawning
+                        taskDao.updateTask(completedTask)
+                    }
+                } else {
+                    taskDao.updateTask(completedTask)
+                }
             }
-            
+
             val session = com.ancata.prima_focus.data.local.entity.SessionEntity(
                 sessionId = UUID.randomUUID().toString(),
                 taskId = taskId,
-                startAt = now - (25 * 60 * 1000), 
+                startAt = now - (25 * 60 * 1000),
                 endAt = now,
                 mode = "focus",
                 durationMinutes = 25,
@@ -285,7 +336,15 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateTask(task: TaskEntity) {
         viewModelScope.launch(Dispatchers.IO) {
-            val finalTask = priorityEngine.calculatePriority(task.copy(updatedAt = System.currentTimeMillis()))
+            // If the task now has a recurrence and no groupId yet, assign one
+            val withGroup = if (task.recurrence != null && task.recurrenceGroupId == null) {
+                task.copy(recurrenceGroupId = task.taskId)
+            } else if (task.recurrence == null) {
+                task.copy(recurrenceGroupId = null)
+            } else {
+                task
+            }
+            val finalTask = priorityEngine.calculatePriority(withGroup.copy(updatedAt = System.currentTimeMillis()))
             taskDao.updateTask(finalTask)
             updateWidgets()
         }

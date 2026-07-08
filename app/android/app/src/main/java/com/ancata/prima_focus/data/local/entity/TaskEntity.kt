@@ -19,7 +19,8 @@ data class TaskEntity(
     val estimatedMinutes: Int?,
     val subtasksCount: Int = 0,
     val isProject: Boolean = false,
-    val recurrence: String?,           // RFC5545 string or null
+    val recurrence: String?,           // "DAILY" | "WEEKLY:MO,WE,FR" | "MONTHLY" | null
+    val recurrenceGroupId: String? = null, // Groups all instances of the same recurring series
     val manualBoost: Double = 0.0,
     val nonPostponable: Boolean = false,
     val priorityScore: Double = 0.0,

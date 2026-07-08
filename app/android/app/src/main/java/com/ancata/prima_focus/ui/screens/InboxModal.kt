@@ -1,4 +1,4 @@
-package com.ancata.prima_focus.ui.screens
+﻿package com.ancata.prima_focus.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Send
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,6 +22,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import com.ancata.prima_focus.ui.theme.LocalPremiumGlows
 import com.ancata.prima_focus.ui.viewmodel.TaskViewModel
+import com.ancata.prima_focus.utils.RecurrenceCalculator
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,29 +35,33 @@ fun InboxModal(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val glows = LocalPremiumGlows.current
     val context = LocalContext.current
-    
+
     val disabledCats = viewModel.getDisabledCategories()
     val categoriesData = viewModel.categoriesData.filterKeys { !disabledCats.contains(it) }
 
     var categoryExpanded by remember { mutableStateOf(false) }
     var subcategoryExpanded by remember { mutableStateOf(false) }
-    
+
     val categoryNames = categoriesData.keys.toList()
     var selectedCategory by remember { mutableStateOf(taskToEdit?.category ?: categoryNames.firstOrNull() ?: "") }
-    
+
     val currentSubcategories = categoriesData[selectedCategory] ?: emptyList()
-    var selectedSubcategory by remember(selectedCategory) { 
+    var selectedSubcategory by remember(selectedCategory) {
         mutableStateOf(
             if (taskToEdit != null && taskToEdit.category == selectedCategory) {
                 currentSubcategories.find { it.first == taskToEdit.subcategory } ?: currentSubcategories.firstOrNull()
             } else {
                 currentSubcategories.firstOrNull()
             }
-        ) 
+        )
     }
     var selectedDate by remember { mutableStateOf(taskToEdit?.date) }
     var estimatedMinutes by remember { mutableStateOf(taskToEdit?.estimatedMinutes?.toString() ?: "") }
     var subtasksCount by remember { mutableStateOf(if (taskToEdit?.subtasksCount != null && taskToEdit.subtasksCount > 0) taskToEdit.subtasksCount.toString() else "") }
+
+    // Recurrence state
+    var recurrenceRule by remember { mutableStateOf(taskToEdit?.recurrence) }
+    var showRecurrenceSheet by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -78,7 +84,7 @@ fun InboxModal(
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
-                    placeholder = { Text("¿Qué tienes en mente?", color = Color.White.copy(alpha = 0.5f)) },
+                    placeholder = { Text("Â¿QuÃ© tienes en mente?", color = Color.White.copy(alpha = 0.5f)) },
                     modifier = Modifier
                         .weight(1f)
                         .padding(end = 12.dp),
@@ -114,19 +120,21 @@ fun InboxModal(
                                         categoryWeight = weight,
                                         date = selectedDate,
                                         estimatedMinutes = finalMinutes,
-                                        subtasksCount = parsedSubtasks
+                                        subtasksCount = parsedSubtasks,
+                                        recurrence = recurrenceRule
                                     )
                                 )
                                 Toast.makeText(context, "Tarea actualizada", Toast.LENGTH_SHORT).show()
                             } else {
                                 viewModel.quickAdd(
-                                    title = text, 
-                                    category = selectedCategory, 
-                                    subcategory = subcat, 
+                                    title = text,
+                                    category = selectedCategory,
+                                    subcategory = subcat,
                                     weight = weight,
                                     date = selectedDate,
                                     estimatedMinutes = finalMinutes,
-                                    subtasksCount = parsedSubtasks
+                                    subtasksCount = parsedSubtasks,
+                                    recurrence = recurrenceRule
                                 )
                                 Toast.makeText(context, "Tarea guardada", Toast.LENGTH_SHORT).show()
                             }
@@ -158,7 +166,7 @@ fun InboxModal(
                         value = selectedCategory.replaceFirstChar { it.uppercase() },
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Categoría", color = Color.White.copy(alpha = 0.6f)) },
+                        label = { Text("CategorÃ­a", color = Color.White.copy(alpha = 0.6f)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
                         modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                         colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
@@ -197,7 +205,7 @@ fun InboxModal(
                         value = selectedSubcategory?.first?.replaceFirstChar { it.uppercase() } ?: "",
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Subcategoría", color = Color.White.copy(alpha = 0.6f)) },
+                        label = { Text("SubcategorÃ­a", color = Color.White.copy(alpha = 0.6f)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subcategoryExpanded) },
                         modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                         colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
@@ -228,7 +236,8 @@ fun InboxModal(
             
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 FilterChip(
                     selected = selectedDate == "Hoy",
@@ -238,11 +247,60 @@ fun InboxModal(
                     border = FilterChipDefaults.filterChipBorder(borderColor = glows.glassBorderStart, enabled = true, selected = selectedDate == "Hoy")
                 )
                 FilterChip(
-                    selected = selectedDate == "Mañana",
-                    onClick = { selectedDate = if (selectedDate == "Mañana") null else "Mañana" },
-                    label = { Text("Mañana") },
+                    selected = selectedDate == "Ma\u00f1ana",
+                    onClick = { selectedDate = if (selectedDate == "Ma\u00f1ana") null else "Ma\u00f1ana" },
+                    label = { Text("Ma\u00f1ana") },
                     colors = FilterChipDefaults.filterChipColors(containerColor = Color.Transparent, labelColor = Color.White),
-                    border = FilterChipDefaults.filterChipBorder(borderColor = glows.glassBorderStart, enabled = true, selected = selectedDate == "Mañana")
+                    border = FilterChipDefaults.filterChipBorder(borderColor = glows.glassBorderStart, enabled = true, selected = selectedDate == "Ma\u00f1ana")
+                )
+
+                // Recurrence chip: shows icon when inactive, icon + label when active
+                val recurrenceLabel = RecurrenceCalculator.toLabel(recurrenceRule)
+                val recurrenceActive = recurrenceRule != null
+                FilterChip(
+                    selected = recurrenceActive,
+                    onClick = { showRecurrenceSheet = true },
+                    label = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Repeat,
+                                contentDescription = "Recurrencia",
+                                modifier = Modifier.size(14.dp),
+                                tint = if (recurrenceActive) glows.primaryAccent else Color.White.copy(alpha = 0.5f)
+                            )
+                            if (recurrenceLabel != null) {
+                                Text(
+                                    text = recurrenceLabel,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = glows.primaryAccent
+                                )
+                            }
+                        }
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        containerColor = Color.Transparent,
+                        labelColor = Color.White,
+                        selectedContainerColor = glows.primaryAccent.copy(alpha = 0.15f)
+                    ),
+                    border = FilterChipDefaults.filterChipBorder(
+                        borderColor = glows.glassBorderStart,
+                        selectedBorderColor = glows.primaryAccent,
+                        enabled = true,
+                        selected = recurrenceActive
+                    )
+                )
+            }
+
+            // Independent RecurrenceSheet (never nested inside another ModalBottomSheet)
+            if (showRecurrenceSheet) {
+                RecurrenceSheet(
+                    currentRule = recurrenceRule,
+                    isEditing = taskToEdit != null,
+                    onRuleSelected = { newRule -> recurrenceRule = newRule },
+                    onDismiss = { showRecurrenceSheet = false }
                 )
             }
             
@@ -253,7 +311,7 @@ fun InboxModal(
                 OutlinedTextField(
                     value = estimatedMinutes,
                     onValueChange = { estimatedMinutes = it },
-                    label = { Text("Minutos (0 = ∞)", color = Color.White.copy(alpha = 0.6f)) },
+                    label = { Text("Minutos (0 = âˆž)", color = Color.White.copy(alpha = 0.6f)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.weight(1f),
                     colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
@@ -284,3 +342,4 @@ fun InboxModal(
         }
     }
 }
+

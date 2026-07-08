@@ -19,6 +19,7 @@ object Constants {
 
     // Worker & Notifications
     const val WORKER_NOTIFICATION = "NotificationWorker"
+    const val WORKER_RECURRENCE = "RecurrenceReconciliationWorker"
     const val NOTIFICATION_CHANNEL_ID = "prima_focus_channel"
     const val NOTIFICATION_ID = 101
 }

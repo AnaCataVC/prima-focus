@@ -51,7 +51,7 @@ class PriorityEngine {
                     val minutesUntil = ChronoUnit.MINUTES.between(currentDateTime, scheduledDateTime)
                     
                     timeUrgency = when {
-                        minutesUntil < 0 -> 1.0 
+                        minutesUntil < 0 -> if (task.recurrence != null) 1.0 else 1.0
                         minutesUntil <= 120 -> 1.0
                         minutesUntil <= 1440 -> 0.6
                         else -> 0.0
@@ -62,6 +62,8 @@ class PriorityEngine {
                     val startOfScheduledDay = scheduledDate.atStartOfDay()
                     val minutesUntil = ChronoUnit.MINUTES.between(currentDateTime, startOfScheduledDay)
                     timeUrgency = when {
+                        // Recurring tasks with a past date get maximum urgency
+                        minutesUntil < 0 && task.recurrence != null -> 1.0
                         minutesUntil < 0 -> 0.6
                         minutesUntil <= 1440 -> 0.6
                         else -> 0.0
@@ -73,7 +75,9 @@ class PriorityEngine {
                 val startOfScheduledDay = scheduledDate.atStartOfDay()
                 val minutesUntil = ChronoUnit.MINUTES.between(currentDateTime, startOfScheduledDay)
                 timeUrgency = when {
-                    minutesUntil < 0 -> 0.6  // Overdue today or past, keep at 0.6
+                    // Recurring tasks with a past date get maximum urgency
+                    minutesUntil < 0 && task.recurrence != null -> 1.0
+                    minutesUntil < 0 -> 0.6  // Overdue non-recurring: keep at 0.6
                     minutesUntil <= 1440 -> 0.6 // Within 24 hours of start of day
                     else -> 0.0
                 }
