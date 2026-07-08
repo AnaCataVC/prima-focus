@@ -96,6 +96,9 @@ A subtle visual hint (e.g., a brief shimmer or bounce animation on first launch)
   - `OutlinedTextField` (weight=1f): transparent background, neon purple focused border, placeholder "¿Qué tienes en mente?" at 50% alpha.
   - FAB circular 56dp on the right: `primaryAccent` background, Send icon. Replaces the old "Guardar / Cancelar" buttons.
 - **Selectors Row**: `ExposedDropdownMenuBox` for Category and Subcategory side-by-side. `RoundedCornerShape(12dp)`, text in white, dropdown background in `backgroundEdge`.
+- **Quick Dates & Optional Defaults**:
+  - Two minimalist `FilterChip` buttons ("Hoy", "Mañana") to instantly set the due date.
+  - Optional `OutlinedTextField` fields for Minutes and Subtasks that inherit global defaults from Settings if left empty. Entering "0" in Minutes explicitly disables timing.
 
 ### Removed from original spec
 - ~~Mic icon / voice input~~ (discarded feature).
@@ -113,14 +116,15 @@ A subtle visual hint (e.g., a brief shimmer or bounce animation on first launch)
 - **Top Bar**: "HOY" label (white 60%) + sync status icon (right). Minimal.
 - **Task Card (center)**: Glass card pattern. Contains:
   - **Priority Badge (Pill)**: centered at top. Shows `Score: XX`. Error tint if score ≥ 70.
+  - **Project Warning**: Yellow banner stating "Proyecto grande — dividir en subtareas" if `isProject` is true (estimated > 120m).
   - **Task Title**: `headlineMedium`, white, max 2 lines with ellipsis.
-  - **Meta Row**: `category - subcategory • XX min` in `textSecondary`.
+  - **Meta Row**: `category - subcategory • XX min` in `textSecondary`. If task has subtasks, shows a minimal "+X más" label instead of visual checkboxes.
   - **Start FAB**: 80dp circle, `primaryAccent` bg, Play icon 40dp. "EMPEZAR" label below (bold, spaced).
+  - **Secondary Actions**: A minimalist row of transparent icon buttons (Editar, Posponer) rendered discreetly under the EMPEZAR label.
 - **Empty State**: centered text "Tu Tarea Hoy aparecerá aquí" at 50% alpha.
 
 ### Removed from original spec
-- ~~Secondary actions row (Edit, Capture, Snooze buttons)~~ — replaced by swipe gestures.
-- ~~Subtasks inline checkboxes~~ — not in current scope.
+- ~~Subtasks inline checkboxes~~ — simplified into a pure text label (`+X más subtareas`).
 - ~~Day progress (X/Y completadas)~~ — removed to reduce cognitive load.
 - ~~Boost IconButton~~ — replaced by Swipe Right gesture.
 
@@ -169,10 +173,12 @@ The timer counter **must be isolated** from the background layer. Only the text/
 - **Background**: same radial gradient.
 - **Title**: "Ajustes", `headlineLarge`, white, left-aligned.
 - **Sections**: each section is a **glass panel** (`GlassCard` pattern, 24dp radius, `glassSurface` bg).
-  1. **Recurrencia por defecto**: FilterChips (Diaria, Semanal, Mensual) — transparent bg, `glassBorderStart` border.
-  2. **Motor de Prioridades**: Auto-split `Switch` + Manual Boost `Slider` inside same panel. Divider between them: `glassBorderStart` 1dp line.
-  3. **Reglas No-Posponibles**: Checkboxes for Salud→Medicación and Trámites→Urgente.
-  4. **Categorías Activas**: List of all master categories with `Switch` controls to hide them from the Inbox.
+  1. **Valores por Defecto de Creación**: Scrollable row of `FilterChip` options for default minutes (including "0" for No Time) and default subtasks count.
+  2. **Frecuencia de Notificaciones**: Scrollable row of `FilterChip` options (Apagadas, 15m, 30m, 1h, 2h).
+  3. **Recurrencia por defecto**: FilterChips (Diaria, Semanal, Mensual) — transparent bg, `glassBorderStart` border.
+  4. **Motor de Prioridades**: Auto-split `Switch` + Manual Boost `Slider` inside same panel. Divider between them: `glassBorderStart` 1dp line.
+  5. **Reglas No-Posponibles**: Checkboxes for Salud→Medicación and Trámites→Urgente.
+  6. **Categorías Activas**: List of all master categories with `Switch` controls to hide them from the Inbox.
 - **Custom Controls**:
   - `Switch`: thumb `primaryAccent`, track `primaryGlow` at 30%, unchecked track/thumb white.
   - `Checkbox`: checked `primaryAccent`, checkmark white.
