@@ -187,7 +187,6 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         val now = System.currentTimeMillis()
         val tempId = UUID.randomUUID().toString()
-        val isProject = (estimatedMinutes ?: 0) > 120
         val newTask = TaskEntity(
             taskId = tempId,
             title = title,
@@ -199,7 +198,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             time = null,
             estimatedMinutes = estimatedMinutes,
             subtasksCount = subtasksCount,
-            isProject = isProject,
+            isProject = false,
             status = "pending",
             createdAt = now,
             updatedAt = now,
@@ -302,6 +301,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                     taskId = java.util.UUID.randomUUID().toString(),
                     title = "[Parte 1] ${it.title}",
                     estimatedMinutes = halfTime,
+                    isProject = false,
                     createdAt = System.currentTimeMillis(),
                     updatedAt = System.currentTimeMillis(),
                     status = "pending"
@@ -311,6 +311,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                     taskId = java.util.UUID.randomUUID().toString(),
                     title = "[Parte 2] ${it.title}",
                     estimatedMinutes = halfTime,
+                    isProject = false,
                     createdAt = System.currentTimeMillis(),
                     updatedAt = System.currentTimeMillis(),
                     status = "pending"
