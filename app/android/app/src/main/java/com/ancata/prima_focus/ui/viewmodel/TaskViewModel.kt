@@ -18,6 +18,7 @@ import androidx.work.WorkManager
 import androidx.work.ExistingPeriodicWorkPolicy
 import java.util.concurrent.TimeUnit
 import com.ancata.prima_focus.worker.NotificationWorker
+import java.util.UUID
 
 class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -103,7 +104,6 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
     val topTask: StateFlow<TaskEntity?> = _topTask.asStateFlow()
 
     init {
-        // Observers from DB
         viewModelScope.launch {
             taskDao.getPendingTasksOrderedByPriority().collectLatest { tasks ->
                 if (tasks.isNotEmpty()) {
@@ -125,7 +125,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         subtasksCount: Int = 0
     ) {
         val now = System.currentTimeMillis()
-        val tempId = "task_$now"
+        val tempId = UUID.randomUUID().toString()
         val isProject = (estimatedMinutes ?: 0) > 120
         val newTask = TaskEntity(
             taskId = tempId,
@@ -165,9 +165,9 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             }
             
             val session = com.ancata.prima_focus.data.local.entity.SessionEntity(
-                sessionId = "session_$now",
+                sessionId = UUID.randomUUID().toString(),
                 taskId = taskId,
-                startAt = now - (25 * 60 * 1000), // Approximate for MVP
+                startAt = now - (25 * 60 * 1000), 
                 endAt = now,
                 mode = "focus",
                 durationMinutes = 25,
@@ -217,11 +217,57 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateTask(task: TaskEntity) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val finalTask = priorityEngine.calculatePriority(task.copy(updatedAt = System.currentTimeMillis()))
+            taskDao.updateTask(finalTask)
+        }
+    }
+
     fun splitTask(taskId: String) {
-        // TODO: Phase 5 - Implement task splitting logic (e.g. mark as project and create subtasks)
+        viewModelScope.launch(Dispatchers.IO) {
+            val task = taskDao.getTaskById(taskId)
+            task?.let {
+                val halfTime = (it.estimatedMinutes ?: 0) / 2
+                
+                val part1 = it.copy(
+                    taskId = java.util.UUID.randomUUID().toString(),
+                    title = "[Parte 1] ${it.title}",
+                    estimatedMinutes = halfTime,
+                    createdAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis(),
+                    status = "pending"
+                )
+                
+                val part2 = it.copy(
+                    taskId = java.util.UUID.randomUUID().toString(),
+                    title = "[Parte 2] ${it.title}",
+                    estimatedMinutes = halfTime,
+                    createdAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis(),
+                    status = "pending"
+                )
+                
+                taskDao.insertTask(priorityEngine.calculatePriority(part1))
+                taskDao.insertTask(priorityEngine.calculatePriority(part2))
+                
+                taskDao.updateTask(it.copy(status = "archived", updatedAt = System.currentTimeMillis()))
+            }
+        }
     }
 
     fun snoozeTask(taskId: String) {
-        // TODO: Implement snooze logic
+        viewModelScope.launch(Dispatchers.IO) {
+            val task = taskDao.getTaskById(taskId)
+            task?.let {
+                val tomorrow = java.time.LocalDate.now().plusDays(1).toString()
+                val updatedTask = it.copy(
+                    date = tomorrow,
+                    status = "pending",
+                    updatedAt = System.currentTimeMillis()
+                )
+                taskDao.updateTask(priorityEngine.calculatePriority(updatedTask))
+            }
+        }
     }
 }

@@ -40,6 +40,3 @@ It is designed to provide a robust, private, and highly responsive experience by
 ### Implementation Notes:
 - **Offline-First**: Because there is no backend, all operations are instantly committed to Room.
 - **Notifications**: Scheduled locally via `WorkManager` or `AlarmManager` without relying on Firebase Cloud Messaging (FCM).
-
-## Discarded Features
-- **Voice Dictation (SpeechRecognizer)**: Originally considered for Phase 5 to allow fast task input. Discarded because it introduces unnecessary complexity, potential privacy concerns, and overcomplicates the MVP architecture without adding proportional value to the core experience.

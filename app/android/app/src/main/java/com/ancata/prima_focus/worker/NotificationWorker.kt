@@ -26,31 +26,25 @@ class NotificationWorker(
             val taskDao = db.taskDao()
             val priorityEngine = PriorityEngine()
 
-            // 1. Get all pending tasks
-            // We use first() to get the first emitted list from the Flow
             val pendingTasks = taskDao.getPendingTasksOrderedByPriority().first()
 
             if (pendingTasks.isEmpty()) {
                 return Result.success()
             }
 
-            // 2. Recalculate priority
             val updatedTasks = pendingTasks.map { task ->
                 priorityEngine.calculatePriority(task)
             }
 
-            // 3. Save to DB
             updatedTasks.forEach {
                 taskDao.updateTask(it)
             }
 
-            // 4. Get Top Task (highest priorityScore)
             val topTask = updatedTasks.maxByOrNull { it.priorityScore ?: 0.0 }
             
             topTask?.let {
                 val score = it.priorityScore ?: 0.0
                 
-                // 5. Dispatch notification
                 createNotificationChannel()
                 
                 val title = "Prima-Focus: ${it.title}"

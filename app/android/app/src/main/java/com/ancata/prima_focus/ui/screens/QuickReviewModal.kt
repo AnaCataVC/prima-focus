@@ -29,8 +29,8 @@ fun QuickReviewModal(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val glows = LocalPremiumGlows.current
     
-    var completedState by remember { mutableStateOf<String?>(null) } // "yes", "partial", "no"
-    var moodState by remember { mutableStateOf<String?>(null) } // "bad", "ok", "good"
+    var completedState by remember { mutableStateOf<String?>(null) }
+    var moodState by remember { mutableStateOf<String?>(null) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -55,7 +55,6 @@ fun QuickReviewModal(
                 modifier = Modifier.padding(bottom = 24.dp)
             )
 
-            // Question 1
             Text(
                 text = "¿Completaste la tarea?",
                 style = MaterialTheme.typography.bodyLarge,
@@ -88,7 +87,6 @@ fun QuickReviewModal(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Question 2
             Text(
                 text = "¿Cómo te sentiste?",
                 style = MaterialTheme.typography.bodyLarge,
@@ -118,8 +116,8 @@ fun QuickReviewModal(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Actions for Partial / No
             if (completedState == "partial" || completedState == "no") {
+                Spacer(modifier = Modifier.height(24.dp))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -168,7 +166,6 @@ fun QuickReviewModal(
                 }
             }
 
-            // Save Button
             Button(
                 onClick = {
                     val feelingInt = when (moodState) {

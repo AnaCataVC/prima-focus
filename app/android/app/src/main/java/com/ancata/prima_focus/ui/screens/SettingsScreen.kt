@@ -91,7 +91,6 @@ fun SettingsScreen(viewModel: TaskViewModel) {
                 modifier = Modifier.padding(bottom = 24.dp, start = 8.dp)
             )
 
-            // Recurrence section placeholder
             Column(modifier = glassModifier) {
                 SectionTitle("Recurrencia por defecto")
                 Row(
@@ -145,7 +144,6 @@ fun SettingsScreen(viewModel: TaskViewModel) {
             
             Spacer(modifier = Modifier.height(24.dp))
             
-            // Valores por defecto
             Column(modifier = glassModifier) {
                 SectionTitle("Valores por Defecto de Creación")
                 
@@ -200,7 +198,6 @@ fun SettingsScreen(viewModel: TaskViewModel) {
             
             Spacer(modifier = Modifier.height(24.dp))
             
-            // Frecuencia de Notificaciones
             Column(modifier = glassModifier) {
                 SectionTitle("Frecuencia de Notificaciones")
                 Row(
@@ -229,11 +226,9 @@ fun SettingsScreen(viewModel: TaskViewModel) {
             
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Priority Settings
             Column(modifier = glassModifier) {
                 SectionTitle("Motor de Prioridades")
                 
-                // Auto-split
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -248,7 +243,6 @@ fun SettingsScreen(viewModel: TaskViewModel) {
                 
                 HorizontalDivider(color = glows.glassBorderStart, modifier = Modifier.padding(vertical = 12.dp))
                 
-                // Manual Boost
                 Text("Boost Manual: ${manualBoost.toInt()}", fontWeight = FontWeight.SemiBold, color = Color.White)
                 Text("Puntos de prioridad que se sumarán al presionar el botón de Boost manual en la tarea.", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(bottom = 8.dp))
                 Slider(
@@ -266,7 +260,6 @@ fun SettingsScreen(viewModel: TaskViewModel) {
             
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Non-postponable rules
             Column(modifier = glassModifier) {
                 SectionTitle("Reglas No-Posponibles")
                 Text("Desactiva posponer en estas categorías:", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(bottom = 16.dp))
@@ -291,7 +284,6 @@ fun SettingsScreen(viewModel: TaskViewModel) {
             
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Active Categories
             Column(modifier = glassModifier) {
                 SectionTitle("Categorías Activas")
                 Text("Oculta las categorías que no utilizas en el menú de Inbox.", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(bottom = 16.dp))
@@ -338,7 +330,7 @@ fun SettingsScreen(viewModel: TaskViewModel) {
                 Text("Guardar Cambios", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
             }
             
-            Spacer(modifier = Modifier.height(96.dp)) // padding for bottom nav FAB
+            Spacer(modifier = Modifier.height(96.dp))
         }
     }
 }

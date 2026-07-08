@@ -41,7 +41,8 @@ import com.ancata.prima_focus.ui.viewmodel.TaskViewModel
 fun HomeScreen(
     viewModel: TaskViewModel,
     snackbarHostState: SnackbarHostState,
-    onStartTimer: (String, String, Int) -> Unit
+    onStartTimer: (String, String, Int) -> Unit,
+    onEditTask: (com.ancata.prima_focus.data.local.entity.TaskEntity) -> Unit = {}
 ) {
     val topTask by viewModel.topTask.collectAsState()
     val glows = LocalPremiumGlows.current
@@ -66,7 +67,6 @@ fun HomeScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Top bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -116,7 +116,6 @@ fun HomeScreen(
                                     viewModel.restoreTask(task)
                                 }
                             }
-                            // No need to snap back, task is deleted and will disappear
                         }
                         else -> {}
                     }
@@ -167,7 +166,6 @@ fun HomeScreen(
                         }
                     }
                 ) {
-                    // Central Card (Fake Glassmorphism)
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -181,7 +179,6 @@ fun HomeScreen(
                             shape = RoundedCornerShape(24.dp)
                         )
                 ) {
-                    // Subtle corner glow using radial gradient
                     Box(
                         modifier = Modifier
                             .matchParentSize()
@@ -201,7 +198,6 @@ fun HomeScreen(
                         modifier = Modifier.padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Project Banner
                         if (task.isProject) {
                             Row(
                                 modifier = Modifier
@@ -218,15 +214,13 @@ fun HomeScreen(
                             }
                         }
 
-                        // Top Row with Badge
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(bottom = 24.dp),
-                            horizontalArrangement = Arrangement.Center, // Centered since boost button is gone
+                            horizontalArrangement = Arrangement.Center, 
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Priority Badge (Pill)
                             Box(
                                 modifier = Modifier
                                     .background(
@@ -244,7 +238,6 @@ fun HomeScreen(
                             }
                         }
 
-                        // Title
                         Text(
                             text = task.title,
                             style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.SemiBold),
@@ -254,7 +247,6 @@ fun HomeScreen(
                             modifier = Modifier.padding(bottom = 12.dp)
                         )
 
-                        // Meta Row
                         val catStr = if (!task.subcategory.isNullOrBlank()) "${task.category} - ${task.subcategory}" else task.category
                         val minutesStr = task.estimatedMinutes?.takeIf { it > 0 }?.let { "$it min" } ?: "∞"
                         Text(
@@ -273,7 +265,6 @@ fun HomeScreen(
                             )
                         }
 
-                        // Start Button
                         FloatingActionButton(
                             onClick = { 
                                 onStartTimer(task.taskId, task.title, task.estimatedMinutes ?: 25)
@@ -308,7 +299,7 @@ fun HomeScreen(
                             horizontalArrangement = Arrangement.spacedBy(24.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            IconButton(onClick = { /* TODO Edit */ }) {
+                            IconButton(onClick = { onEditTask(task) }) {
                                 Icon(Icons.Default.Edit, contentDescription = "Editar", tint = Color.White.copy(alpha = 0.5f))
                             }
                             IconButton(onClick = { viewModel.snoozeTask(task.taskId) }) {
@@ -316,10 +307,9 @@ fun HomeScreen(
                             }
                         }
                     }
-                    } // Closes Central Card Box
-                } // End of SwipeToDismissBox
+                    }
+                }
             } else {
-                // Empty State
                 Spacer(modifier = Modifier.weight(1f))
                 Text(
                     text = "Tu Tarea Hoy aparecerá aquí",

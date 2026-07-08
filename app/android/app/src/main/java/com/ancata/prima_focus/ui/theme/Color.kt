@@ -21,7 +21,7 @@ val GlassBorderEnd = Color(0x00FFFFFF) // transparent
 val NeonShadow = Color(0x4DB026FF) // 30% neon purple
 val BottomNavBackground = Color(0x80160D24) // 50% dark surface
 
-// Light Theme Colors (Por si en el futuro queremos reactivarlo)
+// Preserved for future light theme support
 val LightBackground = Color(0xFFFFFFFF)
 val LightSurface = Color(0xFFF6F7FB)
 val LightTextPrimary = Color(0xFF0B1226)

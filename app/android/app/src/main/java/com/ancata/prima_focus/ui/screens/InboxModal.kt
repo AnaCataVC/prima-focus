@@ -24,9 +24,10 @@ import com.ancata.prima_focus.ui.viewmodel.TaskViewModel
 @Composable
 fun InboxModal(
     viewModel: TaskViewModel,
+    taskToEdit: com.ancata.prima_focus.data.local.entity.TaskEntity? = null,
     onDismiss: () -> Unit
 ) {
-    var text by remember { mutableStateOf("") }
+    var text by remember { mutableStateOf(taskToEdit?.title ?: "") }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val glows = LocalPremiumGlows.current
     
@@ -37,13 +38,21 @@ fun InboxModal(
     var subcategoryExpanded by remember { mutableStateOf(false) }
     
     val categoryNames = categoriesData.keys.toList()
-    var selectedCategory by remember { mutableStateOf(categoryNames[0]) }
+    var selectedCategory by remember { mutableStateOf(taskToEdit?.category ?: categoryNames.firstOrNull() ?: "") }
     
     val currentSubcategories = categoriesData[selectedCategory] ?: emptyList()
-    var selectedSubcategory by remember(selectedCategory) { mutableStateOf(currentSubcategories.firstOrNull()) }
-    var selectedDate by remember { mutableStateOf<String?>(null) }
-    var estimatedMinutes by remember { mutableStateOf("") }
-    var subtasksCount by remember { mutableStateOf("") }
+    var selectedSubcategory by remember(selectedCategory) { 
+        mutableStateOf(
+            if (taskToEdit != null && taskToEdit.category == selectedCategory) {
+                currentSubcategories.find { it.first == taskToEdit.subcategory } ?: currentSubcategories.firstOrNull()
+            } else {
+                currentSubcategories.firstOrNull()
+            }
+        ) 
+    }
+    var selectedDate by remember { mutableStateOf(taskToEdit?.date) }
+    var estimatedMinutes by remember { mutableStateOf(taskToEdit?.estimatedMinutes?.toString() ?: "") }
+    var subtasksCount by remember { mutableStateOf(if (taskToEdit?.subtasksCount != null && taskToEdit.subtasksCount > 0) taskToEdit.subtasksCount.toString() else "") }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -91,15 +100,31 @@ fun InboxModal(
                             val weight = selectedSubcategory?.second ?: 2.0
                             val parsedMinutes = estimatedMinutes.toIntOrNull() ?: viewModel.defaultEstimatedMinutes
                             val finalMinutes = if (parsedMinutes <= 0) null else parsedMinutes
-                            viewModel.quickAdd(
-                                title = text, 
-                                category = selectedCategory, 
-                                subcategory = subcat, 
-                                weight = weight,
-                                date = selectedDate,
-                                estimatedMinutes = finalMinutes,
-                                subtasksCount = subtasksCount.toIntOrNull() ?: viewModel.defaultSubtasksCount
-                            )
+                            val parsedSubtasks = subtasksCount.toIntOrNull() ?: viewModel.defaultSubtasksCount
+
+                            if (taskToEdit != null) {
+                                viewModel.updateTask(
+                                    taskToEdit.copy(
+                                        title = text,
+                                        category = selectedCategory,
+                                        subcategory = subcat,
+                                        categoryWeight = weight,
+                                        date = selectedDate,
+                                        estimatedMinutes = finalMinutes,
+                                        subtasksCount = parsedSubtasks
+                                    )
+                                )
+                            } else {
+                                viewModel.quickAdd(
+                                    title = text, 
+                                    category = selectedCategory, 
+                                    subcategory = subcat, 
+                                    weight = weight,
+                                    date = selectedDate,
+                                    estimatedMinutes = finalMinutes,
+                                    subtasksCount = parsedSubtasks
+                                )
+                            }
                             onDismiss()
                         }
                     },
@@ -118,9 +143,7 @@ fun InboxModal(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Category & Subcategory Selectors (Glassy styling)
             Row(modifier = Modifier.fillMaxWidth()) {
-                // Category
                 ExposedDropdownMenuBox(
                     expanded = categoryExpanded,
                     onExpandedChange = { categoryExpanded = !categoryExpanded },
@@ -160,7 +183,6 @@ fun InboxModal(
                 
                 Spacer(modifier = Modifier.width(12.dp))
                 
-                // Subcategory
                 ExposedDropdownMenuBox(
                     expanded = subcategoryExpanded,
                     onExpandedChange = { subcategoryExpanded = !subcategoryExpanded },
@@ -199,7 +221,6 @@ fun InboxModal(
                 }
             }
             
-            // Fechas Rápidas
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -220,7 +241,6 @@ fun InboxModal(
                 )
             }
             
-            // Tiempos y Subtareas
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)

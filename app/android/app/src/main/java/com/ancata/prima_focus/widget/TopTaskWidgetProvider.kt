@@ -47,13 +47,12 @@ class TopTaskWidgetProvider : AppWidgetProvider() {
                         }
                         val pendingIntent = PendingIntent.getActivity(
                             context,
-                            appWidgetId, // unique per widget instance
+                            appWidgetId, 
                             intent,
                             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                         )
                         views.setOnClickPendingIntent(R.id.widget_top_task_play, pendingIntent)
                         
-                        // Also clicking the whole widget can just open the app
                         val openAppIntent = Intent(context, MainActivity::class.java)
                         val openAppPendingIntent = PendingIntent.getActivity(
                             context,

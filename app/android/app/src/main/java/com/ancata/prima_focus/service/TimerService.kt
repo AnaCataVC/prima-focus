@@ -37,7 +37,7 @@ class TimerService : Service() {
         val notification: Notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle("Prima-Focus Timer")
             .setContentText("Timer is running...")
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm) // Placeholder icon
+            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setOngoing(true)
             .build()
 

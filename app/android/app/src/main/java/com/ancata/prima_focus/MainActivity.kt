@@ -102,6 +102,7 @@ fun MainApp(pendingIntentAction: MutableStateFlow<Intent?>) {
     val navController = rememberNavController()
     val viewModel: TaskViewModel = viewModel()
     var showInboxModal by remember { mutableStateOf(false) }
+    var taskToEdit by remember { mutableStateOf<com.ancata.prima_focus.data.local.entity.TaskEntity?>(null) }
     var taskForReview by remember { mutableStateOf<String?>(null) }
     var navigateToTimer by remember { mutableStateOf<Intent?>(null) }
     
@@ -185,6 +186,10 @@ fun MainApp(pendingIntentAction: MutableStateFlow<Intent?>) {
                     onStartTimer = { id, title, minutes ->
                         val encodedTitle = android.net.Uri.encode(title)
                         navController.navigate("timer/$id/$encodedTitle/$minutes")
+                    },
+                    onEditTask = { task ->
+                        taskToEdit = task
+                        showInboxModal = true
                     }
                 )
 
@@ -237,7 +242,11 @@ fun MainApp(pendingIntentAction: MutableStateFlow<Intent?>) {
         if (showInboxModal) {
             InboxModal(
                 viewModel = viewModel,
-                onDismiss = { showInboxModal = false }
+                taskToEdit = taskToEdit,
+                onDismiss = { 
+                    showInboxModal = false
+                    taskToEdit = null
+                }
             )
         }
 
