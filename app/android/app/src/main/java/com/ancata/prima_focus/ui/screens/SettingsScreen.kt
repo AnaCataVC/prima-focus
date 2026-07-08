@@ -16,6 +16,9 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import android.app.TimePickerDialog
+import android.widget.Toast
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,6 +30,7 @@ import com.ancata.prima_focus.ui.viewmodel.TaskViewModel
 fun SettingsScreen(viewModel: TaskViewModel) {
     val scrollState = rememberScrollState()
     val glows = LocalPremiumGlows.current
+    val context = LocalContext.current
 
     var manualBoost by remember { mutableFloatStateOf(viewModel.manualBoostAmount.toFloat()) }
     var autoSplit by remember { mutableStateOf(viewModel.autoSplit) }
@@ -34,8 +38,12 @@ fun SettingsScreen(viewModel: TaskViewModel) {
     var nonPostponableUrgent by remember { mutableStateOf(viewModel.nonPostponableUrgent) }
     var defaultRecurrence by remember { mutableStateOf(viewModel.defaultRecurrence) }
     var notificationFrequency by remember { mutableIntStateOf(viewModel.notificationFrequency) }
+    var isDisconnectModeEnabled by remember { mutableStateOf(viewModel.isDisconnectModeEnabled) }
+    var disconnectStartTime by remember { mutableStateOf(viewModel.disconnectStartTime) }
+    var disconnectEndTime by remember { mutableStateOf(viewModel.disconnectEndTime) }
     var defaultEstimatedMinutes by remember { mutableIntStateOf(viewModel.defaultEstimatedMinutes) }
     var defaultSubtasksCount by remember { mutableIntStateOf(viewModel.defaultSubtasksCount) }
+    var notifExpanded by remember { mutableStateOf(false) }
 
     val glassModifier = Modifier
         .fillMaxWidth()
@@ -200,27 +208,109 @@ fun SettingsScreen(viewModel: TaskViewModel) {
             
             Column(modifier = glassModifier) {
                 SectionTitle("Frecuencia de Notificaciones")
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp), 
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                
+                val options = listOf(-1 to "Apagadas", 90 to "1 hora y media", 180 to "3 horas", 300 to "5 horas")
+                val currentLabel = options.find { it.first == notificationFrequency }?.second ?: "Apagadas"
+                
+                ExposedDropdownMenuBox(
+                    expanded = notifExpanded,
+                    onExpandedChange = { notifExpanded = !notifExpanded },
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
                 ) {
-                    val options = listOf(-1 to "Apagadas", 15 to "15m", 30 to "30m", 60 to "1h", 120 to "2h")
-                    options.forEach { (minutes, label) ->
-                        FilterChip(
-                            selected = notificationFrequency == minutes,
-                            onClick = { notificationFrequency = minutes },
-                            label = { Text(label) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                containerColor = Color.Transparent,
-                                labelColor = Color.White.copy(alpha = 0.7f)
-                            ),
-                            border = FilterChipDefaults.filterChipBorder(
-                                borderColor = glows.glassBorderStart,
-                                enabled = true,
-                                selected = notificationFrequency == minutes
+                    OutlinedTextField(
+                        value = currentLabel,
+                        onValueChange = {},
+                        readOnly = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = notifExpanded) },
+                        modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = glows.primaryGlow,
+                            unfocusedBorderColor = glows.glassBorderStart,
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    ExposedDropdownMenu(
+                        expanded = notifExpanded,
+                        onDismissRequest = { notifExpanded = false },
+                        modifier = Modifier.background(glows.backgroundEdge)
+                    ) {
+                        options.forEach { (minutes, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label, color = Color.White) },
+                                onClick = {
+                                    notificationFrequency = minutes
+                                    notifExpanded = false
+                                }
                             )
-                        )
+                        }
                     }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Column(modifier = glassModifier) {
+                SectionTitle("Modo Desconexión")
+                Text("Pausa los recordatorios durante la noche", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(bottom = 8.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Silenciar durante la noche", color = Color.White, fontWeight = FontWeight.SemiBold)
+                    Switch(checked = isDisconnectModeEnabled, onCheckedChange = { isDisconnectModeEnabled = it }, colors = switchColors)
+                }
+                
+                if (isDisconnectModeEnabled) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Desde", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.6f))
+                            OutlinedButton(
+                                onClick = {
+                                    val parts = disconnectStartTime.split(":")
+                                    val h = parts.getOrNull(0)?.toIntOrNull() ?: 22
+                                    val m = parts.getOrNull(1)?.toIntOrNull() ?: 0
+                                    TimePickerDialog(context, { _, hour, minute ->
+                                        disconnectStartTime = String.format("%02d:%02d", hour, minute)
+                                    }, h, m, true).show()
+                                },
+                                modifier = Modifier.fillMaxWidth().padding(end = 8.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, glows.glassBorderStart)
+                            ) {
+                                Text(disconnectStartTime)
+                            }
+                        }
+                        
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Hasta", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.6f))
+                            OutlinedButton(
+                                onClick = {
+                                    val parts = disconnectEndTime.split(":")
+                                    val h = parts.getOrNull(0)?.toIntOrNull() ?: 8
+                                    val m = parts.getOrNull(1)?.toIntOrNull() ?: 0
+                                    TimePickerDialog(context, { _, hour, minute ->
+                                        disconnectEndTime = String.format("%02d:%02d", hour, minute)
+                                    }, h, m, true).show()
+                                },
+                                modifier = Modifier.fillMaxWidth().padding(start = 8.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, glows.glassBorderStart)
+                            ) {
+                                Text(disconnectEndTime)
+                            }
+                        }
+                    }
+                    Text("Los recordatorios se pausarán y recibirás un resumen a la mañana siguiente.", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.5f), modifier = Modifier.padding(top = 16.dp))
                 }
             }
             
@@ -321,6 +411,11 @@ fun SettingsScreen(viewModel: TaskViewModel) {
                     viewModel.notificationFrequency = notificationFrequency
                     viewModel.defaultEstimatedMinutes = defaultEstimatedMinutes
                     viewModel.defaultSubtasksCount = defaultSubtasksCount
+                    viewModel.isDisconnectModeEnabled = isDisconnectModeEnabled
+                    viewModel.disconnectStartTime = disconnectStartTime
+                    viewModel.disconnectEndTime = disconnectEndTime
+                    
+                    Toast.makeText(context, "Ajustes guardados correctamente", Toast.LENGTH_SHORT).show()
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = glows.primaryAccent),

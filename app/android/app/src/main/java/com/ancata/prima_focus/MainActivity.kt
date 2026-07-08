@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,6 +23,7 @@ import com.ancata.prima_focus.ui.screens.InboxModal
 import com.ancata.prima_focus.ui.screens.TimerScreen
 import com.ancata.prima_focus.ui.screens.QuickReviewModal
 import com.ancata.prima_focus.ui.screens.SettingsScreen
+import com.ancata.prima_focus.ui.screens.TaskListScreen
 import com.ancata.prima_focus.ui.theme.PrimaFocusTheme
 import com.ancata.prima_focus.ui.viewmodel.TaskViewModel
 import androidx.navigation.NavType
@@ -149,6 +151,21 @@ fun MainApp(pendingIntentAction: MutableStateFlow<Intent?>) {
                     )
                 )
                 NavigationBarItem(
+                    icon = { Icon(Icons.Default.List, contentDescription = "Tareas") },
+                    label = { Text("Tareas") },
+                    selected = currentRoute == "list",
+                    onClick = {
+                        navController.navigate("list") {
+                            popUpTo(navController.graph.startDestinationId)
+                            launchSingleTop = true
+                        }
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                )
+                NavigationBarItem(
                     icon = { Icon(Icons.Default.Settings, contentDescription = "Ajustes") },
                     label = { Text("Ajustes") },
                     selected = currentRoute == "settings",
@@ -209,6 +226,12 @@ fun MainApp(pendingIntentAction: MutableStateFlow<Intent?>) {
                         navigateToTimer = null
                     }
                 }
+            }
+            composable("list") {
+                TaskListScreen(
+                    viewModel = viewModel,
+                    snackbarHostState = snackbarHostState
+                )
             }
             composable("settings") {
                 SettingsScreen(viewModel = viewModel)

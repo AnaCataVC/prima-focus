@@ -26,6 +26,34 @@ class NotificationWorker(
             val taskDao = db.taskDao()
             val priorityEngine = PriorityEngine()
 
+            val sharedPrefs = context.getSharedPreferences("prima_focus_prefs", Context.MODE_PRIVATE)
+            val dndEnabled = sharedPrefs.getBoolean("disconnect_mode_enabled", false)
+            if (dndEnabled) {
+                val start = sharedPrefs.getString("disconnect_start_time", "22:00") ?: "22:00"
+                val end = sharedPrefs.getString("disconnect_end_time", "08:00") ?: "08:00"
+                
+                val now = java.util.Calendar.getInstance()
+                val currentHour = now.get(java.util.Calendar.HOUR_OF_DAY)
+                val currentMinute = now.get(java.util.Calendar.MINUTE)
+                val currentTotal = currentHour * 60 + currentMinute
+                
+                val startParts = start.split(":").map { it.toInt() }
+                val startTotal = startParts[0] * 60 + startParts[1]
+                
+                val endParts = end.split(":").map { it.toInt() }
+                val endTotal = endParts[0] * 60 + endParts[1]
+                
+                val inQuietHours = if (startTotal < endTotal) {
+                    currentTotal in startTotal..endTotal
+                } else {
+                    currentTotal >= startTotal || currentTotal <= endTotal
+                }
+                
+                if (inQuietHours) {
+                    return Result.success()
+                }
+            }
+
             val pendingTasks = taskDao.getPendingTasksOrderedByPriority().first()
 
             if (pendingTasks.isEmpty()) {

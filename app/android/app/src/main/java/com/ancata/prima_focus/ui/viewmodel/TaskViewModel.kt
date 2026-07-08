@@ -25,10 +25,34 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
     private val sharedPrefs = application.getSharedPreferences("prima_focus_prefs", Context.MODE_PRIVATE)
 
     var notificationFrequency: Int
-        get() = sharedPrefs.getInt("notification_frequency", 15)
+        get() {
+            val freq = sharedPrefs.getInt("notification_frequency", 90)
+            return if (freq !in listOf(-1, 90, 180, 300)) 90 else freq
+        }
         set(value) {
             sharedPrefs.edit().putInt("notification_frequency", value).apply()
             updateNotificationWorker(value)
+        }
+
+    var isDisconnectModeEnabled: Boolean
+        get() = sharedPrefs.getBoolean("disconnect_mode_enabled", false)
+        set(value) {
+            sharedPrefs.edit().putBoolean("disconnect_mode_enabled", value).apply()
+            updateNotificationWorker(notificationFrequency)
+        }
+
+    var disconnectStartTime: String
+        get() = sharedPrefs.getString("disconnect_start_time", "22:00") ?: "22:00"
+        set(value) {
+            sharedPrefs.edit().putString("disconnect_start_time", value).apply()
+            updateNotificationWorker(notificationFrequency)
+        }
+
+    var disconnectEndTime: String
+        get() = sharedPrefs.getString("disconnect_end_time", "08:00") ?: "08:00"
+        set(value) {
+            sharedPrefs.edit().putString("disconnect_end_time", value).apply()
+            updateNotificationWorker(notificationFrequency)
         }
 
     private fun updateNotificationWorker(frequencyMinutes: Int) {
@@ -37,7 +61,42 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             workManager.cancelUniqueWork("NotificationWorker")
             return
         }
-        val workRequest = PeriodicWorkRequestBuilder<NotificationWorker>(frequencyMinutes.toLong(), TimeUnit.MINUTES).build()
+        
+        var initialDelayMinutes = 0L
+        if (isDisconnectModeEnabled) {
+            val start = disconnectStartTime
+            val end = disconnectEndTime
+            
+            val now = java.util.Calendar.getInstance()
+            val currentHour = now.get(java.util.Calendar.HOUR_OF_DAY)
+            val currentMinute = now.get(java.util.Calendar.MINUTE)
+            val currentTotal = currentHour * 60 + currentMinute
+            
+            val startParts = start.split(":").map { it.toInt() }
+            val startTotal = startParts[0] * 60 + startParts[1]
+            
+            val endParts = end.split(":").map { it.toInt() }
+            val endTotal = endParts[0] * 60 + endParts[1]
+            
+            val inQuietHours = if (startTotal < endTotal) {
+                currentTotal in startTotal..endTotal
+            } else {
+                currentTotal >= startTotal || currentTotal <= endTotal
+            }
+            
+            if (inQuietHours) {
+                initialDelayMinutes = if (currentTotal <= endTotal) {
+                    (endTotal - currentTotal).toLong()
+                } else {
+                    (1440 - currentTotal + endTotal).toLong()
+                }
+            }
+        }
+
+        val workRequest = PeriodicWorkRequestBuilder<NotificationWorker>(frequencyMinutes.toLong(), TimeUnit.MINUTES)
+            .setInitialDelay(initialDelayMinutes, TimeUnit.MINUTES)
+            .build()
+            
         workManager.enqueueUniquePeriodicWork(
             "NotificationWorker",
             ExistingPeriodicWorkPolicy.REPLACE,
@@ -103,9 +162,13 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
     private val _topTask = MutableStateFlow<TaskEntity?>(null)
     val topTask: StateFlow<TaskEntity?> = _topTask.asStateFlow()
 
+    private val _pendingTasks = MutableStateFlow<List<TaskEntity>>(emptyList())
+    val pendingTasks: StateFlow<List<TaskEntity>> = _pendingTasks.asStateFlow()
+
     init {
         viewModelScope.launch {
             taskDao.getPendingTasksOrderedByPriority().collectLatest { tasks ->
+                _pendingTasks.value = tasks
                 if (tasks.isNotEmpty()) {
                     _topTask.value = tasks.first()
                 } else {
@@ -113,6 +176,28 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+    }
+
+    private fun updateWidgets() {
+        val appContext = getApplication<Application>().applicationContext
+        
+        // Update AddTaskWidget
+        val addWidgetIntent = android.content.Intent(appContext, com.ancata.prima_focus.widget.AddTaskWidgetProvider::class.java).apply {
+            action = android.appwidget.AppWidgetManager.ACTION_APPWIDGET_UPDATE
+        }
+        val addWidgetIds = android.appwidget.AppWidgetManager.getInstance(appContext)
+            .getAppWidgetIds(android.content.ComponentName(appContext, com.ancata.prima_focus.widget.AddTaskWidgetProvider::class.java))
+        addWidgetIntent.putExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_IDS, addWidgetIds)
+        appContext.sendBroadcast(addWidgetIntent)
+
+        // Update TopTaskWidget
+        val topWidgetIntent = android.content.Intent(appContext, com.ancata.prima_focus.widget.TopTaskWidgetProvider::class.java).apply {
+            action = android.appwidget.AppWidgetManager.ACTION_APPWIDGET_UPDATE
+        }
+        val topWidgetIds = android.appwidget.AppWidgetManager.getInstance(appContext)
+            .getAppWidgetIds(android.content.ComponentName(appContext, com.ancata.prima_focus.widget.TopTaskWidgetProvider::class.java))
+        topWidgetIntent.putExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_IDS, topWidgetIds)
+        appContext.sendBroadcast(topWidgetIntent)
     }
 
     fun quickAdd(
@@ -152,6 +237,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         
         viewModelScope.launch(Dispatchers.IO) {
             taskDao.insertTask(processedTask)
+            updateWidgets()
         }
     }
 
@@ -177,6 +263,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                 updatedAt = now
             )
             sessionDao.insertSession(session)
+            updateWidgets()
         }
     }
 
@@ -190,6 +277,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                     postponedReason = reason,
                     updatedAt = now
                 ))
+                updateWidgets()
             }
         }
     }
@@ -201,6 +289,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                 val boostAmount = manualBoostAmount
                 val updatedTask = priorityEngine.calculatePriority(it.copy(manualBoost = it.manualBoost + boostAmount))
                 taskDao.updateTask(updatedTask)
+                updateWidgets()
             }
         }
     }
@@ -208,12 +297,14 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteTask(taskId: String) {
         viewModelScope.launch(Dispatchers.IO) {
             taskDao.deleteTask(taskId)
+            updateWidgets()
         }
     }
 
     fun restoreTask(task: TaskEntity) {
         viewModelScope.launch(Dispatchers.IO) {
             taskDao.insertTask(task)
+            updateWidgets()
         }
     }
 
@@ -221,6 +312,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             val finalTask = priorityEngine.calculatePriority(task.copy(updatedAt = System.currentTimeMillis()))
             taskDao.updateTask(finalTask)
+            updateWidgets()
         }
     }
 
@@ -252,6 +344,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                 taskDao.insertTask(priorityEngine.calculatePriority(part2))
                 
                 taskDao.updateTask(it.copy(status = "archived", updatedAt = System.currentTimeMillis()))
+                updateWidgets()
             }
         }
     }
@@ -267,6 +360,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                     updatedAt = System.currentTimeMillis()
                 )
                 taskDao.updateTask(priorityEngine.calculatePriority(updatedTask))
+                updateWidgets()
             }
         }
     }
