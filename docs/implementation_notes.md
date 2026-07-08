@@ -27,3 +27,7 @@ The core tenet of Prima-Focus is privacy and speed.
 - `TaskViewModel` acts as the bridge connecting the Compose UI with Room `TaskDao` and `SessionDao`. It manages dynamic UI states and reads/writes default creation preferences (`SharedPreferences`).
 - **Null Timing (Infinity)**: If `estimatedMinutes` is set to `0` or left blank (falling back to a default of `0`), it is explicitly mapped to `null` before inserting into the database, allowing tasks to have infinite duration.
 - Task priority is calculated deterministically through the `PriorityEngine` before every insertion and periodically by the background worker.
+
+## Infrastructure & Clean Code
+- **Dependency Management**: We use a central Version Catalog (`libs.versions.toml`) to declare all Gradle dependencies, keeping `build.gradle.kts` files clean and preventing version conflicts.
+- **Constants & Utilities**: "Magic strings" (like SharedPreferences keys or Notification Channel IDs) are strictly avoided. They are centralized in `Constants.kt`. Shared mathematical or date/time logic is extracted to pure functions in `TimeUtils.kt`.

@@ -15,6 +15,7 @@ It is designed to provide a robust, private, and highly responsive experience by
 - **Domain Layer**: Business rules, primarily the predictive `priorityScore` calculation (`TaskEngine`).
 - **UI Layer**: Presentation logic built with a minimalist technical pastel design system using Jetpack Compose (e.g., `HomeScreen`, `TimerScreen`).
 - **Notification Layer**: A dynamic scheduler using Android's `WorkManager` that assesses the priority score to trigger aggressive, standard, or soft reminders locally.
+- **Utils Layer**: Centralized helpers and constants (e.g., `TimeUtils`, `Constants`) to enforce the DRY (Don't Repeat Yourself) principle and avoid magic strings across the app.
 
 ## System Architecture Diagram
 
