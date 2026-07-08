@@ -29,8 +29,8 @@ val LocalPremiumGlows = staticCompositionLocalOf<PremiumGlowColors> {
 }
 
 private val DarkColorScheme = darkColorScheme(
-    primary = PurpleNeonLight,
-    secondary = PurpleNeon,
+    primary = BlueAccent,
+    secondary = CyanGlow,
     tertiary = AccentGreen,
     background = DarkBackground,
     surface = DarkSurface,
@@ -49,14 +49,14 @@ fun PrimaFocusTheme(
     val colorScheme = DarkColorScheme
     
     val premiumGlows = PremiumGlowColors(
-        primaryGlow = PurpleNeon,
-        primaryAccent = PurpleNeonLight,
+        primaryGlow = CyanGlow,
+        primaryAccent = BlueAccent,
         coloredShadow = NeonShadow,
         glassSurface = GlassSurface,
         glassBorderStart = GlassBorderStart,
         glassBorderEnd = GlassBorderEnd,
         bottomNavBg = BottomNavBackground,
-        backgroundCenter = DeepSpaceBackground,
+        backgroundCenter = DeepOceanBackground,
         backgroundEdge = DarkBackground
     )
 

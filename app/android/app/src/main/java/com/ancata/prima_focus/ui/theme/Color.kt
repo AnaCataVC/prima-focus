@@ -6,20 +6,20 @@ val PrimaryBlue = Color(0xFF0A84FF)
 val AccentGreen = Color(0xFF34C759)
 val ErrorRed = Color(0xFFFF3B30)
 
-// Dark Purple Glassmorphism Colors
-val DarkBackground = Color(0xFF0B0510) // Deep dark indigo/black
-val DarkSurface = Color(0xFF160D24) // Slightly lighter purple
+// Dark Cold Glassmorphism Colors
+val DarkBackground = Color(0xFF050B10) // Deep dark cold/black
+val DarkSurface = Color(0xFF0D1624) // Slightly lighter cold surface
 val DarkTextPrimary = Color(0xFFFFFFFF)
 val DarkTextMuted = Color(0x99FFFFFF) // 60% opacity white
 
-val PurpleNeon = Color(0xFFB026FF)
-val PurpleNeonLight = Color(0xFFD946EF)
-val DeepSpaceBackground = Color(0xFF2A1B3D)
+val CyanGlow = Color(0xFF00E5FF)
+val BlueAccent = Color(0xFF2979FF)
+val DeepOceanBackground = Color(0xFF0B132B)
 val GlassSurface = Color(0x1AFFFFFF) // 10% white for cards
 val GlassBorderStart = Color(0x33FFFFFF) // 20% white
 val GlassBorderEnd = Color(0x00FFFFFF) // transparent
-val NeonShadow = Color(0x4DB026FF) // 30% neon purple
-val BottomNavBackground = Color(0x80160D24) // 50% dark surface
+val NeonShadow = Color(0x4D00E5FF) // 30% cyan glow
+val BottomNavBackground = Color(0x800D1624) // 50% dark surface
 
 // Preserved for future light theme support
 val LightBackground = Color(0xFFFFFFFF)
