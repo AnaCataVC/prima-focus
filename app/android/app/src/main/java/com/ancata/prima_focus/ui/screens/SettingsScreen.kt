@@ -2,6 +2,7 @@ package com.ancata.prima_focus.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,6 +33,9 @@ fun SettingsScreen(viewModel: TaskViewModel) {
     var nonPostponableHealth by remember { mutableStateOf(viewModel.nonPostponableHealth) }
     var nonPostponableUrgent by remember { mutableStateOf(viewModel.nonPostponableUrgent) }
     var defaultRecurrence by remember { mutableStateOf(viewModel.defaultRecurrence) }
+    var notificationFrequency by remember { mutableIntStateOf(viewModel.notificationFrequency) }
+    var defaultEstimatedMinutes by remember { mutableIntStateOf(viewModel.defaultEstimatedMinutes) }
+    var defaultSubtasksCount by remember { mutableIntStateOf(viewModel.defaultSubtasksCount) }
 
     val glassModifier = Modifier
         .fillMaxWidth()
@@ -140,6 +144,90 @@ fun SettingsScreen(viewModel: TaskViewModel) {
             }
             
             Spacer(modifier = Modifier.height(24.dp))
+            
+            // Valores por defecto
+            Column(modifier = glassModifier) {
+                SectionTitle("Valores por Defecto de Creación")
+                
+                Text("Minutos Estimados", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(top = 16.dp, bottom = 8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), 
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val timeOptions = listOf(0 to "∞", 15 to "15m", 25 to "25m", 45 to "45m", 60 to "1h")
+                    timeOptions.forEach { (minutes, label) ->
+                        FilterChip(
+                            selected = defaultEstimatedMinutes == minutes,
+                            onClick = { defaultEstimatedMinutes = minutes },
+                            label = { Text(label) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                containerColor = Color.Transparent,
+                                labelColor = Color.White.copy(alpha = 0.7f)
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                borderColor = glows.glassBorderStart,
+                                enabled = true,
+                                selected = defaultEstimatedMinutes == minutes
+                            )
+                        )
+                    }
+                }
+                
+                Text("Subtareas Automáticas", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(top = 16.dp, bottom = 8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), 
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val taskOptions = listOf(0 to "0", 1 to "1", 2 to "2", 3 to "3")
+                    taskOptions.forEach { (count, label) ->
+                        FilterChip(
+                            selected = defaultSubtasksCount == count,
+                            onClick = { defaultSubtasksCount = count },
+                            label = { Text(label) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                containerColor = Color.Transparent,
+                                labelColor = Color.White.copy(alpha = 0.7f)
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                borderColor = glows.glassBorderStart,
+                                enabled = true,
+                                selected = defaultSubtasksCount == count
+                            )
+                        )
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            // Frecuencia de Notificaciones
+            Column(modifier = glassModifier) {
+                SectionTitle("Frecuencia de Notificaciones")
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp), 
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val options = listOf(-1 to "Apagadas", 15 to "15m", 30 to "30m", 60 to "1h", 120 to "2h")
+                    options.forEach { (minutes, label) ->
+                        FilterChip(
+                            selected = notificationFrequency == minutes,
+                            onClick = { notificationFrequency = minutes },
+                            label = { Text(label) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                containerColor = Color.Transparent,
+                                labelColor = Color.White.copy(alpha = 0.7f)
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                borderColor = glows.glassBorderStart,
+                                enabled = true,
+                                selected = notificationFrequency == minutes
+                            )
+                        )
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Priority Settings
             Column(modifier = glassModifier) {
@@ -238,6 +326,9 @@ fun SettingsScreen(viewModel: TaskViewModel) {
                     viewModel.nonPostponableHealth = nonPostponableHealth
                     viewModel.nonPostponableUrgent = nonPostponableUrgent
                     viewModel.defaultRecurrence = defaultRecurrence
+                    viewModel.notificationFrequency = notificationFrequency
+                    viewModel.defaultEstimatedMinutes = defaultEstimatedMinutes
+                    viewModel.defaultSubtasksCount = defaultSubtasksCount
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = glows.primaryAccent),

@@ -40,6 +40,7 @@ import com.ancata.prima_focus.worker.NotificationWorker
 import android.content.Intent
 import kotlinx.coroutines.flow.MutableStateFlow
 
+import android.content.Context
 class MainActivity : ComponentActivity() {
 
     private val pendingIntentAction = MutableStateFlow<Intent?>(null)
@@ -61,8 +62,15 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun setupWorkManager() {
-        val workRequest = PeriodicWorkRequestBuilder<NotificationWorker>(15, TimeUnit.MINUTES).build()
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+        val sharedPrefs = getSharedPreferences("prima_focus_prefs", Context.MODE_PRIVATE)
+        val frequency = sharedPrefs.getInt("notification_frequency", 15)
+        val workManager = WorkManager.getInstance(this)
+        if (frequency <= 0) {
+            workManager.cancelUniqueWork("NotificationWorker")
+            return
+        }
+        val workRequest = PeriodicWorkRequestBuilder<NotificationWorker>(frequency.toLong(), TimeUnit.MINUTES).build()
+        workManager.enqueueUniquePeriodicWork(
             "NotificationWorker",
             ExistingPeriodicWorkPolicy.KEEP,
             workRequest

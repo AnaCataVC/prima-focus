@@ -154,7 +154,10 @@ fun QuickReviewModal(
                                 Text("Posponer")
                             }
                             OutlinedButton(
-                                onClick = { /* TODO Phase 5 */ },
+                                onClick = { 
+                                    viewModel.splitTask(taskId)
+                                    onDismiss()
+                                },
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
                                 border = null
                             ) {

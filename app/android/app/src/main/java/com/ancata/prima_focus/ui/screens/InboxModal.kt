@@ -14,6 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import com.ancata.prima_focus.ui.theme.LocalPremiumGlows
 import com.ancata.prima_focus.ui.viewmodel.TaskViewModel
@@ -39,6 +41,9 @@ fun InboxModal(
     
     val currentSubcategories = categoriesData[selectedCategory] ?: emptyList()
     var selectedSubcategory by remember(selectedCategory) { mutableStateOf(currentSubcategories.firstOrNull()) }
+    var selectedDate by remember { mutableStateOf<String?>(null) }
+    var estimatedMinutes by remember { mutableStateOf("") }
+    var subtasksCount by remember { mutableStateOf("") }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -84,7 +89,17 @@ fun InboxModal(
                         if (text.isNotBlank()) {
                             val subcat = selectedSubcategory?.first
                             val weight = selectedSubcategory?.second ?: 2.0
-                            viewModel.quickAdd(text, selectedCategory, subcat, weight)
+                            val parsedMinutes = estimatedMinutes.toIntOrNull() ?: viewModel.defaultEstimatedMinutes
+                            val finalMinutes = if (parsedMinutes <= 0) null else parsedMinutes
+                            viewModel.quickAdd(
+                                title = text, 
+                                category = selectedCategory, 
+                                subcategory = subcat, 
+                                weight = weight,
+                                date = selectedDate,
+                                estimatedMinutes = finalMinutes,
+                                subtasksCount = subtasksCount.toIntOrNull() ?: viewModel.defaultSubtasksCount
+                            )
                             onDismiss()
                         }
                     },
@@ -184,7 +199,63 @@ fun InboxModal(
                 }
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
+            // Fechas Rápidas
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = selectedDate == "Hoy",
+                    onClick = { selectedDate = if (selectedDate == "Hoy") null else "Hoy" },
+                    label = { Text("Hoy") },
+                    colors = FilterChipDefaults.filterChipColors(containerColor = Color.Transparent, labelColor = Color.White),
+                    border = FilterChipDefaults.filterChipBorder(borderColor = glows.glassBorderStart, enabled = true, selected = selectedDate == "Hoy")
+                )
+                FilterChip(
+                    selected = selectedDate == "Mañana",
+                    onClick = { selectedDate = if (selectedDate == "Mañana") null else "Mañana" },
+                    label = { Text("Mañana") },
+                    colors = FilterChipDefaults.filterChipColors(containerColor = Color.Transparent, labelColor = Color.White),
+                    border = FilterChipDefaults.filterChipBorder(borderColor = glows.glassBorderStart, enabled = true, selected = selectedDate == "Mañana")
+                )
+            }
+            
+            // Tiempos y Subtareas
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    value = estimatedMinutes,
+                    onValueChange = { estimatedMinutes = it },
+                    label = { Text("Minutos (0 = ∞)", color = Color.White.copy(alpha = 0.6f)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = glows.primaryGlow,
+                        unfocusedBorderColor = glows.glassBorderStart
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                OutlinedTextField(
+                    value = subtasksCount,
+                    onValueChange = { subtasksCount = it },
+                    label = { Text("Subtareas (Opc)", color = Color.White.copy(alpha = 0.6f)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = glows.primaryGlow,
+                        unfocusedBorderColor = glows.glassBorderStart
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }

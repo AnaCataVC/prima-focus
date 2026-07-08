@@ -9,7 +9,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.*
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -198,6 +201,23 @@ fun HomeScreen(
                         modifier = Modifier.padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        // Project Banner
+                        if (task.isProject) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 12.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFFE5A910).copy(alpha = 0.2f))
+                                    .padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFE5A910), modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Proyecto grande — dividir en subtareas", style = MaterialTheme.typography.labelSmall, color = Color(0xFFE5A910))
+                            }
+                        }
+
                         // Top Row with Badge
                         Row(
                             modifier = Modifier
@@ -236,12 +256,22 @@ fun HomeScreen(
 
                         // Meta Row
                         val catStr = if (!task.subcategory.isNullOrBlank()) "${task.category} - ${task.subcategory}" else task.category
+                        val minutesStr = task.estimatedMinutes?.takeIf { it > 0 }?.let { "$it min" } ?: "∞"
                         Text(
-                            text = "$catStr • ${task.estimatedMinutes ?: 0} min",
+                            text = "$catStr • $minutesStr",
                             style = MaterialTheme.typography.bodyLarge,
                             color = Color.White.copy(alpha = 0.6f),
-                            modifier = Modifier.padding(bottom = 48.dp)
+                            modifier = Modifier.padding(bottom = if (task.subtasksCount > 0) 8.dp else 48.dp)
                         )
+
+                        if (task.subtasksCount > 0) {
+                            Text(
+                                text = "+${task.subtasksCount} subtareas",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White.copy(alpha = 0.5f),
+                                modifier = Modifier.padding(bottom = 48.dp)
+                            )
+                        }
 
                         // Start Button
                         FloatingActionButton(
@@ -272,6 +302,19 @@ fun HomeScreen(
                             fontSize = 12.sp,
                             color = glows.primaryAccent
                         )
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(24.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = { /* TODO Edit */ }) {
+                                Icon(Icons.Default.Edit, contentDescription = "Editar", tint = Color.White.copy(alpha = 0.5f))
+                            }
+                            IconButton(onClick = { viewModel.snoozeTask(task.taskId) }) {
+                                Icon(Icons.Default.DateRange, contentDescription = "Posponer", tint = Color.White.copy(alpha = 0.5f))
+                            }
+                        }
                     }
                     } // Closes Central Card Box
                 } // End of SwipeToDismissBox

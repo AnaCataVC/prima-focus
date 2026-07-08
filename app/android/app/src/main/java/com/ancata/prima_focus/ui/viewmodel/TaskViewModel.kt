@@ -13,10 +13,36 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.ExistingPeriodicWorkPolicy
+import java.util.concurrent.TimeUnit
+import com.ancata.prima_focus.worker.NotificationWorker
 
 class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
     private val sharedPrefs = application.getSharedPreferences("prima_focus_prefs", Context.MODE_PRIVATE)
+
+    var notificationFrequency: Int
+        get() = sharedPrefs.getInt("notification_frequency", 15)
+        set(value) {
+            sharedPrefs.edit().putInt("notification_frequency", value).apply()
+            updateNotificationWorker(value)
+        }
+
+    private fun updateNotificationWorker(frequencyMinutes: Int) {
+        val workManager = WorkManager.getInstance(getApplication())
+        if (frequencyMinutes <= 0) {
+            workManager.cancelUniqueWork("NotificationWorker")
+            return
+        }
+        val workRequest = PeriodicWorkRequestBuilder<NotificationWorker>(frequencyMinutes.toLong(), TimeUnit.MINUTES).build()
+        workManager.enqueueUniquePeriodicWork(
+            "NotificationWorker",
+            ExistingPeriodicWorkPolicy.REPLACE,
+            workRequest
+        )
+    }
 
     var manualBoostAmount: Double
         get() = sharedPrefs.getFloat("manual_boost_amount", 10.0f).toDouble()
@@ -25,6 +51,14 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
     var defaultRecurrence: String
         get() = sharedPrefs.getString("default_recurrence", "none") ?: "none"
         set(value) = sharedPrefs.edit().putString("default_recurrence", value).apply()
+
+    var defaultEstimatedMinutes: Int
+        get() = sharedPrefs.getInt("default_estimated_minutes", 15)
+        set(value) = sharedPrefs.edit().putInt("default_estimated_minutes", value).apply()
+
+    var defaultSubtasksCount: Int
+        get() = sharedPrefs.getInt("default_subtasks_count", 0)
+        set(value) = sharedPrefs.edit().putInt("default_subtasks_count", value).apply()
 
     var autoSplit: Boolean
         get() = sharedPrefs.getBoolean("auto_split", false)
