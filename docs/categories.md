@@ -2,6 +2,8 @@
 
 This table defines the standard categories, subcategories, and their respective weights for the priority calculation.
 
+> **Note:** Users can selectively disable entire categories from the Settings screen to reduce visual clutter in the Inbox. Disabled categories are dynamically filtered out of the selection menus.
+
 | Category | Subcategory | Weight | nonPostponable Default |
 | :--- | :--- | :--- | :--- |
 | **trabajo** | comunicación | 2.0 | false |

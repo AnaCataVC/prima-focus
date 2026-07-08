@@ -172,7 +172,7 @@ The timer counter **must be isolated** from the background layer. Only the text/
   1. **Recurrencia por defecto**: FilterChips (Diaria, Semanal, Mensual) — transparent bg, `glassBorderStart` border.
   2. **Motor de Prioridades**: Auto-split `Switch` + Manual Boost `Slider` inside same panel. Divider between them: `glassBorderStart` 1dp line.
   3. **Reglas No-Posponibles**: Checkboxes for Salud→Medicación and Trámites→Urgente.
-  4. **Categorías Activas**: Lista de todas las categorías maestras con `Switch` controls para ocultarlas del Inbox.
+  4. **Categorías Activas**: List of all master categories with `Switch` controls to hide them from the Inbox.
 - **Custom Controls**:
   - `Switch`: thumb `primaryAccent`, track `primaryGlow` at 30%, unchecked track/thumb white.
   - `Checkbox`: checked `primaryAccent`, checkmark white.

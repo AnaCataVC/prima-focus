@@ -1,4 +1,4 @@
--- Versión inicial: schema_version = 1 (Local Room Database)
+-- Initial version: schema_version = 1 (Local Room Database)
 
 CREATE TABLE IF NOT EXISTS tasks (
   taskId TEXT PRIMARY KEY,
@@ -7,14 +7,14 @@ CREATE TABLE IF NOT EXISTS tasks (
   category TEXT NOT NULL,
   subcategory TEXT,
   categoryWeight REAL NOT NULL,
-  date TEXT,                 -- YYYY-MM-DD o NULL
-  time TEXT,                 -- HH:MM o NULL
+  date TEXT,                 -- YYYY-MM-DD or NULL
+  time TEXT,                 -- HH:MM or NULL
   hasTime INTEGER NOT NULL DEFAULT 0, -- 0/1
   timeUrgency REAL DEFAULT 0.0,
   estimatedMinutes INTEGER,
   subtasksCount INTEGER DEFAULT 0,
   isProject INTEGER NOT NULL DEFAULT 0, -- 0/1
-  recurrence TEXT,           -- RFC5545 string o NULL
+  recurrence TEXT,           -- RFC5545 string or NULL
   manualBoost REAL DEFAULT 0.0,
   nonPostponable INTEGER NOT NULL DEFAULT 0, -- 0/1
   priorityScore REAL DEFAULT 0.0,
