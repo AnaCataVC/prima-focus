@@ -18,6 +18,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -88,35 +89,35 @@ fun HomeScreen(
                 
                 val haptic = LocalHapticFeedback.current
                 
-                val dismissState = rememberSwipeToDismissBoxState(
-                    confirmValueChange = { dismissValue ->
-                        when(dismissValue) {
-                            SwipeToDismissBoxValue.StartToEnd -> {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                viewModel.boostTask(task.taskId)
-                                coroutineScope.launch {
-                                    snackbarHostState.showSnackbar("Boost aplicado!")
-                                }
-                                false
+                val dismissState = rememberSwipeToDismissBoxState()
+                
+                LaunchedEffect(dismissState.currentValue) {
+                    when(dismissState.currentValue) {
+                        SwipeToDismissBoxValue.StartToEnd -> {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            viewModel.boostTask(task.taskId)
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Boost aplicado!")
                             }
-                            SwipeToDismissBoxValue.EndToStart -> {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                viewModel.deleteTask(task.taskId)
-                                coroutineScope.launch {
-                                    val result = snackbarHostState.showSnackbar(
-                                        message = "Tarea eliminada",
-                                        actionLabel = "Deshacer"
-                                    )
-                                    if (result == SnackbarResult.ActionPerformed) {
-                                        viewModel.restoreTask(task)
-                                    }
-                                }
-                                true
-                            }
-                            else -> false
+                            dismissState.snapTo(SwipeToDismissBoxValue.Settled)
                         }
+                        SwipeToDismissBoxValue.EndToStart -> {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            viewModel.deleteTask(task.taskId)
+                            coroutineScope.launch {
+                                val result = snackbarHostState.showSnackbar(
+                                    message = "Tarea eliminada",
+                                    actionLabel = "Deshacer"
+                                )
+                                if (result == SnackbarResult.ActionPerformed) {
+                                    viewModel.restoreTask(task)
+                                }
+                            }
+                            // No need to snap back, task is deleted and will disappear
+                        }
+                        else -> {}
                     }
-                )
+                }
 
                 SwipeToDismissBox(
                     state = dismissState,

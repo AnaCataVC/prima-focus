@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Send
+import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -94,7 +94,7 @@ fun InboxModal(
                     modifier = Modifier.size(56.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.Send,
+                        imageVector = Icons.AutoMirrored.Rounded.Send,
                         contentDescription = "Guardar",
                         tint = Color.White
                     )
@@ -117,7 +117,7 @@ fun InboxModal(
                         readOnly = true,
                         label = { Text("Categoría", color = Color.White.copy(alpha = 0.6f)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                         colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
@@ -157,7 +157,7 @@ fun InboxModal(
                         readOnly = true,
                         label = { Text("Subcategoría", color = Color.White.copy(alpha = 0.6f)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subcategoryExpanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                         colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
