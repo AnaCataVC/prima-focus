@@ -35,6 +35,7 @@ Explore our comprehensive technical documentation to understand how Prima-Focus 
 - [Database Schema](docs/database_schema.sql)
 - [UI Specifications](docs/ui_spec.md)
 - [Implementation Notes](docs/implementation_notes.md)
+- [Learnings & Decisions](docs/learning/)
 
 ---
 
@@ -64,3 +65,4 @@ Explora nuestra documentación técnica completa para entender cómo funciona Pr
 - [Esquema de Base de Datos](docs/database_schema.sql)
 - [Especificaciones de UI](docs/ui_spec.md)
 - [Notas de Implementación](docs/implementation_notes.md)
+- [Aprendizajes y Decisiones](docs/learning/)
