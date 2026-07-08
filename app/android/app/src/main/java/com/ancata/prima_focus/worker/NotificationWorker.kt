@@ -14,6 +14,8 @@ import com.ancata.prima_focus.R
 import com.ancata.prima_focus.data.local.PrimaFocusDatabase
 import com.ancata.prima_focus.domain.PriorityEngine
 import kotlinx.coroutines.flow.first
+import com.ancata.prima_focus.utils.Constants
+import com.ancata.prima_focus.utils.TimeUtils
 
 class NotificationWorker(
     private val context: Context,
@@ -26,30 +28,13 @@ class NotificationWorker(
             val taskDao = db.taskDao()
             val priorityEngine = PriorityEngine()
 
-            val sharedPrefs = context.getSharedPreferences("prima_focus_prefs", Context.MODE_PRIVATE)
-            val dndEnabled = sharedPrefs.getBoolean("disconnect_mode_enabled", false)
+            val sharedPrefs = context.getSharedPreferences(Constants.PREF_FILE, Context.MODE_PRIVATE)
+            val dndEnabled = sharedPrefs.getBoolean(Constants.PREF_DISCONNECT_MODE_ENABLED, false)
             if (dndEnabled) {
-                val start = sharedPrefs.getString("disconnect_start_time", "22:00") ?: "22:00"
-                val end = sharedPrefs.getString("disconnect_end_time", "08:00") ?: "08:00"
+                val start = sharedPrefs.getString(Constants.PREF_DISCONNECT_START_TIME, "22:00") ?: "22:00"
+                val end = sharedPrefs.getString(Constants.PREF_DISCONNECT_END_TIME, "08:00") ?: "08:00"
                 
-                val now = java.util.Calendar.getInstance()
-                val currentHour = now.get(java.util.Calendar.HOUR_OF_DAY)
-                val currentMinute = now.get(java.util.Calendar.MINUTE)
-                val currentTotal = currentHour * 60 + currentMinute
-                
-                val startParts = start.split(":").map { it.toInt() }
-                val startTotal = startParts[0] * 60 + startParts[1]
-                
-                val endParts = end.split(":").map { it.toInt() }
-                val endTotal = endParts[0] * 60 + endParts[1]
-                
-                val inQuietHours = if (startTotal < endTotal) {
-                    currentTotal in startTotal..endTotal
-                } else {
-                    currentTotal >= startTotal || currentTotal <= endTotal
-                }
-                
-                if (inQuietHours) {
+                if (TimeUtils.isCurrentlyInQuietHours(start, end)) {
                     return Result.success()
                 }
             }
@@ -96,7 +81,7 @@ class NotificationWorker(
                     context, 0, intent, PendingIntent.FLAG_IMMUTABLE
                 )
 
-                val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+                val builder = NotificationCompat.Builder(context, Constants.NOTIFICATION_CHANNEL_ID)
                     .setSmallIcon(android.R.drawable.ic_dialog_info) // Placeholder
                     .setContentTitle(title)
                     .setContentText(text)
@@ -105,7 +90,7 @@ class NotificationWorker(
                     .setAutoCancel(true)
 
                 val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                notificationManager.notify(NOTIFICATION_ID, builder.build())
+                notificationManager.notify(Constants.NOTIFICATION_ID, builder.build())
             }
 
             Result.success()
@@ -120,16 +105,11 @@ class NotificationWorker(
             val name = "Prima-Focus Tasks"
             val descriptionText = "Notificaciones de la tarea más importante"
             val importance = NotificationManager.IMPORTANCE_HIGH
-            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
+            val channel = NotificationChannel(Constants.NOTIFICATION_CHANNEL_ID, name, importance).apply {
                 description = descriptionText
             }
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
         }
-    }
-
-    companion object {
-        const val CHANNEL_ID = "prima_focus_channel"
-        const val NOTIFICATION_ID = 101
     }
 }

@@ -19,78 +19,54 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import java.util.concurrent.TimeUnit
 import com.ancata.prima_focus.worker.NotificationWorker
 import java.util.UUID
+import com.ancata.prima_focus.utils.Constants
+import com.ancata.prima_focus.utils.TimeUtils
 
 class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val sharedPrefs = application.getSharedPreferences("prima_focus_prefs", Context.MODE_PRIVATE)
+    private val sharedPrefs = application.getSharedPreferences(Constants.PREF_FILE, Context.MODE_PRIVATE)
 
     var notificationFrequency: Int
         get() {
-            val freq = sharedPrefs.getInt("notification_frequency", 90)
+            val freq = sharedPrefs.getInt(Constants.PREF_NOTIFICATION_FREQUENCY, 90)
             return if (freq !in listOf(-1, 90, 180, 300)) 90 else freq
         }
         set(value) {
-            sharedPrefs.edit().putInt("notification_frequency", value).apply()
+            sharedPrefs.edit().putInt(Constants.PREF_NOTIFICATION_FREQUENCY, value).apply()
             updateNotificationWorker(value)
         }
 
     var isDisconnectModeEnabled: Boolean
-        get() = sharedPrefs.getBoolean("disconnect_mode_enabled", false)
+        get() = sharedPrefs.getBoolean(Constants.PREF_DISCONNECT_MODE_ENABLED, false)
         set(value) {
-            sharedPrefs.edit().putBoolean("disconnect_mode_enabled", value).apply()
+            sharedPrefs.edit().putBoolean(Constants.PREF_DISCONNECT_MODE_ENABLED, value).apply()
             updateNotificationWorker(notificationFrequency)
         }
 
     var disconnectStartTime: String
-        get() = sharedPrefs.getString("disconnect_start_time", "22:00") ?: "22:00"
+        get() = sharedPrefs.getString(Constants.PREF_DISCONNECT_START_TIME, "22:00") ?: "22:00"
         set(value) {
-            sharedPrefs.edit().putString("disconnect_start_time", value).apply()
+            sharedPrefs.edit().putString(Constants.PREF_DISCONNECT_START_TIME, value).apply()
             updateNotificationWorker(notificationFrequency)
         }
 
     var disconnectEndTime: String
-        get() = sharedPrefs.getString("disconnect_end_time", "08:00") ?: "08:00"
+        get() = sharedPrefs.getString(Constants.PREF_DISCONNECT_END_TIME, "08:00") ?: "08:00"
         set(value) {
-            sharedPrefs.edit().putString("disconnect_end_time", value).apply()
+            sharedPrefs.edit().putString(Constants.PREF_DISCONNECT_END_TIME, value).apply()
             updateNotificationWorker(notificationFrequency)
         }
 
     private fun updateNotificationWorker(frequencyMinutes: Int) {
         val workManager = WorkManager.getInstance(getApplication())
         if (frequencyMinutes <= 0) {
-            workManager.cancelUniqueWork("NotificationWorker")
+            workManager.cancelUniqueWork(Constants.WORKER_NOTIFICATION)
             return
         }
         
         var initialDelayMinutes = 0L
         if (isDisconnectModeEnabled) {
-            val start = disconnectStartTime
-            val end = disconnectEndTime
-            
-            val now = java.util.Calendar.getInstance()
-            val currentHour = now.get(java.util.Calendar.HOUR_OF_DAY)
-            val currentMinute = now.get(java.util.Calendar.MINUTE)
-            val currentTotal = currentHour * 60 + currentMinute
-            
-            val startParts = start.split(":").map { it.toInt() }
-            val startTotal = startParts[0] * 60 + startParts[1]
-            
-            val endParts = end.split(":").map { it.toInt() }
-            val endTotal = endParts[0] * 60 + endParts[1]
-            
-            val inQuietHours = if (startTotal < endTotal) {
-                currentTotal in startTotal..endTotal
-            } else {
-                currentTotal >= startTotal || currentTotal <= endTotal
-            }
-            
-            if (inQuietHours) {
-                initialDelayMinutes = if (currentTotal <= endTotal) {
-                    (endTotal - currentTotal).toLong()
-                } else {
-                    (1440 - currentTotal + endTotal).toLong()
-                }
-            }
+            initialDelayMinutes = TimeUtils.getMinutesUntilQuietHoursEnd(disconnectStartTime, disconnectEndTime)
         }
 
         val workRequest = PeriodicWorkRequestBuilder<NotificationWorker>(frequencyMinutes.toLong(), TimeUnit.MINUTES)
@@ -98,39 +74,39 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             .build()
             
         workManager.enqueueUniquePeriodicWork(
-            "NotificationWorker",
+            Constants.WORKER_NOTIFICATION,
             ExistingPeriodicWorkPolicy.REPLACE,
             workRequest
         )
     }
 
     var manualBoostAmount: Double
-        get() = sharedPrefs.getFloat("manual_boost_amount", 10.0f).toDouble()
-        set(value) = sharedPrefs.edit().putFloat("manual_boost_amount", value.toFloat()).apply()
+        get() = sharedPrefs.getFloat(Constants.PREF_MANUAL_BOOST_AMOUNT, 10.0f).toDouble()
+        set(value) = sharedPrefs.edit().putFloat(Constants.PREF_MANUAL_BOOST_AMOUNT, value.toFloat()).apply()
 
     var defaultRecurrence: String
-        get() = sharedPrefs.getString("default_recurrence", "none") ?: "none"
-        set(value) = sharedPrefs.edit().putString("default_recurrence", value).apply()
+        get() = sharedPrefs.getString(Constants.PREF_DEFAULT_RECURRENCE, "none") ?: "none"
+        set(value) = sharedPrefs.edit().putString(Constants.PREF_DEFAULT_RECURRENCE, value).apply()
 
     var defaultEstimatedMinutes: Int
-        get() = sharedPrefs.getInt("default_estimated_minutes", 15)
-        set(value) = sharedPrefs.edit().putInt("default_estimated_minutes", value).apply()
+        get() = sharedPrefs.getInt(Constants.PREF_DEFAULT_ESTIMATED_MINUTES, 15)
+        set(value) = sharedPrefs.edit().putInt(Constants.PREF_DEFAULT_ESTIMATED_MINUTES, value).apply()
 
     var defaultSubtasksCount: Int
-        get() = sharedPrefs.getInt("default_subtasks_count", 0)
-        set(value) = sharedPrefs.edit().putInt("default_subtasks_count", value).apply()
+        get() = sharedPrefs.getInt(Constants.PREF_DEFAULT_SUBTASKS_COUNT, 0)
+        set(value) = sharedPrefs.edit().putInt(Constants.PREF_DEFAULT_SUBTASKS_COUNT, value).apply()
 
     var autoSplit: Boolean
-        get() = sharedPrefs.getBoolean("auto_split", false)
-        set(value) = sharedPrefs.edit().putBoolean("auto_split", value).apply()
+        get() = sharedPrefs.getBoolean(Constants.PREF_AUTO_SPLIT, false)
+        set(value) = sharedPrefs.edit().putBoolean(Constants.PREF_AUTO_SPLIT, value).apply()
 
     var nonPostponableHealth: Boolean
-        get() = sharedPrefs.getBoolean("non_postponable_health", true)
-        set(value) = sharedPrefs.edit().putBoolean("non_postponable_health", value).apply()
+        get() = sharedPrefs.getBoolean(Constants.PREF_NON_POSTPONABLE_HEALTH, true)
+        set(value) = sharedPrefs.edit().putBoolean(Constants.PREF_NON_POSTPONABLE_HEALTH, value).apply()
 
     var nonPostponableUrgent: Boolean
-        get() = sharedPrefs.getBoolean("non_postponable_urgent", true)
-        set(value) = sharedPrefs.edit().putBoolean("non_postponable_urgent", value).apply()
+        get() = sharedPrefs.getBoolean(Constants.PREF_NON_POSTPONABLE_URGENT, true)
+        set(value) = sharedPrefs.edit().putBoolean(Constants.PREF_NON_POSTPONABLE_URGENT, value).apply()
 
     val categoriesData = mapOf(
         "trabajo" to listOf("comunicación" to 2.0, "entrega" to 3.5, "tarea adicional" to 2.0, "administrativo" to 1.0, "revisión" to 1.0, "documentación" to 2.0),
@@ -145,13 +121,13 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     fun getDisabledCategories(): Set<String> {
-        return sharedPrefs.getStringSet("disabled_categories", emptySet()) ?: emptySet()
+        return sharedPrefs.getStringSet(Constants.PREF_DISABLED_CATEGORIES, emptySet()) ?: emptySet()
     }
 
     fun setCategoryDisabled(category: String, disabled: Boolean) {
         val current = getDisabledCategories().toMutableSet()
         if (disabled) current.add(category) else current.remove(category)
-        sharedPrefs.edit().putStringSet("disabled_categories", current).apply()
+        sharedPrefs.edit().putStringSet(Constants.PREF_DISABLED_CATEGORIES, current).apply()
     }
 
     private val db = PrimaFocusDatabase.getDatabase(application)
