@@ -92,7 +92,7 @@ fun InboxModal(
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
-                    placeholder = { Text("Â¿QuÃ© tienes en mente?", color = Color.White.copy(alpha = 0.5f)) },
+                    placeholder = { Text("¿Qué tienes en mente?", color = Color.White.copy(alpha = 0.5f)) },
                     modifier = Modifier
                         .weight(1f)
                         .padding(end = 12.dp),

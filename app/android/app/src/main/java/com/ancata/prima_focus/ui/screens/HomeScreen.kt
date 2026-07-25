@@ -350,7 +350,7 @@ fun HomeScreen(
             } else {
                 Spacer(modifier = Modifier.weight(1f))
                 Text(
-                    text = "Tu Tarea Hoy aparecerá aquí",
+                    text = "Tu prioridad del día aparecerá aquí",
                     style = MaterialTheme.typography.bodyLarge,
                     color = Color.White.copy(alpha = 0.5f)
                 )
