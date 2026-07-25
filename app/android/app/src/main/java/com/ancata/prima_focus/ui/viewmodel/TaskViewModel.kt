@@ -113,7 +113,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
     val categoriesData = mapOf(
         "trabajo" to listOf("comunicación" to 2.0, "entrega" to 3.5, "tarea adicional" to 2.0, "administrativo" to 1.0, "revisión" to 1.0, "documentación" to 2.0),
-        "salud" to listOf("medicación / citas" to 4.0),
+        "salud" to listOf("medicación" to 4.0, "cita médica" to 4.0),
         "amigos" to listOf("salud" to 4.0, "comunicación" to 2.0, "favores" to 2.0, "reuniones" to 1.0),
         "pareja" to listOf("salud" to 4.0, "comunicación" to 3.5, "favores" to 2.0, "citas" to 3.5),
         "familia" to listOf("salud" to 4.0, "comunicación" to 2.0, "favores" to 2.0, "reuniones" to 2.0),
