@@ -31,6 +31,13 @@ class PriorityEngine {
             null -> null
             "Hoy" -> currentDate
             "Mañana" -> currentDate.plusDays(1)
+            "El siguiente lunes" -> {
+                var nextMonday = currentDate.plusDays(1)
+                while (nextMonday.dayOfWeek != java.time.DayOfWeek.MONDAY) {
+                    nextMonday = nextMonday.plusDays(1)
+                }
+                nextMonday
+            }
             else -> {
                 try {
                     LocalDate.parse(task.date)
@@ -84,7 +91,7 @@ class PriorityEngine {
             }
         }
 
-        val subtasksLn = ln(1.0 + task.subtasksCount)
+        val subtasksLn = 0.0
         val estimatedMin = task.estimatedMinutes ?: 0
 
         // Calculate score base and dynamic components
@@ -103,7 +110,7 @@ class PriorityEngine {
 
         val score = scoreBase + scoreDynamic + task.manualBoost
 
-        val isProject = task.isProject || estimatedMin > 120 || task.subtasksCount > 10
+        val isProject = task.isProject || estimatedMin > 120
 
         return task.copy(
             priorityScore = score,

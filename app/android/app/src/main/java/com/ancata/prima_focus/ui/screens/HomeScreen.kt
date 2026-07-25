@@ -217,7 +217,7 @@ fun HomeScreen(
                             ) {
                                 Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFE5A910), modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Proyecto grande — dividir en subtareas", style = MaterialTheme.typography.labelSmall, color = Color(0xFFE5A910))
+                                Text("Tarea muy larga — divídela en varias partes", style = MaterialTheme.typography.labelSmall, color = Color(0xFFE5A910))
                             }
                         }
 
@@ -267,17 +267,8 @@ fun HomeScreen(
                             text = "$catStr • $minutesStr",
                             style = MaterialTheme.typography.bodyLarge,
                             color = Color.White.copy(alpha = 0.6f),
-                            modifier = Modifier.padding(bottom = if (task.subtasksCount > 0) 8.dp else 48.dp)
+                            modifier = Modifier.padding(bottom = 48.dp)
                         )
-
-                        if (task.subtasksCount > 0) {
-                            Text(
-                                text = "+${task.subtasksCount} subtareas",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.5f),
-                                modifier = Modifier.padding(bottom = 48.dp)
-                            )
-                        }
 
                         Row(
                             horizontalArrangement = Arrangement.Center,
