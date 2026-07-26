@@ -18,7 +18,7 @@ import com.ancata.prima_focus.data.local.entity.TaskEntity
         SessionEntity::class,
         EventEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class PrimaFocusDatabase : RoomDatabase() {
@@ -37,6 +37,52 @@ abstract class PrimaFocusDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Removes the subtasksCount column (feature dropped in v1.1.1).
+         * SQLite does not support DROP COLUMN directly, so the table is recreated.
+         */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE tasks_new (
+                        taskId TEXT NOT NULL PRIMARY KEY,
+                        title TEXT NOT NULL,
+                        description TEXT,
+                        category TEXT NOT NULL,
+                        subcategory TEXT,
+                        categoryWeight REAL NOT NULL,
+                        date TEXT,
+                        time TEXT,
+                        hasTime INTEGER NOT NULL DEFAULT 0,
+                        timeUrgency REAL NOT NULL DEFAULT 0.0,
+                        estimatedMinutes INTEGER,
+                        isProject INTEGER NOT NULL DEFAULT 0,
+                        recurrence TEXT,
+                        recurrenceGroupId TEXT DEFAULT NULL,
+                        manualBoost REAL NOT NULL DEFAULT 0.0,
+                        nonPostponable INTEGER NOT NULL DEFAULT 0,
+                        priorityScore REAL NOT NULL DEFAULT 0.0,
+                        status TEXT NOT NULL DEFAULT 'pending',
+                        postponedReason TEXT,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL,
+                        meta TEXT
+                    )
+                """.trimIndent())
+                db.execSQL("""
+                    INSERT INTO tasks_new
+                    SELECT taskId, title, description, category, subcategory, categoryWeight,
+                           date, time, hasTime, timeUrgency, estimatedMinutes,
+                           isProject, recurrence, recurrenceGroupId, manualBoost,
+                           nonPostponable, priorityScore, status, postponedReason,
+                           createdAt, updatedAt, meta
+                    FROM tasks
+                """.trimIndent())
+                db.execSQL("DROP TABLE tasks")
+                db.execSQL("ALTER TABLE tasks_new RENAME TO tasks")
+            }
+        }
+
         fun getDatabase(context: Context): PrimaFocusDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -44,7 +90,7 @@ abstract class PrimaFocusDatabase : RoomDatabase() {
                     PrimaFocusDatabase::class.java,
                     "primafocus_database"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                 INSTANCE = instance
                 instance
