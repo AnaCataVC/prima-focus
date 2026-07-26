@@ -36,13 +36,11 @@ fun SettingsScreen(viewModel: TaskViewModel) {
     var autoSplit by remember { mutableStateOf(viewModel.autoSplit) }
     var nonPostponableHealth by remember { mutableStateOf(viewModel.nonPostponableHealth) }
     var nonPostponableUrgent by remember { mutableStateOf(viewModel.nonPostponableUrgent) }
-    var defaultRecurrence by remember { mutableStateOf(viewModel.defaultRecurrence) }
     var notificationFrequency by remember { mutableIntStateOf(viewModel.notificationFrequency) }
     var isDisconnectModeEnabled by remember { mutableStateOf(viewModel.isDisconnectModeEnabled) }
     var disconnectStartTime by remember { mutableStateOf(viewModel.disconnectStartTime) }
     var disconnectEndTime by remember { mutableStateOf(viewModel.disconnectEndTime) }
-    var defaultEstimatedMinutes by remember { mutableIntStateOf(viewModel.defaultEstimatedMinutes) }
-    var defaultSubtasksCount by remember { mutableIntStateOf(viewModel.defaultSubtasksCount) }
+
     var notifExpanded by remember { mutableStateOf(false) }
 
     val glassModifier = Modifier
@@ -99,112 +97,7 @@ fun SettingsScreen(viewModel: TaskViewModel) {
                 modifier = Modifier.padding(bottom = 24.dp, start = 8.dp)
             )
 
-            Column(modifier = glassModifier) {
-                SectionTitle("Recurrencia por defecto")
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp), 
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FilterChip(
-                        selected = defaultRecurrence == "daily", 
-                        onClick = { defaultRecurrence = "daily" }, 
-                        label = { Text("Diaria") },
-                        colors = FilterChipDefaults.filterChipColors(
-                            containerColor = Color.Transparent,
-                            labelColor = Color.White.copy(alpha = 0.7f)
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            borderColor = glows.glassBorderStart,
-                            enabled = true,
-                            selected = defaultRecurrence == "daily"
-                        )
-                    )
-                    FilterChip(
-                        selected = defaultRecurrence == "weekly", 
-                        onClick = { defaultRecurrence = "weekly" }, 
-                        label = { Text("Semanal") },
-                        colors = FilterChipDefaults.filterChipColors(
-                            containerColor = Color.Transparent,
-                            labelColor = Color.White.copy(alpha = 0.7f)
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            borderColor = glows.glassBorderStart,
-                            enabled = true,
-                            selected = defaultRecurrence == "weekly"
-                        )
-                    )
-                    FilterChip(
-                        selected = defaultRecurrence == "monthly", 
-                        onClick = { defaultRecurrence = "monthly" }, 
-                        label = { Text("Mensual") },
-                        colors = FilterChipDefaults.filterChipColors(
-                            containerColor = Color.Transparent,
-                            labelColor = Color.White.copy(alpha = 0.7f)
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            borderColor = glows.glassBorderStart,
-                            enabled = true,
-                            selected = defaultRecurrence == "monthly"
-                        )
-                    )
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            Column(modifier = glassModifier) {
-                SectionTitle("Valores por Defecto de Creación")
-                
-                Text("Minutos Estimados", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(top = 16.dp, bottom = 8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), 
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val timeOptions = listOf(0 to "∞", 15 to "15m", 25 to "25m", 45 to "45m", 60 to "1h")
-                    timeOptions.forEach { (minutes, label) ->
-                        FilterChip(
-                            selected = defaultEstimatedMinutes == minutes,
-                            onClick = { defaultEstimatedMinutes = minutes },
-                            label = { Text(label) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                containerColor = Color.Transparent,
-                                labelColor = Color.White.copy(alpha = 0.7f)
-                            ),
-                            border = FilterChipDefaults.filterChipBorder(
-                                borderColor = glows.glassBorderStart,
-                                enabled = true,
-                                selected = defaultEstimatedMinutes == minutes
-                            )
-                        )
-                    }
-                }
-                
-                Text("Subtareas Automáticas", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(top = 16.dp, bottom = 8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), 
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val taskOptions = listOf(0 to "0", 1 to "1", 2 to "2", 3 to "3")
-                    taskOptions.forEach { (count, label) ->
-                        FilterChip(
-                            selected = defaultSubtasksCount == count,
-                            onClick = { defaultSubtasksCount = count },
-                            label = { Text(label) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                containerColor = Color.Transparent,
-                                labelColor = Color.White.copy(alpha = 0.7f)
-                            ),
-                            border = FilterChipDefaults.filterChipBorder(
-                                borderColor = glows.glassBorderStart,
-                                enabled = true,
-                                selected = defaultSubtasksCount == count
-                            )
-                        )
-                    }
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(24.dp))
+
             
             Column(modifier = glassModifier) {
                 SectionTitle("Frecuencia de Notificaciones")
@@ -407,13 +300,12 @@ fun SettingsScreen(viewModel: TaskViewModel) {
                     viewModel.autoSplit = autoSplit
                     viewModel.nonPostponableHealth = nonPostponableHealth
                     viewModel.nonPostponableUrgent = nonPostponableUrgent
-                    viewModel.defaultRecurrence = defaultRecurrence
                     viewModel.notificationFrequency = notificationFrequency
-                    viewModel.defaultEstimatedMinutes = defaultEstimatedMinutes
-                    viewModel.defaultSubtasksCount = defaultSubtasksCount
+
                     viewModel.isDisconnectModeEnabled = isDisconnectModeEnabled
                     viewModel.disconnectStartTime = disconnectStartTime
                     viewModel.disconnectEndTime = disconnectEndTime
+
                     
                     Toast.makeText(context, "Ajustes guardados correctamente", Toast.LENGTH_SHORT).show()
                 },

@@ -9,9 +9,7 @@ object Constants {
     const val PREF_DISCONNECT_START_TIME = "disconnect_start_time"
     const val PREF_DISCONNECT_END_TIME = "disconnect_end_time"
     const val PREF_MANUAL_BOOST_AMOUNT = "manual_boost_amount"
-    const val PREF_DEFAULT_RECURRENCE = "default_recurrence"
-    const val PREF_DEFAULT_ESTIMATED_MINUTES = "default_estimated_minutes"
-    const val PREF_DEFAULT_SUBTASKS_COUNT = "default_subtasks_count"
+
     const val PREF_AUTO_SPLIT = "auto_split"
     const val PREF_NON_POSTPONABLE_HEALTH = "non_postponable_health"
     const val PREF_NON_POSTPONABLE_URGENT = "non_postponable_urgent"
