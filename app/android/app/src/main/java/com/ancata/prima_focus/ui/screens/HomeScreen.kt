@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.key
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -220,6 +221,23 @@ fun HomeScreen(
                                 Text("Tarea muy larga — divídela en varias partes", style = MaterialTheme.typography.labelSmall, color = Color(0xFFE5A910))
                             }
                         }
+
+                        if (viewModel.autoSplit && (task.estimatedMinutes ?: 0) > 120) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 12.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFF2979FF).copy(alpha = 0.15f))
+                                    .padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFF82B1FF), modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Sugerencia: considera dividir esta tarea en dos sesiones", style = MaterialTheme.typography.labelSmall, color = Color(0xFF82B1FF))
+                            }
+                        }
+
 
                         Row(
                             modifier = Modifier
