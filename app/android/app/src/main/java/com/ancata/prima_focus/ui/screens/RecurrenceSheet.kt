@@ -33,7 +33,7 @@ import java.util.Locale
  * @param onRuleSelected Callback with the newly selected rule (null = remove recurrence).
  * @param onDismiss     Called when the sheet should be closed.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun RecurrenceSheet(
     currentRule: String?,
@@ -128,7 +128,7 @@ fun RecurrenceSheet(
                 }
             }
 
-            // Frequency selector (single-select radio-style chips)
+            // Frequency selector (single-select radio-style chips using FlowRow for responsive wrapping)
             val frequencies = listOf(
                 "NONE" to "No repite",
                 "DAILY" to "Diario",
@@ -136,9 +136,10 @@ fun RecurrenceSheet(
                 "MONTHLY" to "Mensual"
             )
 
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 frequencies.forEach { (key, label) ->
                     FilterChip(
@@ -165,9 +166,10 @@ fun RecurrenceSheet(
             // Weekday picker (only visible when WEEKLY is selected)
             if (selectedFrequency == "WEEKLY") {
                 Spacer(modifier = Modifier.height(16.dp))
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     weekdays.forEach { (code, label) ->
                         val isSelected = code in selectedDays
