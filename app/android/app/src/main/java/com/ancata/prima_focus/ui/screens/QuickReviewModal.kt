@@ -16,6 +16,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import com.ancata.prima_focus.ui.theme.LocalPremiumGlows
 import com.ancata.prima_focus.ui.viewmodel.TaskViewModel
 
@@ -28,6 +30,7 @@ fun QuickReviewModal(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val glows = LocalPremiumGlows.current
+    val context = LocalContext.current
     
     var completedState by remember { mutableStateOf<String?>(null) }
     var moodState by remember { mutableStateOf<String?>(null) }
@@ -132,7 +135,7 @@ fun QuickReviewModal(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "¿Quieres posponer o dividir en subtareas?",
+                            text = "¿Quieres posponer esta tarea?",
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color.White.copy(alpha = 0.8f),
                             modifier = Modifier.padding(bottom = 12.dp)
@@ -143,8 +146,12 @@ fun QuickReviewModal(
                         ) {
                             OutlinedButton(
                                 onClick = {
-                                    viewModel.postponeTask(taskId, reason = completedState ?: "postponed")
-                                    onDismiss()
+                                    val postponed = viewModel.postponeTask(taskId, reason = completedState ?: "postponed")
+                                    if (!postponed) {
+                                        Toast.makeText(context, "Esta tarea no puede posponerse", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        onDismiss()
+                                    }
                                 },
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
                                 border = null

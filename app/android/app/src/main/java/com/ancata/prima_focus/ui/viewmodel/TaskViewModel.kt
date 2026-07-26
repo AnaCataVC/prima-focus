@@ -87,17 +87,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         get() = sharedPrefs.getFloat(Constants.PREF_MANUAL_BOOST_AMOUNT, 10.0f).toDouble()
         set(value) = sharedPrefs.edit().putFloat(Constants.PREF_MANUAL_BOOST_AMOUNT, value.toFloat()).apply()
 
-    var defaultRecurrence: String
-        get() = sharedPrefs.getString(Constants.PREF_DEFAULT_RECURRENCE, "none") ?: "none"
-        set(value) = sharedPrefs.edit().putString(Constants.PREF_DEFAULT_RECURRENCE, value).apply()
 
-    var defaultEstimatedMinutes: Int
-        get() = sharedPrefs.getInt(Constants.PREF_DEFAULT_ESTIMATED_MINUTES, 15)
-        set(value) = sharedPrefs.edit().putInt(Constants.PREF_DEFAULT_ESTIMATED_MINUTES, value).apply()
-
-    var defaultSubtasksCount: Int
-        get() = sharedPrefs.getInt(Constants.PREF_DEFAULT_SUBTASKS_COUNT, 0)
-        set(value) = sharedPrefs.edit().putInt(Constants.PREF_DEFAULT_SUBTASKS_COUNT, value).apply()
 
     var autoSplit: Boolean
         get() = sharedPrefs.getBoolean(Constants.PREF_AUTO_SPLIT, false)
@@ -198,7 +188,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         weight: Double = 2.0,
         estimatedMinutes: Int? = 15,
         date: String? = null,
-        subtasksCount: Int = 0,
+
         recurrence: String? = null
     ) {
         val now = System.currentTimeMillis()
@@ -215,7 +205,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             date = date,
             time = null,
             estimatedMinutes = estimatedMinutes,
-            subtasksCount = subtasksCount,
+
             isProject = false,
             status = "pending",
             createdAt = now,
@@ -293,11 +283,30 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun postponeTask(taskId: String, reason: String) {
+    /**
+     * Attempts to postpone a task.
+     * Returns false if the task is blocked by nonPostponable rules (per-task flag
+     * or global category settings), true if the postpone was applied.
+     */
+    fun postponeTask(taskId: String, reason: String): Boolean {
         val now = System.currentTimeMillis()
+        var blocked = false
         viewModelScope.launch(Dispatchers.IO) {
             val task = taskDao.getTaskById(taskId)
             task?.let {
+                val isBlockedByTask = it.nonPostponable
+                val isBlockedByHealth = it.category == "salud" &&
+                    it.subcategory == "medicaci\u00f3n" &&
+                    nonPostponableHealth
+                val isBlockedByUrgent = it.category == "tr\u00e1mites" &&
+                    it.subcategory == "urgente" &&
+                    nonPostponableUrgent
+
+                if (isBlockedByTask || isBlockedByHealth || isBlockedByUrgent) {
+                    blocked = true
+                    return@let
+                }
+
                 taskDao.updateTask(it.copy(
                     status = "pending",
                     postponedReason = reason,
@@ -306,6 +315,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                 updateWidgets()
             }
         }
+        return !blocked
     }
 
     fun boostTask(taskId: String) {
