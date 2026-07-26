@@ -24,13 +24,11 @@ import androidx.compose.ui.unit.dp
 import com.ancata.prima_focus.ui.theme.LocalPremiumGlows
 import com.ancata.prima_focus.ui.viewmodel.TaskViewModel
 import com.ancata.prima_focus.utils.RecurrenceCalculator
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun InboxModal(
     viewModel: TaskViewModel,
@@ -131,7 +129,7 @@ fun InboxModal(
                                         categoryWeight = weight,
                                         date = selectedDate,
                                         estimatedMinutes = finalMinutes,
-                                        subtasksCount = 0,
+
                                         recurrence = recurrenceRule
                                     )
                                 )
@@ -144,7 +142,7 @@ fun InboxModal(
                                     weight = weight,
                                     date = selectedDate,
                                     estimatedMinutes = finalMinutes,
-                                    subtasksCount = 0,
+
                                     recurrence = recurrenceRule
                                 )
                                 Toast.makeText(context, "Tarea guardada", Toast.LENGTH_SHORT).show()
@@ -252,10 +250,10 @@ fun InboxModal(
                 color = Color.White.copy(alpha = 0.5f),
             )
 
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp).horizontalScroll(rememberScrollState()),
+            FlowRow(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 FilterChip(
                     selected = selectedDate == "Hoy",
@@ -290,7 +288,7 @@ fun InboxModal(
                     border = FilterChipDefaults.filterChipBorder(borderColor = glows.glassBorderStart, enabled = true, selected = isCustomDate)
                 )
 
-                // Recurrence chip: shows icon when inactive, icon + label when active
+                // Recurrence chip: shows icon + "Repetir" when inactive, icon + recurrence label when active
                 val recurrenceLabel = RecurrenceCalculator.toLabel(recurrenceRule)
                 val recurrenceActive = recurrenceRule != null
                 FilterChip(
@@ -305,15 +303,13 @@ fun InboxModal(
                                 imageVector = Icons.Default.Repeat,
                                 contentDescription = "Recurrencia",
                                 modifier = Modifier.size(14.dp),
-                                tint = if (recurrenceActive) glows.primaryAccent else Color.White.copy(alpha = 0.5f)
+                                tint = if (recurrenceActive) glows.primaryAccent else Color.White.copy(alpha = 0.7f)
                             )
-                            if (recurrenceLabel != null) {
-                                Text(
-                                    text = recurrenceLabel,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = glows.primaryAccent
-                                )
-                            }
+                            Text(
+                                text = recurrenceLabel ?: "Repetir",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (recurrenceActive) glows.primaryAccent else Color.White.copy(alpha = 0.8f)
+                            )
                         }
                     },
                     colors = FilterChipDefaults.filterChipColors(
@@ -322,7 +318,7 @@ fun InboxModal(
                         selectedContainerColor = glows.primaryAccent.copy(alpha = 0.15f)
                     ),
                     border = FilterChipDefaults.filterChipBorder(
-                        borderColor = glows.glassBorderStart,
+                        borderColor = if (recurrenceActive) glows.primaryAccent else glows.glassBorderStart,
                         selectedBorderColor = glows.primaryAccent,
                         enabled = true,
                         selected = recurrenceActive

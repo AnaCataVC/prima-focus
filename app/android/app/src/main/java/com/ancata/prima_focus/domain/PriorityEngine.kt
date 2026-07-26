@@ -9,7 +9,6 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.time.temporal.ChronoUnit
-import kotlin.math.ln
 
 class PriorityEngine {
 
@@ -91,12 +90,10 @@ class PriorityEngine {
             }
         }
 
-        val subtasksLn = 0.0
         val estimatedMin = task.estimatedMinutes ?: 0
 
         // Calculate score base and dynamic components
         val scoreBaseStatic = (10 * task.categoryWeight) - 
-                              (2 * subtasksLn) - 
                               (0.02 * estimatedMin) - 
                               (0.5 * ageDays)
 

@@ -3,6 +3,7 @@
 # ========================
 sdkconfig.js
 .DS_Store
+releases/
 
 # Editor directories and files
 .vscode/*
