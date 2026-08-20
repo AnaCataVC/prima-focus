@@ -31,3 +31,4 @@ releases/
 /captures
 .externalNativeBuild
 .cxx
+/releases/
