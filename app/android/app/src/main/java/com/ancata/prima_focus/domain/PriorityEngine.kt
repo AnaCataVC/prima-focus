@@ -6,15 +6,13 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeParseException
 import java.time.temporal.ChronoUnit
 
 class PriorityEngine {
 
     /**
-     * Calculates and updates a task's priority score.
-     * Returns a copy of the entity with the updated score and rules (like isProject) applied.
+     * Calculates and updates a task's priority score without task duration bias.
+     * Returns a copy of the entity with the updated score.
      */
     fun calculatePriority(task: TaskEntity, currentTimeMs: Long = System.currentTimeMillis()): TaskEntity {
         val ageMs = currentTimeMs - task.createdAt
@@ -47,55 +45,54 @@ class PriorityEngine {
         }
 
         var timeUrgency = 0.0
+        var scoreDynamic = 0.0
+
         if (scheduledDate != null) {
+            val isOverdue = scheduledDate.isBefore(currentDate)
+            val isToday = scheduledDate.isEqual(currentDate)
+            val isTomorrow = scheduledDate.isEqual(currentDate.plusDays(1))
+
             if (task.hasTime && task.time != null) {
                 try {
                     val localTime = LocalTime.parse(task.time)
                     val scheduledDateTime = LocalDateTime.of(scheduledDate, localTime)
                     val currentDateTime = LocalDateTime.ofInstant(currentInstant, currentLocalZone)
-                    
                     val minutesUntil = ChronoUnit.MINUTES.between(currentDateTime, scheduledDateTime)
-                    
+
                     timeUrgency = when {
-                        minutesUntil < 0 -> if (task.recurrence != null) 1.0 else 1.0
+                        minutesUntil < 0 -> 1.0
                         minutesUntil <= 120 -> 1.0
-                        minutesUntil <= 1440 -> 0.6
+                        isToday -> 0.6
+                        isTomorrow -> 0.3
                         else -> 0.0
                     }
                 } catch (e: Exception) {
-                    // Fallback to day-level urgency if time parsing fails
-                    val currentDateTime = LocalDateTime.ofInstant(currentInstant, currentLocalZone)
-                    val startOfScheduledDay = scheduledDate.atStartOfDay()
-                    val minutesUntil = ChronoUnit.MINUTES.between(currentDateTime, startOfScheduledDay)
                     timeUrgency = when {
-                        // Recurring tasks with a past date get maximum urgency
-                        minutesUntil < 0 && task.recurrence != null -> 1.0
-                        minutesUntil < 0 -> 0.6
-                        minutesUntil <= 1440 -> 0.6
+                        isOverdue -> 1.0
+                        isToday -> 0.6
+                        isTomorrow -> 0.3
                         else -> 0.0
                     }
                 }
             } else {
-                // If user didn't define a specific time, it stays at 0.6 all day (no scaling to 1.0)
-                val currentDateTime = LocalDateTime.ofInstant(currentInstant, currentLocalZone)
-                val startOfScheduledDay = scheduledDate.atStartOfDay()
-                val minutesUntil = ChronoUnit.MINUTES.between(currentDateTime, startOfScheduledDay)
                 timeUrgency = when {
-                    // Recurring tasks with a past date get maximum urgency
-                    minutesUntil < 0 && task.recurrence != null -> 1.0
-                    minutesUntil < 0 -> 0.6  // Overdue non-recurring: keep at 0.6
-                    minutesUntil <= 1440 -> 0.6 // Within 24 hours of start of day
+                    isOverdue -> 1.0
+                    isToday -> 0.6
+                    isTomorrow -> 0.3
                     else -> 0.0
                 }
             }
+
+            scoreDynamic = when {
+                isOverdue -> 14.0
+                isToday -> (6.0 * hasDate) + (8.0 * timeUrgency)
+                isTomorrow -> 4.0
+                else -> 2.0
+            }
         }
 
-        val estimatedMin = task.estimatedMinutes ?: 0
-
-        // Calculate score base and dynamic components
-        val scoreBaseStatic = (10 * task.categoryWeight) - 
-                              (0.02 * estimatedMin) - 
-                              (0.5 * ageDays)
+        // Calculate score base with absolute floor at 0.0 to prevent negative decay
+        val scoreBaseStatic = ((10.0 * task.categoryWeight) - (0.5 * ageDays)).coerceAtLeast(0.0)
 
         val scoreBase = if (task.categoryWeight >= 4.0) {
             scoreBaseStatic.coerceAtLeast(70.0)
@@ -103,16 +100,12 @@ class PriorityEngine {
             scoreBaseStatic
         }
 
-        val scoreDynamic = (6 * hasDate) + (8 * timeUrgency)
-
         val score = scoreBase + scoreDynamic + task.manualBoost
-
-        val isProject = task.isProject || estimatedMin > 120
 
         return task.copy(
             priorityScore = score,
             timeUrgency = timeUrgency,
-            isProject = isProject,
+            isProject = task.isProject,
             updatedAt = currentTimeMs
         )
     }
