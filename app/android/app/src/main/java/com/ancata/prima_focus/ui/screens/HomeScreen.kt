@@ -1,29 +1,18 @@
 package com.ancata.prima_focus.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.key
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,27 +20,47 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import android.widget.Toast
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ancata.prima_focus.data.local.entity.TaskEntity
 import com.ancata.prima_focus.ui.theme.LocalPremiumGlows
 import com.ancata.prima_focus.ui.viewmodel.TaskViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     viewModel: TaskViewModel,
     snackbarHostState: SnackbarHostState,
-    onStartTimer: (String, String, Int) -> Unit,
-    onEditTask: (com.ancata.prima_focus.data.local.entity.TaskEntity) -> Unit = {}
+    onStartTimer: (String, String, Int) -> Unit = { _, _, _ -> },
+    onEditTask: (TaskEntity) -> Unit = {},
+    onRequestReview: (String) -> Unit = {}
 ) {
-    val topTask by viewModel.topTask.collectAsState()
+    val focusState by viewModel.focusDisplayState.collectAsState()
     val glows = LocalPremiumGlows.current
     val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
+    val scrollState = rememberScrollState()
+
+    val handleCompleteTask: (TaskEntity) -> Unit = { task ->
+        if (viewModel.isHistoryTrackingEnabled.value) {
+            onRequestReview(task.taskId)
+        } else {
+            viewModel.completeTask(task.taskId, feeling = 3, result = "Quick complete")
+            coroutineScope.launch {
+                val res = snackbarHostState.showSnackbar(
+                    message = "¡Tarea completada!",
+                    actionLabel = "Deshacer"
+                )
+                if (res == SnackbarResult.ActionPerformed) {
+                    viewModel.uncompleteTask(task)
+                }
+            }
+        }
+    }
+
+    var tiesExpanded by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -65,24 +74,28 @@ fun HomeScreen(
                     )
                 )
             }
-            .padding(16.dp),
+            .padding(horizontal = 16.dp),
         contentAlignment = Alignment.TopCenter
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(bottom = 96.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 32.dp, top = 16.dp),
+                    .padding(bottom = 20.dp, top = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "HOY",
                     style = MaterialTheme.typography.labelMedium,
-                    color = Color.White.copy(alpha = 0.6f)
+                    color = Color.White.copy(alpha = 0.6f),
+                    letterSpacing = 1.5.sp
                 )
                 Icon(
                     imageVector = Icons.Default.Check,
@@ -92,91 +105,14 @@ fun HomeScreen(
                 )
             }
 
-            if (topTask != null) {
-                val task = topTask!!
-                
-                val haptic = LocalHapticFeedback.current
-                
-                val dismissState = rememberSwipeToDismissBoxState()
-                
-                LaunchedEffect(dismissState.currentValue) {
-                    when(dismissState.currentValue) {
-                        SwipeToDismissBoxValue.StartToEnd -> {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            viewModel.boostTask(task.taskId)
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Boost aplicado!")
-                            }
-                            dismissState.snapTo(SwipeToDismissBoxValue.Settled)
-                        }
-                        SwipeToDismissBoxValue.EndToStart -> {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            coroutineScope.launch {
-                                dismissState.snapTo(SwipeToDismissBoxValue.Settled)
-                                viewModel.deleteTask(task.taskId)
-                                val result = snackbarHostState.showSnackbar(
-                                    message = "Tarea eliminada",
-                                    actionLabel = "Deshacer"
-                                )
-                                if (result == SnackbarResult.ActionPerformed) {
-                                    viewModel.restoreTask(task)
-                                    Toast.makeText(context, "Tarea restaurada", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        }
-                        else -> {}
-                    }
-                }
+            if (focusState.heroTask != null) {
+                val heroTask = focusState.heroTask!!
+                var heroNotesExpanded by remember { mutableStateOf(false) }
 
-                key(task.taskId) {
-                    SwipeToDismissBox(
-                        state = dismissState,
-                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)),
-                    backgroundContent = {
-                        val isBoost = dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd
-                        val isDelete = dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart
-                        
-                        val brush = when {
-                            isBoost -> Brush.horizontalGradient(
-                                colors = listOf(glows.primaryAccent.copy(alpha = 0.8f), Color.Transparent)
-                            )
-                            isDelete -> Brush.horizontalGradient(
-                                colors = listOf(Color.Transparent, Color.Red.copy(alpha = 0.8f))
-                            )
-                            else -> Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent))
-                        }
-                        
-                        val icon = when {
-                            isBoost -> Icons.Default.ArrowUpward
-                            isDelete -> Icons.Default.Delete
-                            else -> null
-                        }
-                        
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(RoundedCornerShape(24.dp))
-                                .background(brush),
-                            contentAlignment = when {
-                                isBoost -> Alignment.CenterStart
-                                isDelete -> Alignment.CenterEnd
-                                else -> Alignment.Center
-                            }
-                        ) {
-                            if (icon != null) {
-                                Icon(
-                                    imageVector = icon,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.padding(horizontal = 32.dp).size(40.dp)
-                                )
-                            }
-                        }
-                    }
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
+                // ==================== HERO FOCUS CARD (#1) ====================
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
                         .clip(RoundedCornerShape(24.dp))
                         .background(glows.glassSurface)
                         .border(
@@ -187,193 +123,517 @@ fun HomeScreen(
                             shape = RoundedCornerShape(24.dp)
                         )
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .drawBehind {
-                                drawCircle(
-                                    brush = Brush.radialGradient(
-                                        colors = listOf(glows.primaryGlow.copy(alpha = 0.15f), Color.Transparent),
-                                        center = Offset(0f, 0f),
-                                        radius = size.width / 2f
-                                    ),
-                                    center = Offset(0f, 0f)
-                                )
-                            }
-                    )
-
                     Column(
-                        modifier = Modifier.padding(32.dp),
+                        modifier = Modifier.padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        if (task.isProject) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 12.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFFE5A910).copy(alpha = 0.2f))
-                                    .padding(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFE5A910), modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Tarea muy larga — divídela en varias partes", style = MaterialTheme.typography.labelSmall, color = Color(0xFFE5A910))
-                            }
-                        }
-
-                        if (viewModel.autoSplit && (task.estimatedMinutes ?: 0) > 120) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 12.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFF2979FF).copy(alpha = 0.15f))
-                                    .padding(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFF82B1FF), modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Sugerencia: considera dividir esta tarea en dos sesiones", style = MaterialTheme.typography.labelSmall, color = Color(0xFF82B1FF))
-                            }
-                        }
-
-
+                        // Priority Badge & Boost indicator
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(bottom = 24.dp),
-                            horizontalArrangement = Arrangement.Center, 
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .background(
-                                        color = if (task.priorityScore >= 70) Color(0xFFE65100).copy(alpha = 0.2f) 
-                                                else glows.glassSurface.copy(alpha = 0.3f),
-                                        shape = CircleShape
-                                    )
-                                    .padding(horizontal = 12.dp, vertical = 6.dp)
-                            ) {
-                                val priorityText = when {
-                                    task.priorityScore >= 70 -> "Urgente"
-                                    task.priorityScore >= 40 -> "Alta"
-                                    else -> "Normal"
-                                }
-                                Text(
-                                    text = priorityText,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White.copy(alpha = 0.87f)
-                                )
-                            }
-                        }
-
-                        Text(
-                            text = task.title,
-                            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = Color.White,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        )
-
-                        val catCap = task.category.replaceFirstChar { it.uppercase() }
-                        val subCatCap = task.subcategory?.replaceFirstChar { it.uppercase() }
-                        val catStr = if (!subCatCap.isNullOrBlank()) "$catCap - $subCatCap" else catCap
-                        val minutesStr = task.estimatedMinutes?.takeIf { it > 0 }?.let { "$it min" } ?: "∞"
-                        Text(
-                            text = "$catStr • $minutesStr",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = Color.White.copy(alpha = 0.6f),
-                            modifier = Modifier.padding(bottom = 48.dp)
-                        )
-
-                        Row(
+                                .padding(bottom = 16.dp),
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            FloatingActionButton(
-                                onClick = { 
-                                    onStartTimer(task.taskId, task.title, task.estimatedMinutes ?: 25)
-                                },
-                                shape = CircleShape,
-                                containerColor = glows.primaryAccent,
-                                elevation = FloatingActionButtonDefaults.elevation(
-                                    defaultElevation = 12.dp,
-                                    pressedElevation = 16.dp
-                                ),
-                                modifier = Modifier.size(80.dp)
+                            val priorityBg = when {
+                                heroTask.priorityScore >= 70 -> MaterialTheme.colorScheme.error.copy(alpha = 0.25f)
+                                heroTask.priorityScore >= 40 -> glows.primaryGlow.copy(alpha = 0.25f)
+                                else -> glows.glassSurface.copy(alpha = 0.3f)
+                            }
+                            val priorityLabel = when {
+                                heroTask.priorityScore >= 70 -> "Urgente"
+                                heroTask.priorityScore >= 40 -> "Alta"
+                                heroTask.priorityScore < 20 -> "Baja"
+                                else -> "Normal"
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .background(color = priorityBg, shape = CircleShape)
+                                    .padding(horizontal = 14.dp, vertical = 6.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = "Empezar",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(40.dp)
+                                Text(
+                                    text = priorityLabel,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White.copy(alpha = 0.9f)
                                 )
                             }
-                            
-                            Spacer(modifier = Modifier.width(32.dp))
-                            
-                            FloatingActionButton(
-                                onClick = { 
-                                    viewModel.completeTask(task.taskId, feeling = 3, result = "Quick complete")
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("¡Tarea completada!")
-                                    }
-                                },
-                                shape = CircleShape,
-                                containerColor = glows.glassSurface.copy(alpha = 0.5f),
-                                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 0.dp),
-                                modifier = Modifier.size(48.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Completar Rápido",
-                                    tint = Color.White.copy(alpha = 0.7f),
-                                    modifier = Modifier.size(24.dp)
+                            if (heroTask.manualBoost != 0.0) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                val bText = if (heroTask.manualBoost > 0) "+${heroTask.manualBoost.toInt()}" else "${heroTask.manualBoost.toInt()}"
+                                Text(
+                                    text = "($bText boost)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (heroTask.manualBoost > 0) glows.primaryAccent else MaterialTheme.colorScheme.error
                                 )
                             }
                         }
-                        
-                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Task Title (Up to 3 lines)
                         Text(
-                            text = "EMPEZAR",
+                            text = heroTask.title,
+                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                            color = Color.White,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+
+                        // Category & Date
+                        val catCap = heroTask.category.replaceFirstChar { it.uppercase() }
+                        val subCatCap = heroTask.subcategory?.replaceFirstChar { it.uppercase() }
+                        val catStr = if (!subCatCap.isNullOrBlank()) "$catCap - $subCatCap" else catCap
+                        val dateStr = heroTask.date?.let { " • $it" } ?: ""
+                        Text(
+                            text = "$catStr$dateStr",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.65f),
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+
+                        // Expandable Notes Accordion
+                        if (!heroTask.description.isNullOrBlank()) {
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color.White.copy(alpha = 0.08f))
+                                    .clickable { heroNotesExpanded = !heroNotesExpanded }
+                                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(Icons.Default.Description, contentDescription = null, tint = glows.primaryAccent, modifier = Modifier.size(14.dp))
+                                Text(
+                                    text = if (heroNotesExpanded) "Ocultar notas" else "Ver notas",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White.copy(alpha = 0.9f)
+                                )
+                                Icon(
+                                    imageVector = if (heroNotesExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                    contentDescription = null,
+                                    tint = Color.White.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+
+                            AnimatedVisibility(visible = heroNotesExpanded) {
+                                Text(
+                                    text = heroTask.description,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.White.copy(alpha = 0.85f),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp, bottom = 4.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color.Black.copy(alpha = 0.25f))
+                                        .padding(12.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // Large Complete Checkmark FAB
+                        FloatingActionButton(
+                            onClick = { handleCompleteTask(heroTask) },
+                            shape = CircleShape,
+                            containerColor = glows.primaryAccent,
+                            elevation = FloatingActionButtonDefaults.elevation(
+                                defaultElevation = 12.dp,
+                                pressedElevation = 16.dp
+                            ),
+                            modifier = Modifier.size(80.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Completar Tarea",
+                                tint = Color.White,
+                                modifier = Modifier.size(40.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "COMPLETAR",
                             fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp,
+                            letterSpacing = 1.2.sp,
                             fontSize = 12.sp,
                             color = glows.primaryAccent
                         )
-                        
+
                         Spacer(modifier = Modifier.height(16.dp))
+
+                        // Action Bar: Edit, Snooze, Boost, Demote, Delete
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(24.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            IconButton(onClick = { onEditTask(task) }) {
-                                Icon(Icons.Default.Edit, contentDescription = "Editar", tint = Color.White.copy(alpha = 0.5f))
+                            IconButton(onClick = { onEditTask(heroTask) }) {
+                                Icon(Icons.Default.Edit, contentDescription = "Editar", tint = Color.White.copy(alpha = 0.6f))
                             }
                             IconButton(onClick = {
-                                viewModel.snoozeTask(task.taskId)
+                                viewModel.snoozeTask(heroTask.taskId)
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar("Tarea pospuesta para mañana")
                                 }
                             }) {
-                                Icon(Icons.Default.ArrowForward, contentDescription = "Posponer", tint = Color.White.copy(alpha = 0.5f))
+                                Icon(Icons.Default.ArrowForward, contentDescription = "Posponer", tint = Color.White.copy(alpha = 0.6f))
+                            }
+                            IconButton(onClick = {
+                                viewModel.boostTask(heroTask.taskId)
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("¡Prioridad aumentada (+10)!")
+                                }
+                            }) {
+                                Icon(Icons.Default.ArrowUpward, contentDescription = "Boost", tint = glows.primaryAccent)
+                            }
+                            IconButton(onClick = {
+                                viewModel.demoteTask(heroTask.taskId)
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("Prioridad reducida (-10)")
+                                }
+                            }) {
+                                Icon(Icons.Default.ArrowDownward, contentDescription = "Anti-Boost", tint = MaterialTheme.colorScheme.error)
+                            }
+                            IconButton(onClick = {
+                                viewModel.deleteTask(heroTask.taskId)
+                                coroutineScope.launch {
+                                    val result = snackbarHostState.showSnackbar(
+                                        message = "Tarea eliminada",
+                                        actionLabel = "Deshacer"
+                                    )
+                                    if (result == SnackbarResult.ActionPerformed) {
+                                        viewModel.restoreTask(heroTask)
+                                    }
+                                }
+                            }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = Color.White.copy(alpha = 0.4f))
                             }
                         }
                     }
+                }
+
+                // ==================== SECONDARY FOCUS CARDS (#2 & #3) ====================
+                if (focusState.secondaryTasks.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(28.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Próximas Prioridades",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White.copy(alpha = 0.9f)
+                        )
+                        Text(
+                            text = "${focusState.totalPendingCount} pendientes",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.5f)
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        focusState.secondaryTasks.forEachIndexed { index, task ->
+                            SecondaryTaskCard(
+                                rank = index + 2,
+                                task = task,
+                                onStartTimer = onStartTimer,
+                                onComplete = { handleCompleteTask(task) },
+                                onEdit = { onEditTask(task) },
+                                onSnooze = {
+                                    viewModel.snoozeTask(task.taskId)
+                                    coroutineScope.launch { snackbarHostState.showSnackbar("Tarea pospuesta para mañana") }
+                                },
+                                onBoost = {
+                                    viewModel.boostTask(task.taskId)
+                                    coroutineScope.launch { snackbarHostState.showSnackbar("¡Prioridad aumentada (+10)!") }
+                                },
+                                onDemote = {
+                                    viewModel.demoteTask(task.taskId)
+                                    coroutineScope.launch { snackbarHostState.showSnackbar("Prioridad reducida (-10)") }
+                                },
+                                onDelete = {
+                                    viewModel.deleteTask(task.taskId)
+                                    coroutineScope.launch {
+                                        val result = snackbarHostState.showSnackbar("Tarea eliminada", actionLabel = "Deshacer")
+                                        if (result == SnackbarResult.ActionPerformed) {
+                                            viewModel.restoreTask(task)
+                                        }
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
+
+                // ==================== EXPANDABLE TIED TASKS CLUSTER ====================
+                if (focusState.tiedTasks.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Surface(
+                        onClick = { tiesExpanded = !tiesExpanded },
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)),
+                        color = glows.glassSurface.copy(alpha = 0.4f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, glows.glassBorderStart.copy(alpha = 0.5f))
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(Icons.Default.Layers, contentDescription = null, tint = glows.primaryAccent, modifier = Modifier.size(18.dp))
+                                Text(
+                                    text = "+${focusState.tiedTasks.size} tareas con igual prioridad",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White
+                                )
+                            }
+                            Icon(
+                                imageVector = if (tiesExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+
+                    AnimatedVisibility(visible = tiesExpanded) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            focusState.tiedTasks.forEachIndexed { i, tiedTask ->
+                                SecondaryTaskCard(
+                                    rank = focusState.secondaryTasks.size + 2 + i,
+                                    task = tiedTask,
+                                    onStartTimer = onStartTimer,
+                                    onComplete = { handleCompleteTask(tiedTask) },
+                                    onEdit = { onEditTask(tiedTask) },
+                                    onSnooze = {
+                                        viewModel.snoozeTask(tiedTask.taskId)
+                                        coroutineScope.launch { snackbarHostState.showSnackbar("Tarea pospuesta para mañana") }
+                                    },
+                                    onBoost = {
+                                        viewModel.boostTask(tiedTask.taskId)
+                                        coroutineScope.launch { snackbarHostState.showSnackbar("¡Prioridad aumentada (+10)!") }
+                                    },
+                                    onDemote = {
+                                        viewModel.demoteTask(tiedTask.taskId)
+                                        coroutineScope.launch { snackbarHostState.showSnackbar("Prioridad reducida (-10)") }
+                                    },
+                                    onDelete = {
+                                        viewModel.deleteTask(tiedTask.taskId)
+                                        coroutineScope.launch {
+                                            val result = snackbarHostState.showSnackbar("Tarea eliminada", actionLabel = "Deshacer")
+                                            if (result == SnackbarResult.ActionPerformed) {
+                                                viewModel.restoreTask(tiedTask)
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
+
             } else {
-                Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.height(160.dp))
+                Icon(
+                    imageVector = Icons.Default.CheckCircleOutline,
+                    contentDescription = null,
+                    tint = glows.primaryAccent.copy(alpha = 0.6f),
+                    modifier = Modifier.size(64.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Tu prioridad del día aparecerá aquí",
-                    style = MaterialTheme.typography.bodyLarge,
+                    text = "¡Todo al día!",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Tus prioridades del día aparecerán aquí",
+                    style = MaterialTheme.typography.bodyMedium,
                     color = Color.White.copy(alpha = 0.5f)
                 )
-                Spacer(modifier = Modifier.weight(1f))
             }
         }
     }
 }
+
+@Composable
+fun SecondaryTaskCard(
+    rank: Int,
+    task: TaskEntity,
+    onStartTimer: (String, String, Int) -> Unit = { _, _, _ -> },
+    onComplete: () -> Unit,
+    onEdit: () -> Unit,
+    onSnooze: () -> Unit,
+    onBoost: () -> Unit,
+    onDemote: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val glows = LocalPremiumGlows.current
+    var notesExpanded by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(glows.glassSurface)
+            .border(
+                width = 1.dp,
+                brush = Brush.linearGradient(
+                    colors = listOf(glows.glassBorderStart, glows.glassBorderEnd)
+                ),
+                shape = RoundedCornerShape(18.dp)
+            )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) {
+                // Rank Number Badge
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .background(glows.primaryAccent.copy(alpha = 0.2f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "#$rank",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = glows.primaryAccent
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = task.title,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = Color.White,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    val catCap = task.category.replaceFirstChar { it.uppercase() }
+                    val subCatCap = task.subcategory?.replaceFirstChar { it.uppercase() }
+                    val catStr = if (!subCatCap.isNullOrBlank()) "$catCap - $subCatCap" else catCap
+                    val dateStr = task.date?.let { " • $it" } ?: ""
+                    Text(
+                        text = "$catStr$dateStr",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.6f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Direct Complete Button
+                IconButton(
+                    onClick = onComplete,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(glows.primaryAccent, CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Completar",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            // Expandable Notes
+            if (!task.description.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color.White.copy(alpha = 0.05f))
+                        .clickable { notesExpanded = !notesExpanded }
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(Icons.Default.Description, contentDescription = null, tint = glows.primaryAccent, modifier = Modifier.size(12.dp))
+                    Text(
+                        text = if (notesExpanded) "Ocultar notas" else "Ver notas",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 11.sp
+                    )
+                    Icon(
+                        imageVector = if (notesExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.5f),
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
+
+                AnimatedVisibility(visible = notesExpanded) {
+                    Text(
+                        text = task.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.85f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.Black.copy(alpha = 0.2f))
+                            .padding(8.dp)
+                    )
+                }
+            }
+
+            HorizontalDivider(
+                color = glows.glassBorderStart.copy(alpha = 0.25f),
+                modifier = Modifier.padding(top = 10.dp, bottom = 6.dp)
+            )
+
+            // Bottom Actions: Boost, Demote, Edit, Snooze, Delete
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    IconButton(onClick = onBoost, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.ArrowUpward, contentDescription = "Boost", tint = glows.primaryAccent, modifier = Modifier.size(16.dp))
+                    }
+                    IconButton(onClick = onDemote, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.ArrowDownward, contentDescription = "Anti-Boost", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+                    }
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.Edit, contentDescription = "Editar", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                    }
+                    IconButton(onClick = onSnooze, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.ArrowForward, contentDescription = "Posponer", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                    }
+                    IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+

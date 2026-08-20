@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,9 +17,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import android.widget.Toast
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ancata.prima_focus.ui.theme.LocalPremiumGlows
 import com.ancata.prima_focus.ui.viewmodel.TaskViewModel
 import com.ancata.prima_focus.utils.RecurrenceCalculator
@@ -36,6 +34,7 @@ fun InboxModal(
     onDismiss: () -> Unit
 ) {
     var text by remember { mutableStateOf(taskToEdit?.title ?: "") }
+    var description by remember { mutableStateOf(taskToEdit?.description ?: "") }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val glows = LocalPremiumGlows.current
     val context = LocalContext.current
@@ -60,8 +59,6 @@ fun InboxModal(
         )
     }
     var selectedDate by remember { mutableStateOf(taskToEdit?.date) }
-    var estimatedMinutes by remember { mutableStateOf(taskToEdit?.estimatedMinutes?.toString() ?: "") }
-    var noDuration by remember { mutableStateOf(taskToEdit != null && (taskToEdit.estimatedMinutes == null || taskToEdit.estimatedMinutes <= 0)) }
 
     // Recurrence state
     var recurrenceRule by remember { mutableStateOf(taskToEdit?.recurrence) }
@@ -72,28 +69,43 @@ fun InboxModal(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = glows.backgroundCenter.copy(alpha = 0.95f), // High opacity for readability
-        scrimColor = Color.Black.copy(alpha = 0.7f), // Dark scrim as per UX rules
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        containerColor = Color.Transparent, 
+        scrimColor = Color.Black.copy(alpha = 0.7f),
+        dragHandle = null
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp)
-                .padding(bottom = 32.dp)
+                .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
+                .background(glows.backgroundCenter.copy(alpha = 0.95f))
+                .background(glows.glassSurface)
+                .border(
+                    width = 1.dp,
+                    brush = Brush.linearGradient(listOf(glows.glassBorderStart, glows.glassBorderEnd)),
+                    shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+                )
         ) {
-            // Main Input Area
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
+                    .padding(bottom = 32.dp)
             ) {
+                // Drag handle placeholder
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(bottom = 24.dp)
+                        .size(width = 32.dp, height = 4.dp)
+                        .background(Color.White.copy(alpha = 0.4f), CircleShape)
+                )
+
+                // Main Input Area: Title
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
                     placeholder = { Text("¿Qué tienes en mente?", color = Color.White.copy(alpha = 0.5f)) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(end = 12.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = glows.primaryAccent,
@@ -101,78 +113,44 @@ fun InboxModal(
                         focusedTextColor = Color.White,
                         unfocusedTextColor = Color.White,
                         cursorColor = glows.primaryAccent,
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent
+                        focusedContainerColor = glows.glassSurface.copy(alpha = 0.5f),
+                        unfocusedContainerColor = glows.glassSurface.copy(alpha = 0.3f)
                     ),
                     shape = RoundedCornerShape(16.dp)
                 )
 
-                // Big circular send button
-                FloatingActionButton(
-                    onClick = {
-                        if (text.isNotBlank()) {
-                            val subcat = selectedSubcategory?.first
-                            val weight = selectedSubcategory?.second ?: 2.0
-                            val parsedMinutes = estimatedMinutes.toIntOrNull()
-                            if (!noDuration && (parsedMinutes == null || parsedMinutes <= 0)) {
-                                Toast.makeText(context, "Ingresa los minutos o marca 'Sin duración'", Toast.LENGTH_SHORT).show()
-                                return@FloatingActionButton
-                            }
-                            val finalMinutes = if (noDuration) null else parsedMinutes
+                Spacer(modifier = Modifier.height(12.dp))
 
-                            if (taskToEdit != null) {
-                                viewModel.updateTask(
-                                    taskToEdit.copy(
-                                        title = text,
-                                        category = selectedCategory,
-                                        subcategory = subcat,
-                                        categoryWeight = weight,
-                                        date = selectedDate,
-                                        estimatedMinutes = finalMinutes,
+                // Notes / Description Area
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { if (it.length <= 2000) description = it },
+                    placeholder = { Text("Notas adicionales o contexto (opcional)...", color = Color.White.copy(alpha = 0.4f)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2,
+                    maxLines = 4,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = glows.primaryAccent,
+                        unfocusedBorderColor = glows.glassBorderStart,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = glows.primaryAccent,
+                        focusedContainerColor = glows.glassSurface.copy(alpha = 0.5f),
+                        unfocusedContainerColor = glows.glassSurface.copy(alpha = 0.3f)
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                )
 
-                                        recurrence = recurrenceRule
-                                    )
-                                )
-                                Toast.makeText(context, "Tarea actualizada", Toast.LENGTH_SHORT).show()
-                            } else {
-                                viewModel.quickAdd(
-                                    title = text,
-                                    category = selectedCategory,
-                                    subcategory = subcat,
-                                    weight = weight,
-                                    date = selectedDate,
-                                    estimatedMinutes = finalMinutes,
+                Spacer(modifier = Modifier.height(20.dp))
 
-                                    recurrence = recurrenceRule
-                                )
-                                Toast.makeText(context, "Tarea guardada", Toast.LENGTH_SHORT).show()
-                            }
-                            onDismiss()
-                        }
-                    },
-                    shape = CircleShape,
-                    containerColor = glows.primaryAccent,
-                    elevation = FloatingActionButtonDefaults.elevation(4.dp),
-                    modifier = Modifier.size(56.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.Send,
-                        contentDescription = "Guardar",
-                        tint = Color.White
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Column(modifier = Modifier.fillMaxWidth()) {
-                ExposedDropdownMenuBox(
-                    expanded = categoryExpanded,
-                    onExpandedChange = { categoryExpanded = !categoryExpanded },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    OutlinedTextField(
-                        value = selectedCategory.replaceFirstChar { it.uppercase() },
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    ExposedDropdownMenuBox(
+                        expanded = categoryExpanded,
+                        onExpandedChange = { categoryExpanded = !categoryExpanded },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedTextField(
+                            value = selectedCategory.replaceFirstChar { it.uppercase() },
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Categoría", color = Color.White.copy(alpha = 0.6f)) },
@@ -352,7 +330,7 @@ fun InboxModal(
                 }
             }
 
-            // Independent RecurrenceSheet (never nested inside another ModalBottomSheet)
+            // Recurrence Sheet
             if (showRecurrenceSheet) {
                 RecurrenceSheet(
                     currentRule = recurrenceRule,
@@ -362,49 +340,63 @@ fun InboxModal(
                 )
             }
             
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedTextField(
-                    value = estimatedMinutes,
-                    onValueChange = { estimatedMinutes = it },
-                    label = { Text("Minutos", color = Color.White.copy(alpha = 0.6f)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    enabled = !noDuration,
-                    modifier = Modifier.weight(1f),
-                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = glows.primaryGlow,
-                        unfocusedBorderColor = glows.glassBorderStart
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                )
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Button(
+                onClick = {
+                    if (text.isNotBlank()) {
+                        val subcat = selectedSubcategory?.first
+                        val weight = selectedSubcategory?.second ?: 2.0
+                        val finalDescription = description.trim().ifEmpty { null }
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { noDuration = !noDuration }.padding(end = 8.dp)
-                ) {
-                    Checkbox(
-                        checked = noDuration,
-                        onCheckedChange = { noDuration = it },
-                        colors = CheckboxDefaults.colors(
-                            checkedColor = glows.primaryAccent,
-                            uncheckedColor = glows.glassBorderStart,
-                            checkmarkColor = Color.White
-                        )
-                    )
-                    Text(
-                        text = "Sin duración",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White
-                    )
-                }
+                        if (taskToEdit != null) {
+                            viewModel.updateTask(
+                                taskToEdit.copy(
+                                    title = text,
+                                    description = finalDescription,
+                                    category = selectedCategory,
+                                    subcategory = subcat,
+                                    categoryWeight = weight,
+                                    date = selectedDate,
+                                    estimatedMinutes = null,
+                                    recurrence = recurrenceRule
+                                )
+                            )
+                            Toast.makeText(context, "Tarea actualizada", Toast.LENGTH_SHORT).show()
+                        } else {
+                            viewModel.quickAdd(
+                                title = text,
+                                description = finalDescription,
+                                category = selectedCategory,
+                                subcategory = subcat,
+                                weight = weight,
+                                date = selectedDate,
+                                estimatedMinutes = null,
+                                recurrence = recurrenceRule
+                            )
+                            Toast.makeText(context, "Tarea guardada", Toast.LENGTH_SHORT).show()
+                        }
+                        onDismiss()
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = glows.primaryAccent,
+                    contentColor = Color.White
+                )
+            ) {
+                Text(
+                    text = if (taskToEdit != null) "Actualizar Tarea" else "Guardar Tarea",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                )
             }
             
             Spacer(modifier = Modifier.height(8.dp))
+        }
         }
     }
 }

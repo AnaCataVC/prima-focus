@@ -146,11 +146,12 @@ fun QuickReviewModal(
                         ) {
                             OutlinedButton(
                                 onClick = {
-                                    val postponed = viewModel.postponeTask(taskId, reason = completedState ?: "postponed")
-                                    if (!postponed) {
-                                        Toast.makeText(context, "Esta tarea no puede posponerse", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        onDismiss()
+                                    viewModel.postponeTask(taskId, reason = completedState ?: "postponed") { success ->
+                                        if (!success) {
+                                            Toast.makeText(context, "Esta tarea no puede posponerse", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            onDismiss()
+                                        }
                                     }
                                 },
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),

@@ -3,7 +3,7 @@ package com.ancata.prima_focus
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
@@ -28,6 +28,11 @@ import com.ancata.prima_focus.ui.theme.PrimaFocusTheme
 import com.ancata.prima_focus.ui.viewmodel.TaskViewModel
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import com.ancata.prima_focus.ui.screens.TabletDashboardScreen
+import kotlinx.coroutines.launch
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -47,25 +52,39 @@ class MainActivity : ComponentActivity() {
 
     private val pendingIntentAction = MutableStateFlow<Intent?>(null)
 
+    @android.annotation.SuppressLint("InvalidFragmentVersionForActivityResult")
     private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
         // Handle if needed
     }
 
-    private fun askNotificationPermission() {
+    private fun askPermissions() {
+        val permissions = mutableListOf<String>()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
-                PackageManager.PERMISSION_GRANTED
-            ) {
-                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+            permissions.add(Manifest.permission.NEARBY_WIFI_DEVICES)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            permissions.add(Manifest.permission.BLUETOOTH_SCAN)
+            permissions.add(Manifest.permission.BLUETOOTH_ADVERTISE)
+            permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
+        }
+        permissions.add(Manifest.permission.ACCESS_FINE_LOCATION)
+        permissions.add(Manifest.permission.ACCESS_COARSE_LOCATION)
+
+        val ungranted = permissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (ungranted.isNotEmpty()) {
+            requestPermissionLauncher.launch(ungranted.toTypedArray())
         }
     }
 
     private fun setupWorkManager() {
-        val sharedPrefs = getSharedPreferences("prima_focus_prefs", Context.MODE_PRIVATE)
-        val frequency = sharedPrefs.getInt("notification_frequency", 15)
+        val sharedPrefs = getSharedPreferences(com.ancata.prima_focus.utils.Constants.PREF_FILE, android.content.Context.MODE_PRIVATE)
+        val frequency = sharedPrefs.getInt(com.ancata.prima_focus.utils.Constants.PREF_NOTIFICATION_FREQUENCY, com.ancata.prima_focus.utils.Constants.DEFAULT_NOTIFICATION_FREQUENCY)
         val workManager = WorkManager.getInstance(this)
         if (frequency <= 0) {
             workManager.cancelUniqueWork("NotificationWorker")
@@ -79,16 +98,18 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        askNotificationPermission()
+        askPermissions()
         setupWorkManager()
         
         intent?.let { pendingIntentAction.value = it }
         
         setContent {
             PrimaFocusTheme {
-                MainApp(pendingIntentAction)
+                val windowSizeClass = calculateWindowSizeClass(this).widthSizeClass
+                MainApp(pendingIntentAction, windowSizeClass)
             }
         }
     }
@@ -100,7 +121,10 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MainApp(pendingIntentAction: MutableStateFlow<Intent?>) {
+fun MainApp(
+    pendingIntentAction: MutableStateFlow<Intent?>,
+    windowSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact
+) {
     val navController = rememberNavController()
     val viewModel: TaskViewModel = viewModel()
     var showInboxModal by remember { mutableStateOf(false) }
@@ -125,6 +149,7 @@ fun MainApp(pendingIntentAction: MutableStateFlow<Intent?>) {
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -136,8 +161,8 @@ fun MainApp(pendingIntentAction: MutableStateFlow<Intent?>) {
                 containerColor = MaterialTheme.colorScheme.surface
             ) {
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-                    label = { Text("Hoy") },
+                    icon = { Icon(Icons.Default.Home, contentDescription = "Inicio") },
+                    label = { Text("Inicio") },
                     selected = currentRoute == "home",
                     onClick = {
                         navController.navigate("home") {
@@ -191,24 +216,47 @@ fun MainApp(pendingIntentAction: MutableStateFlow<Intent?>) {
             }
         }
     ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = "home",
-            modifier = Modifier.padding(innerPadding)
-        ) {
-            composable("home") {
-                HomeScreen(
-                    viewModel = viewModel,
-                    snackbarHostState = snackbarHostState,
-                    onStartTimer = { id, title, minutes ->
-                        val encodedTitle = android.net.Uri.encode(title)
-                        navController.navigate("timer/$id/$encodedTitle/$minutes")
-                    },
-                    onEditTask = { task ->
-                        taskToEdit = task
-                        showInboxModal = true
+        Row(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+
+            NavHost(
+                navController = navController,
+                startDestination = "home",
+                modifier = Modifier.weight(1f)
+            ) {
+                composable("home") {
+                    if (windowSizeClass == WindowWidthSizeClass.Compact) {
+                        HomeScreen(
+                            viewModel = viewModel,
+                            snackbarHostState = snackbarHostState,
+                            onStartTimer = { id, title, minutes ->
+                                val encodedTitle = android.net.Uri.encode(title)
+                                navController.navigate("timer/$id/$encodedTitle/$minutes")
+                            },
+                            onEditTask = { task ->
+                                taskToEdit = task
+                                showInboxModal = true
+                            },
+                            onRequestReview = { taskId ->
+                                taskForReview = taskId
+                            }
+                        )
+                    } else {
+                        TabletDashboardScreen(
+                            viewModel = viewModel,
+                            snackbarHostState = snackbarHostState,
+                            onStartTimer = { id, title, minutes ->
+                                val encodedTitle = android.net.Uri.encode(title)
+                                navController.navigate("timer/$id/$encodedTitle/$minutes")
+                            },
+                            onEditTask = { task ->
+                                taskToEdit = task
+                                showInboxModal = true
+                            },
+                            onRequestReview = { taskId ->
+                                taskForReview = taskId
+                            }
+                        )
                     }
-                )
 
                 LaunchedEffect(navigateToTimer) {
                     navigateToTimer?.let { intent ->
@@ -230,7 +278,11 @@ fun MainApp(pendingIntentAction: MutableStateFlow<Intent?>) {
             composable("list") {
                 TaskListScreen(
                     viewModel = viewModel,
-                    snackbarHostState = snackbarHostState
+                    snackbarHostState = snackbarHostState,
+                    onEditTask = { task ->
+                        taskToEdit = task
+                        showInboxModal = true
+                    }
                 )
             }
             composable("settings") {
@@ -256,9 +308,17 @@ fun MainApp(pendingIntentAction: MutableStateFlow<Intent?>) {
                     onMinimize = { navController.popBackStack() },
                     onComplete = {
                         navController.popBackStack()
-                        taskForReview = taskId
+                        if (viewModel.isHistoryTrackingEnabled.value) {
+                            taskForReview = taskId
+                        } else {
+                            viewModel.completeTask(taskId, feeling = 3, result = "completed")
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("¡Tarea completada!")
+                            }
+                        }
                     }
                 )
+            }
             }
         }
 

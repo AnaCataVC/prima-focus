@@ -205,14 +205,31 @@ fun TimerScreen(
                 FloatingActionButton(
                     onClick = { isRunning = !isRunning },
                     shape = CircleShape,
-                    containerColor = glows.primaryAccent,
+                    containerColor = glows.glassSurface,
                     elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 16.dp),
-                    modifier = Modifier.size(96.dp)
+                    modifier = Modifier
+                        .size(96.dp)
+                        .border(
+                            1.dp,
+                            Brush.linearGradient(listOf(glows.glassBorderStart, glows.glassBorderEnd)),
+                            CircleShape
+                        )
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .drawBehind {
+                                drawCircle(
+                                    brush = Brush.radialGradient(
+                                        colors = listOf(glows.primaryGlow.copy(alpha = 0.3f), Color.Transparent)
+                                    )
+                                )
+                            }
+                    )
                     Icon(
                         imageVector = if (isRunning) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                         contentDescription = if (isRunning) "Pausar" else "Reanudar",
-                        tint = Color.White,
+                        tint = glows.primaryAccent,
                         modifier = Modifier.size(48.dp)
                     )
                 }

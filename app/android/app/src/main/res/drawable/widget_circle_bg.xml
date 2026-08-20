@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
-    <solid android:color="#2196F3" /> <!-- Primary blue color, matches app theme mostly -->
+    <solid android:color="#F472B6" /> <!-- Primary rose color, matches app theme -->
 </shape>

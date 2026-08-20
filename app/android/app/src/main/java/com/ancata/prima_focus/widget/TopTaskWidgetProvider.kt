@@ -37,14 +37,11 @@ class TopTaskWidgetProvider : AppWidgetProvider() {
                         val subCatCap = topTask.subcategory?.replaceFirstChar { it.uppercase() }
                         val baseCat = if (catCap.isNotBlank()) catCap else "Sin categoría"
                         val catStr = if (!subCatCap.isNullOrBlank()) "$baseCat - $subCatCap" else baseCat
-                        views.setTextViewText(R.id.widget_top_task_category, "$catStr • ${topTask.estimatedMinutes} min")
+                        val dateStr = topTask.date?.let { " • $it" } ?: ""
+                        views.setTextViewText(R.id.widget_top_task_category, "$catStr$dateStr")
                         views.setViewVisibility(R.id.widget_top_task_play, View.VISIBLE)
 
                         val intent = Intent(context, MainActivity::class.java).apply {
-                            action = "com.ancata.prima_focus.ACTION_START_TIMER"
-                            putExtra("taskId", topTask.taskId)
-                            putExtra("title", topTask.title)
-                            putExtra("minutes", topTask.estimatedMinutes)
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                         }
                         val pendingIntent = PendingIntent.getActivity(

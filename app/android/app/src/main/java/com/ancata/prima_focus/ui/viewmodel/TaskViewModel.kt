@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -24,6 +25,53 @@ import java.util.UUID
 import com.ancata.prima_focus.utils.Constants
 import com.ancata.prima_focus.utils.RecurrenceCalculator
 import com.ancata.prima_focus.utils.TimeUtils
+import com.ancata.prima_focus.sync.P2PSyncManager
+
+import android.net.Uri
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import com.ancata.prima_focus.data.local.entity.SessionEntity
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
+import kotlin.math.abs
+
+data class FocusDisplayState(
+    val heroTask: TaskEntity? = null,
+    val secondaryTasks: List<TaskEntity> = emptyList(),
+    val tiedTasks: List<TaskEntity> = emptyList(),
+    val totalPendingCount: Int = 0
+)
+
+sealed interface BackupRestoreState {
+    object Idle : BackupRestoreState
+    object Loading : BackupRestoreState
+    data class Success(val message: String) : BackupRestoreState
+    data class Error(val message: String) : BackupRestoreState
+}
+
+data class CompletedTaskUiModel(
+    val taskId: String,
+    val title: String,
+    val description: String?,
+    val category: String,
+    val subcategory: String?,
+    val completedAt: Long,
+    val formattedDate: String,
+    val durationMinutes: Int?,
+    val feelingEmoji: String,
+    val result: String?,
+    val recurrence: String?,
+    val rawTask: TaskEntity
+)
+
+data class BackupDataPayload(
+    val version: Int = 1,
+    val app: String = "Prima-Focus",
+    val exportedAt: Long = System.currentTimeMillis(),
+    val tasks: List<TaskEntity>,
+    val sessions: List<SessionEntity>
+)
 
 class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -87,8 +135,6 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         get() = sharedPrefs.getFloat(Constants.PREF_MANUAL_BOOST_AMOUNT, 10.0f).toDouble()
         set(value) = sharedPrefs.edit().putFloat(Constants.PREF_MANUAL_BOOST_AMOUNT, value.toFloat()).apply()
 
-
-
     var autoSplit: Boolean
         get() = sharedPrefs.getBoolean(Constants.PREF_AUTO_SPLIT, false)
         set(value) = sharedPrefs.edit().putBoolean(Constants.PREF_AUTO_SPLIT, value).apply()
@@ -100,6 +146,18 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
     var nonPostponableUrgent: Boolean
         get() = sharedPrefs.getBoolean(Constants.PREF_NON_POSTPONABLE_URGENT, true)
         set(value) = sharedPrefs.edit().putBoolean(Constants.PREF_NON_POSTPONABLE_URGENT, value).apply()
+
+    private val _isHistoryTrackingEnabled = MutableStateFlow(
+        sharedPrefs.getBoolean(Constants.PREF_HISTORY_TRACKING_ENABLED, true)
+    )
+    val isHistoryTrackingEnabled: StateFlow<Boolean> = _isHistoryTrackingEnabled.asStateFlow()
+
+    var isHistoryTrackingEnabledPref: Boolean
+        get() = sharedPrefs.getBoolean(Constants.PREF_HISTORY_TRACKING_ENABLED, true)
+        set(value) {
+            sharedPrefs.edit().putBoolean(Constants.PREF_HISTORY_TRACKING_ENABLED, value).apply()
+            _isHistoryTrackingEnabled.value = value
+        }
 
     val categoriesData = mapOf(
         "trabajo" to listOf("comunicación" to 2.0, "entrega" to 3.5, "tarea adicional" to 2.0, "administrativo" to 1.0, "revisión" to 1.0, "documentación" to 2.0),
@@ -131,8 +189,118 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
     private val _topTask = MutableStateFlow<TaskEntity?>(null)
     val topTask: StateFlow<TaskEntity?> = _topTask.asStateFlow()
 
+    private val _syncStatus = MutableStateFlow<String>("Desconectado")
+    val syncStatus: StateFlow<String> = _syncStatus.asStateFlow()
+
+    private val _backupRestoreState = MutableStateFlow<BackupRestoreState>(BackupRestoreState.Idle)
+    val backupRestoreState: StateFlow<BackupRestoreState> = _backupRestoreState.asStateFlow()
+
+    fun resetBackupRestoreState() {
+        _backupRestoreState.value = BackupRestoreState.Idle
+    }
+
+    val p2pSyncManager = P2PSyncManager(
+        context = application,
+        onDataReceived = { receivedTasks, receivedSessions -> syncMergeData(receivedTasks, receivedSessions) },
+        suspendGetLocalData = { Pair(taskDao.getAllTasks(), sessionDao.getAllSessions()) },
+        onStatusUpdate = { status -> _syncStatus.value = status }
+    )
+
     private val _pendingTasks = MutableStateFlow<List<TaskEntity>>(emptyList())
     val pendingTasks: StateFlow<List<TaskEntity>> = _pendingTasks.asStateFlow()
+
+    val focusDisplayState: StateFlow<FocusDisplayState> = _pendingTasks.map { tasks ->
+        if (tasks.isEmpty()) {
+            FocusDisplayState()
+        } else {
+            val hero = tasks.firstOrNull()
+            val secondary = tasks.drop(1).take(2)
+            val referenceScore = secondary.lastOrNull()?.priorityScore ?: hero?.priorityScore ?: 0.0
+            val remainingTasks = tasks.drop(1 + secondary.size)
+            val tied = remainingTasks.takeWhile { abs(it.priorityScore - referenceScore) < 0.001 }
+
+            FocusDisplayState(
+                heroTask = hero,
+                secondaryTasks = secondary,
+                tiedTasks = tied,
+                totalPendingCount = tasks.size
+            )
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), FocusDisplayState())
+
+    private val _calendarSelectedDate = MutableStateFlow<LocalDate?>(null)
+    val calendarSelectedDate: StateFlow<LocalDate?> = _calendarSelectedDate.asStateFlow()
+
+    val calendarFilteredTasks = combine(_pendingTasks, _calendarSelectedDate) { tasks, selectedDate ->
+        if (selectedDate == null) {
+            tasks
+        } else {
+            val dateStr = selectedDate.toString()
+            tasks.filter { it.date == dateStr }
+        }
+    }
+
+    fun setCalendarSelectedDate(date: LocalDate?) {
+        _calendarSelectedDate.value = date
+    }
+
+    val completedTasksList: StateFlow<List<CompletedTaskUiModel>> = taskDao.getCompletedTasksWithSessions()
+        .map { list ->
+            list.map { taskWithSessions ->
+                val latestSession = taskWithSessions.sessions.maxByOrNull { it.createdAt }
+                val feelingEmoji = when (latestSession?.feeling) {
+                    1 -> "😢"
+                    5 -> "😄"
+                    else -> "😐"
+                }
+                val duration = latestSession?.durationMinutes
+                    ?: taskWithSessions.task.estimatedMinutes
+
+                CompletedTaskUiModel(
+                    taskId = taskWithSessions.task.taskId,
+                    title = taskWithSessions.task.title,
+                    description = taskWithSessions.task.description,
+                    category = taskWithSessions.task.category,
+                    subcategory = taskWithSessions.task.subcategory,
+                    completedAt = taskWithSessions.task.updatedAt,
+                    formattedDate = TimeUtils.formatEpochToDisplay(taskWithSessions.task.updatedAt),
+                    durationMinutes = duration,
+                    feelingEmoji = feelingEmoji,
+                    result = latestSession?.result,
+                    recurrence = taskWithSessions.task.recurrence,
+                    rawTask = taskWithSessions.task
+                )
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun uncompleteTask(task: TaskEntity) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val restoredTask = task.copy(
+                status = "pending",
+                updatedAt = System.currentTimeMillis()
+            )
+            val prioritized = priorityEngine.calculatePriority(restoredTask)
+            taskDao.updateTask(prioritized)
+            updateWidgets()
+        }
+    }
+
+    fun deleteCompletedTask(taskId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            taskDao.deleteTask(taskId)
+            sessionDao.deleteSessionsForTask(taskId)
+            updateWidgets()
+        }
+    }
+
+    fun clearHistory() {
+        viewModelScope.launch(Dispatchers.IO) {
+            taskDao.deleteCompletedTasks()
+            sessionDao.deleteOrphanedSessions()
+            updateWidgets()
+        }
+    }
 
     init {
         viewModelScope.launch {
@@ -186,9 +354,9 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         category: String = "General",
         subcategory: String? = null,
         weight: Double = 2.0,
-        estimatedMinutes: Int? = 15,
+        estimatedMinutes: Int? = null,
         date: String? = null,
-
+        description: String? = null,
         recurrence: String? = null
     ) {
         val now = System.currentTimeMillis()
@@ -198,14 +366,13 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         val newTask = TaskEntity(
             taskId = newTaskId,
             title = title,
-            description = null,
+            description = description?.trim()?.ifEmpty { null },
             category = category,
             subcategory = subcategory,
             categoryWeight = weight,
             date = date,
             time = null,
             estimatedMinutes = estimatedMinutes,
-
             isProject = false,
             status = "pending",
             createdAt = now,
@@ -269,10 +436,10 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             val session = com.ancata.prima_focus.data.local.entity.SessionEntity(
                 sessionId = UUID.randomUUID().toString(),
                 taskId = taskId,
-                startAt = now - (25 * 60 * 1000),
+                startAt = now,
                 endAt = now,
-                mode = "focus",
-                durationMinutes = 25,
+                mode = "direct_complete",
+                durationMinutes = null,
                 result = result,
                 feeling = feeling,
                 createdAt = now,
@@ -285,37 +452,37 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * Attempts to postpone a task.
-     * Returns false if the task is blocked by nonPostponable rules (per-task flag
-     * or global category settings), true if the postpone was applied.
+     * Invokes onResult with false if the task is blocked by nonPostponable rules, true if applied.
      */
-    fun postponeTask(taskId: String, reason: String): Boolean {
+    fun postponeTask(taskId: String, reason: String, onResult: (Boolean) -> Unit = {}) {
         val now = System.currentTimeMillis()
-        var blocked = false
         viewModelScope.launch(Dispatchers.IO) {
             val task = taskDao.getTaskById(taskId)
-            task?.let {
-                val isBlockedByTask = it.nonPostponable
-                val isBlockedByHealth = it.category == "salud" &&
-                    it.subcategory == "medicaci\u00f3n" &&
-                    nonPostponableHealth
-                val isBlockedByUrgent = it.category == "tr\u00e1mites" &&
-                    it.subcategory == "urgente" &&
-                    nonPostponableUrgent
-
-                if (isBlockedByTask || isBlockedByHealth || isBlockedByUrgent) {
-                    blocked = true
-                    return@let
-                }
-
-                taskDao.updateTask(it.copy(
-                    status = "pending",
-                    postponedReason = reason,
-                    updatedAt = now
-                ))
-                updateWidgets()
+            if (task == null) {
+                kotlinx.coroutines.withContext(Dispatchers.Main) { onResult(false) }
+                return@launch
             }
+            val isBlockedByTask = task.nonPostponable
+            val isBlockedByHealth = task.category == "salud" &&
+                task.subcategory == "medicaci\u00f3n" &&
+                nonPostponableHealth
+            val isBlockedByUrgent = task.category == "tr\u00e1mites" &&
+                task.subcategory == "urgente" &&
+                nonPostponableUrgent
+
+            if (isBlockedByTask || isBlockedByHealth || isBlockedByUrgent) {
+                kotlinx.coroutines.withContext(Dispatchers.Main) { onResult(false) }
+                return@launch
+            }
+
+            taskDao.updateTask(task.copy(
+                status = "pending",
+                postponedReason = reason,
+                updatedAt = now
+            ))
+            updateWidgets()
+            kotlinx.coroutines.withContext(Dispatchers.Main) { onResult(true) }
         }
-        return !blocked
     }
 
     fun boostTask(taskId: String) {
@@ -323,7 +490,21 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             val task = taskDao.getTaskById(taskId)
             task?.let {
                 val boostAmount = manualBoostAmount
-                val updatedTask = priorityEngine.calculatePriority(it.copy(manualBoost = it.manualBoost + boostAmount))
+                val newBoost = (it.manualBoost + boostAmount).coerceAtMost(50.0)
+                val updatedTask = priorityEngine.calculatePriority(it.copy(manualBoost = newBoost))
+                taskDao.updateTask(updatedTask)
+                updateWidgets()
+            }
+        }
+    }
+
+    fun demoteTask(taskId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val task = taskDao.getTaskById(taskId)
+            task?.let {
+                val boostAmount = manualBoostAmount
+                val newBoost = (it.manualBoost - boostAmount).coerceAtLeast(-50.0)
+                val updatedTask = priorityEngine.calculatePriority(it.copy(manualBoost = newBoost))
                 taskDao.updateTask(updatedTask)
                 updateWidgets()
             }
@@ -334,6 +515,86 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             taskDao.deleteTask(taskId)
             updateWidgets()
+        }
+    }
+
+    fun deleteSeries(groupId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            taskDao.deleteTasksByGroupId(groupId)
+            updateWidgets()
+        }
+    }
+
+    fun exportBackup(uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _backupRestoreState.value = BackupRestoreState.Loading
+            try {
+                val tasks = taskDao.getAllTasks()
+                val sessions = sessionDao.getAllSessions()
+                val payload = BackupDataPayload(
+                    version = 1,
+                    app = "Prima-Focus",
+                    exportedAt = System.currentTimeMillis(),
+                    tasks = tasks,
+                    sessions = sessions
+                )
+                val json = GsonBuilder().setPrettyPrinting().create().toJson(payload)
+                getApplication<Application>().contentResolver.openOutputStream(uri)?.use { stream ->
+                    stream.bufferedWriter().use { writer -> writer.write(json) }
+                }
+                _backupRestoreState.value = BackupRestoreState.Success("Respaldo exportado correctamente (${tasks.size} tareas, ${sessions.size} sesiones)")
+            } catch (e: Exception) {
+                _backupRestoreState.value = BackupRestoreState.Error("Error al exportar respaldo: ${e.localizedMessage ?: "desconocido"}")
+            }
+        }
+    }
+
+    fun importBackup(uri: Uri, mergeMode: Boolean = true) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _backupRestoreState.value = BackupRestoreState.Loading
+            try {
+                val json = getApplication<Application>().contentResolver.openInputStream(uri)?.use { stream ->
+                    stream.bufferedReader().use { it.readText() }
+                } ?: throw IllegalStateException("No se pudo leer el archivo seleccionado")
+
+                val payload = Gson().fromJson(json, BackupDataPayload::class.java)
+                    ?: throw IllegalArgumentException("El archivo no tiene un formato válido de Prima-Focus")
+
+                if (payload.app != "Prima-Focus" || payload.tasks == null) {
+                    throw IllegalArgumentException("El archivo no pertenece a Prima-Focus")
+                }
+
+                val processedTasks = (payload.tasks ?: emptyList()).map { task ->
+                    if (task.status == "pending") priorityEngine.calculatePriority(task) else task
+                }
+
+                if (!mergeMode) {
+                    taskDao.clearAllTasks()
+                    sessionDao.clearAllSessions()
+                    taskDao.insertTasks(processedTasks)
+                    if (!payload.sessions.isNullOrEmpty()) {
+                        sessionDao.insertSessions(payload.sessions)
+                    }
+                } else {
+                    val localTasks = taskDao.getAllTasks().associateBy { it.taskId }
+                    processedTasks.forEach { received ->
+                        val local = localTasks[received.taskId]
+                        if (local == null) {
+                            taskDao.insertTask(received)
+                        } else if (received.updatedAt > local.updatedAt) {
+                            taskDao.updateTask(received)
+                        }
+                    }
+                    if (!payload.sessions.isNullOrEmpty()) {
+                        sessionDao.insertSessions(payload.sessions)
+                    }
+                }
+
+                updateWidgets()
+                _backupRestoreState.value = BackupRestoreState.Success("Respaldo restaurado con éxito (${processedTasks.size} tareas)")
+            } catch (e: Exception) {
+                _backupRestoreState.value = BackupRestoreState.Error("Error al restaurar respaldo: ${e.localizedMessage ?: "formato inválido"}")
+            }
         }
     }
 
@@ -364,12 +625,10 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             val task = taskDao.getTaskById(taskId)
             task?.let {
-                val halfTime = (it.estimatedMinutes ?: 0) / 2
-                
                 val part1 = it.copy(
                     taskId = java.util.UUID.randomUUID().toString(),
                     title = "[Parte 1] ${it.title}",
-                    estimatedMinutes = halfTime,
+                    estimatedMinutes = null,
                     isProject = false,
                     createdAt = System.currentTimeMillis(),
                     updatedAt = System.currentTimeMillis(),
@@ -379,7 +638,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                 val part2 = it.copy(
                     taskId = java.util.UUID.randomUUID().toString(),
                     title = "[Parte 2] ${it.title}",
-                    estimatedMinutes = halfTime,
+                    estimatedMinutes = null,
                     isProject = false,
                     createdAt = System.currentTimeMillis(),
                     updatedAt = System.currentTimeMillis(),
@@ -408,6 +667,39 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                 taskDao.updateTask(priorityEngine.calculatePriority(updatedTask))
                 updateWidgets()
             }
+        }
+    }
+
+    private fun syncMergeData(receivedTasks: List<TaskEntity>, receivedSessions: List<SessionEntity>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val localTasks = taskDao.getAllTasks().associateBy { it.taskId }
+            
+            receivedTasks.forEach { received ->
+                val local = localTasks[received.taskId]
+                val processed = if (received.status == "pending") priorityEngine.calculatePriority(received) else received
+                if (local == null) {
+                    // Task doesn't exist locally, insert it
+                    taskDao.insertTask(processed)
+                } else {
+                    // Task exists locally, Last-Write-Wins based on updatedAt
+                    if (received.updatedAt > local.updatedAt) {
+                        taskDao.updateTask(processed)
+                    }
+                }
+            }
+
+            if (receivedSessions.isNotEmpty()) {
+                val localSessions = sessionDao.getAllSessions().associateBy { it.sessionId }
+                val sessionsToUpsert = receivedSessions.filter { received ->
+                    val local = localSessions[received.sessionId]
+                    local == null || received.updatedAt > local.updatedAt
+                }
+                if (sessionsToUpsert.isNotEmpty()) {
+                    sessionDao.insertSessions(sessionsToUpsert)
+                }
+            }
+
+            updateWidgets()
         }
     }
 }

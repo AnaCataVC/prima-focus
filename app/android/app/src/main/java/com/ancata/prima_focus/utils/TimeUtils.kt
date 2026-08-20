@@ -44,4 +44,22 @@ object TimeUtils {
         if (parts.size != 2) return 0
         return parts[0].toIntOrNull()?.times(60)?.plus(parts[1].toIntOrNull() ?: 0) ?: 0
     }
+
+    /**
+     * Formats an epoch timestamp into a human-friendly date/time string (e.g., "Hoy, 14:30", "Ayer, 09:15", "18 Ago, 16:45").
+     */
+    fun formatEpochToDisplay(epochMillis: Long): String {
+        val instant = java.time.Instant.ofEpochMilli(epochMillis)
+        val zoneId = java.time.ZoneId.systemDefault()
+        val localDateTime = java.time.LocalDateTime.ofInstant(instant, zoneId)
+        val today = java.time.LocalDate.now(zoneId)
+        val taskDate = localDateTime.toLocalDate()
+        val timeStr = localDateTime.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+
+        return when {
+            taskDate.isEqual(today) -> "Hoy, $timeStr"
+            taskDate.isEqual(today.minusDays(1)) -> "Ayer, $timeStr"
+            else -> localDateTime.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM, HH:mm"))
+        }
+    }
 }

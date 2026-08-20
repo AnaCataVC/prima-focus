@@ -2,7 +2,6 @@ package com.ancata.prima_focus.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -40,6 +39,7 @@ fun SettingsScreen(viewModel: TaskViewModel) {
     var isDisconnectModeEnabled by remember { mutableStateOf(viewModel.isDisconnectModeEnabled) }
     var disconnectStartTime by remember { mutableStateOf(viewModel.disconnectStartTime) }
     var disconnectEndTime by remember { mutableStateOf(viewModel.disconnectEndTime) }
+    var isHistoryTrackingEnabled by remember { mutableStateOf(viewModel.isHistoryTrackingEnabledPref) }
 
     var notifExpanded by remember { mutableStateOf(false) }
 
@@ -292,6 +292,180 @@ fun SettingsScreen(viewModel: TaskViewModel) {
                 }
             }
             
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // ==================== HISTORY & REVIEW SETTINGS ====================
+            Column(modifier = glassModifier) {
+                SectionTitle("Historial y Revisión de Tareas")
+                Text(
+                    text = "Controla si deseas registrar un historial detallado y responder a la revisión de estado de ánimo al terminar el temporizador.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                        Text("Activar Historial y Revisión", color = Color.White, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            text = if (isHistoryTrackingEnabled) 
+                                "Muestra la revisión al terminar el temporizador y habilita la pestaña 'Historial' en la lista de tareas."
+                            else 
+                                "Completa las tareas al instante sin preguntas y oculta el historial para una experiencia sin fricción.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.55f),
+                            fontSize = 11.sp
+                        )
+                    }
+                    Switch(
+                        checked = isHistoryTrackingEnabled,
+                        onCheckedChange = { isHistoryTrackingEnabled = it },
+                        colors = switchColors
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // ==================== LOCAL BACKUP & RESTORE (SAF) ====================
+            Column(modifier = glassModifier) {
+                SectionTitle("Copia de Seguridad Local (SAF)")
+                Text(
+                    text = "Tus tareas se guardan de forma segura en tu dispositivo y se conservan automáticamente al actualizar la app. También puedes exportar o importar respaldos manuales en formato JSON.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
+                )
+
+                val backupState by viewModel.backupRestoreState.collectAsState()
+                var showImportDialog by remember { mutableStateOf(false) }
+                var pendingImportUri by remember { mutableStateOf<android.net.Uri?>(null) }
+
+                val exportLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                    contract = androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")
+                ) { uri ->
+                    uri?.let { viewModel.exportBackup(it) }
+                }
+
+                val importLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                    contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+                ) { uri ->
+                    uri?.let {
+                        pendingImportUri = it
+                        showImportDialog = true
+                    }
+                }
+
+                LaunchedEffect(backupState) {
+                    when (backupState) {
+                        is com.ancata.prima_focus.ui.viewmodel.BackupRestoreState.Success -> {
+                            Toast.makeText(context, (backupState as com.ancata.prima_focus.ui.viewmodel.BackupRestoreState.Success).message, Toast.LENGTH_LONG).show()
+                            viewModel.resetBackupRestoreState()
+                        }
+                        is com.ancata.prima_focus.ui.viewmodel.BackupRestoreState.Error -> {
+                            Toast.makeText(context, (backupState as com.ancata.prima_focus.ui.viewmodel.BackupRestoreState.Error).message, Toast.LENGTH_LONG).show()
+                            viewModel.resetBackupRestoreState()
+                        }
+                        else -> {}
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            val defaultName = "prima_focus_backup_${java.time.LocalDate.now()}.json"
+                            exportLauncher.launch(defaultName)
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = glows.primaryAccent)
+                    ) {
+                        Text("Exportar JSON", fontSize = 13.sp, color = Color.White)
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            importLauncher.launch(arrayOf("application/json", "*/*"))
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, glows.glassBorderStart)
+                    ) {
+                        Text("Restaurar JSON", fontSize = 13.sp, color = Color.White)
+                    }
+                }
+
+                if (showImportDialog && pendingImportUri != null) {
+                    AlertDialog(
+                        onDismissRequest = {
+                            showImportDialog = false
+                            pendingImportUri = null
+                        },
+                        title = { Text("Restaurar Copia de Seguridad", color = Color.White, fontWeight = FontWeight.Bold) },
+                        text = {
+                            Text(
+                                "¿Cómo deseas restaurar los datos?\n\n• Combinar: Agrega las tareas del respaldo manteniendo las actuales.\n• Sobrescribir: Reemplaza todas las tareas y sesiones actuales por las del archivo.",
+                                color = Color.White.copy(alpha = 0.85f),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                pendingImportUri?.let { viewModel.importBackup(it, mergeMode = true) }
+                                showImportDialog = false
+                                pendingImportUri = null
+                            }) {
+                                Text("Combinar (Recomendado)", color = glows.primaryAccent, fontWeight = FontWeight.Bold)
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = {
+                                pendingImportUri?.let { viewModel.importBackup(it, mergeMode = false) }
+                                showImportDialog = false
+                                pendingImportUri = null
+                            }) {
+                                Text("Sobrescribir", color = MaterialTheme.colorScheme.error)
+                            }
+                        },
+                        containerColor = glows.backgroundCenter
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Column(modifier = glassModifier) {
+                SectionTitle("Sincronización P2P (Local)")
+                Text("Conecta este dispositivo con otro en la misma red para sincronizar tareas sin usar internet.", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(bottom = 16.dp))
+                
+                val syncStatus by viewModel.syncStatus.collectAsState()
+                
+                Text("Estado: $syncStatus", color = glows.primaryAccent, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 16.dp))
+                
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { viewModel.p2pSyncManager.startAdvertising() },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = glows.primaryGlow.copy(alpha = 0.5f))
+                    ) {
+                        Text("Ser Anfitrión", fontSize = 12.sp, color = Color.White)
+                    }
+                    Button(
+                        onClick = { viewModel.p2pSyncManager.startDiscovery() },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = glows.primaryGlow.copy(alpha = 0.5f))
+                    ) {
+                        Text("Ser Cliente", fontSize = 12.sp, color = Color.White)
+                    }
+                }
+            }
+            
             Spacer(modifier = Modifier.height(32.dp))
             
             Button(
@@ -305,8 +479,8 @@ fun SettingsScreen(viewModel: TaskViewModel) {
                     viewModel.isDisconnectModeEnabled = isDisconnectModeEnabled
                     viewModel.disconnectStartTime = disconnectStartTime
                     viewModel.disconnectEndTime = disconnectEndTime
+                    viewModel.isHistoryTrackingEnabledPref = isHistoryTrackingEnabled
 
-                    
                     Toast.makeText(context, "Ajustes guardados correctamente", Toast.LENGTH_SHORT).show()
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
