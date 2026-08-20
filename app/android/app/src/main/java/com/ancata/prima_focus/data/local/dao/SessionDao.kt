@@ -12,6 +12,21 @@ interface SessionDao {
     @Query("SELECT * FROM sessions WHERE taskId = :taskId")
     fun getSessionsForTask(taskId: String): Flow<List<SessionEntity>>
 
+    @Query("SELECT * FROM sessions")
+    fun getAllSessions(): List<SessionEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertSession(session: SessionEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertSessions(sessions: List<SessionEntity>)
+
+    @Query("DELETE FROM sessions")
+    fun clearAllSessions()
+
+    @Query("DELETE FROM sessions WHERE taskId = :taskId")
+    fun deleteSessionsForTask(taskId: String)
+
+    @Query("DELETE FROM sessions WHERE taskId NOT IN (SELECT taskId FROM tasks)")
+    fun deleteOrphanedSessions()
 }
