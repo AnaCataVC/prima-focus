@@ -108,6 +108,7 @@ fun HomeScreen(
             if (focusState.heroTask != null) {
                 val heroTask = focusState.heroTask!!
                 var heroNotesExpanded by remember { mutableStateOf(false) }
+                var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
                 // ==================== HERO FOCUS CARD (#1) ====================
                 Box(
@@ -263,55 +264,132 @@ fun HomeScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Action Bar: Edit, Snooze, Boost, Demote, Delete
+                        // Action Bar: Edit, Snooze | Boost, Demote | Delete
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            IconButton(onClick = { onEditTask(heroTask) }) {
-                                Icon(Icons.Default.Edit, contentDescription = "Editar", tint = Color.White.copy(alpha = 0.6f))
-                            }
-                            IconButton(onClick = {
-                                viewModel.snoozeTask(heroTask.taskId)
-                                coroutineScope.launch {
-                                    snackbarHostState.showSnackbar("Tarea pospuesta para mañana")
-                                }
-                            }) {
-                                Icon(Icons.Default.ArrowForward, contentDescription = "Posponer", tint = Color.White.copy(alpha = 0.6f))
-                            }
-                            IconButton(onClick = {
-                                viewModel.boostTask(heroTask.taskId)
-                                coroutineScope.launch {
-                                    snackbarHostState.showSnackbar("¡Prioridad aumentada (+10)!")
-                                }
-                            }) {
-                                Icon(Icons.Default.ArrowUpward, contentDescription = "Boost", tint = glows.primaryAccent)
-                            }
-                            IconButton(onClick = {
-                                viewModel.demoteTask(heroTask.taskId)
-                                coroutineScope.launch {
-                                    snackbarHostState.showSnackbar("Prioridad reducida (-10)")
-                                }
-                            }) {
-                                Icon(Icons.Default.ArrowDownward, contentDescription = "Anti-Boost", tint = MaterialTheme.colorScheme.error)
-                            }
-                            IconButton(onClick = {
-                                viewModel.deleteTask(heroTask.taskId)
-                                coroutineScope.launch {
-                                    val result = snackbarHostState.showSnackbar(
-                                        message = "Tarea eliminada",
-                                        actionLabel = "Deshacer"
+                            // Left group: Edit, Snooze
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                IconButton(
+                                    onClick = { onEditTask(heroTask) },
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Edit,
+                                        contentDescription = "Editar",
+                                        tint = Color.White.copy(alpha = 0.6f),
+                                        modifier = Modifier.size(20.dp)
                                     )
-                                    if (result == SnackbarResult.ActionPerformed) {
-                                        viewModel.restoreTask(heroTask)
+                                }
+                                IconButton(
+                                    onClick = {
+                                        viewModel.snoozeTask(heroTask.taskId)
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar("Tarea pospuesta para mañana")
+                                        }
+                                    },
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.ArrowForward,
+                                        contentDescription = "Posponer",
+                                        tint = Color.White.copy(alpha = 0.6f),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+
+                            // Center group: Boost, Demote
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                IconButton(
+                                    onClick = {
+                                        viewModel.boostTask(heroTask.taskId)
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar("¡Prioridad aumentada (+10)!")
+                                        }
+                                    },
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.ArrowUpward,
+                                        contentDescription = "Boost",
+                                        tint = glows.primaryAccent,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = {
+                                        viewModel.demoteTask(heroTask.taskId)
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar("Prioridad reducida (-10)")
+                                        }
+                                    },
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.ArrowDownward,
+                                        contentDescription = "Anti-Boost",
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+
+                            // Right: Delete (triggers confirmation dialog)
+                            IconButton(
+                                onClick = { showDeleteConfirmDialog = true },
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "Eliminar",
+                                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        // Delete Confirmation Dialog
+                        if (showDeleteConfirmDialog) {
+                            AlertDialog(
+                                onDismissRequest = { showDeleteConfirmDialog = false },
+                                icon = {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                },
+                                title = { Text("¿Eliminar tarea?") },
+                                text = { Text("Esta acción es permanente y no se puede deshacer.") },
+                                confirmButton = {
+                                    Button(
+                                        onClick = {
+                                            showDeleteConfirmDialog = false
+                                            viewModel.deleteTask(heroTask.taskId)
+                                            coroutineScope.launch {
+                                                snackbarHostState.showSnackbar("Tarea eliminada")
+                                            }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.error
+                                        )
+                                    ) {
+                                        Text("Eliminar")
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { showDeleteConfirmDialog = false }) {
+                                        Text("Cancelar")
                                     }
                                 }
-                            }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = Color.White.copy(alpha = 0.4f))
-                            }
+                            )
                         }
                     }
                 }
+
 
                 // ==================== SECONDARY FOCUS CARDS (#2 & #3) ====================
                 if (focusState.secondaryTasks.isNotEmpty()) {
