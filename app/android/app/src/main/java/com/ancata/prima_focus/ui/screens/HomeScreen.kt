@@ -60,6 +60,8 @@ fun HomeScreen(
         }
     }
 
+    val selectedDate by viewModel.calendarSelectedDate.collectAsState()
+
     var tiesExpanded by remember { mutableStateOf(false) }
 
     Box(
@@ -91,12 +93,39 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "HOY",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color.White.copy(alpha = 0.6f),
-                    letterSpacing = 1.5.sp
-                )
+                val headerText = if (selectedDate != null) {
+                    val isToday = selectedDate == java.time.LocalDate.now()
+                    if (isToday) {
+                        "HOY (${selectedDate!!.dayOfMonth} ${selectedDate!!.month.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale("es", "ES")).uppercase()})"
+                    } else {
+                        "${selectedDate!!.dayOfMonth} ${selectedDate!!.month.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale("es", "ES")).uppercase()} ${selectedDate!!.year}"
+                    }
+                } else {
+                    "HOY"
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = headerText,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.5.sp
+                    )
+                    if (selectedDate != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "✕ Ver todas",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = glows.primaryAccent,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable { viewModel.setCalendarSelectedDate(null) }
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = "Sincronizado",
@@ -529,14 +558,14 @@ fun HomeScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "¡Todo al día!",
+                    text = if (selectedDate != null) "Sin tareas para este día" else "¡Todo al día!",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Tus prioridades del día aparecerán aquí",
+                    text = if (selectedDate != null) "No tienes tareas programadas para la fecha seleccionada" else "Tus prioridades del día aparecerán aquí",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.White.copy(alpha = 0.5f)
                 )

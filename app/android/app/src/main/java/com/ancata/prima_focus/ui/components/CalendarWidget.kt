@@ -49,7 +49,7 @@ fun CalendarWidget(
                 ),
                 shape = RoundedCornerShape(24.dp)
             )
-            .padding(24.dp)
+            .padding(16.dp)
     ) {
         Column {
             Row(
@@ -72,16 +72,16 @@ fun CalendarWidget(
                 }
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             
             val daysOfWeek = listOf("L", "M", "X", "J", "V", "S", "D")
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
                 daysOfWeek.forEach { day ->
-                    Text(text = day, color = Color.White.copy(alpha = 0.5f), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text(text = day, color = Color.White.copy(alpha = 0.5f), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
             
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             
             val firstDayOfMonth = currentMonth.atDay(1).dayOfWeek.value
             val daysInMonth = currentMonth.lengthOfMonth()
@@ -91,7 +91,7 @@ fun CalendarWidget(
             
             for (week in 0..5) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
                     horizontalArrangement = Arrangement.SpaceAround
                 ) {
                     for (dayOfWeek in 1..7) {
@@ -103,26 +103,38 @@ fun CalendarWidget(
                             val isSelected = currentDate == selectedDate
                             val workload = workloadMap[currentDate.toString()] ?: 0
                             
+                            val cellBackground = when {
+                                isSelected -> glows.primaryAccent
+                                isToday -> glows.primaryAccent.copy(alpha = 0.25f)
+                                workload > 0 -> glows.primaryAccent.copy(alpha = 0.15f)
+                                else -> Color.Transparent
+                            }
+
+                            val cellBorderModifier = if (workload > 0 && !isSelected) {
+                                Modifier.border(1.dp, glows.primaryAccent.copy(alpha = 0.4f), CircleShape)
+                            } else if (isToday && !isSelected) {
+                                Modifier.border(1.dp, glows.primaryAccent.copy(alpha = 0.6f), CircleShape)
+                            } else {
+                                Modifier
+                            }
+                            
                             Box(
                                 modifier = Modifier
-                                    .size(40.dp)
+                                    .size(38.dp)
                                     .clip(CircleShape)
-                                    .background(
-                                        when {
-                                            isSelected -> glows.primaryAccent
-                                            isToday -> glows.primaryAccent.copy(alpha = 0.3f)
-                                            workload > 0 -> glows.primaryAccent.copy(alpha = 0.05f)
-                                            else -> Color.Transparent
-                                        }
-                                    )
+                                    .background(cellBackground)
+                                    .then(cellBorderModifier)
                                     .clickable { onDateSelected(currentDate) },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
                                     Text(
                                         text = dayCounter.toString(),
-                                        color = if (isSelected || isToday) Color.White else Color.White.copy(alpha = 0.8f),
-                                        fontSize = 15.sp,
+                                        color = if (isSelected || isToday || workload > 0) Color.White else Color.White.copy(alpha = 0.75f),
+                                        fontSize = 14.sp,
                                         fontWeight = if (isSelected || isToday || workload > 0) FontWeight.Bold else FontWeight.Normal
                                     )
                                     if (workload > 0) {
@@ -144,7 +156,7 @@ fun CalendarWidget(
                             }
                             dayCounter++
                         } else {
-                            Spacer(modifier = Modifier.size(40.dp))
+                            Spacer(modifier = Modifier.size(38.dp))
                         }
                     }
                 }

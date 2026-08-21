@@ -79,7 +79,7 @@ fun TabletDashboardScreen(
             }
         } else {
             Column(modifier = Modifier.fillMaxSize()) {
-                Box(modifier = Modifier.weight(0.4f).fillMaxWidth()) {
+                Box(modifier = Modifier.weight(0.67f).fillMaxWidth()) {
                     HomeScreen(
                         viewModel = viewModel,
                         snackbarHostState = snackbarHostState,
@@ -88,7 +88,7 @@ fun TabletDashboardScreen(
                         onRequestReview = onRequestReview
                     )
                 }
-                Box(modifier = Modifier.weight(0.6f).fillMaxWidth().padding(16.dp), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                Box(modifier = Modifier.weight(0.33f).fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), contentAlignment = androidx.compose.ui.Alignment.Center) {
                     CalendarWidget(
                         selectedDate = selectedDate,
                         workloadMap = workloadMap,

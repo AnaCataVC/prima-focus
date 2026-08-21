@@ -204,7 +204,19 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
     private val _pendingTasks = MutableStateFlow<List<TaskEntity>>(emptyList())
     val pendingTasks: StateFlow<List<TaskEntity>> = _pendingTasks.asStateFlow()
 
-    val focusDisplayState: StateFlow<FocusDisplayState> = _pendingTasks.map { tasks ->
+    private val _calendarSelectedDate = MutableStateFlow<LocalDate?>(null)
+    val calendarSelectedDate: StateFlow<LocalDate?> = _calendarSelectedDate.asStateFlow()
+
+    val calendarFilteredTasks = combine(_pendingTasks, _calendarSelectedDate) { tasks, selectedDate ->
+        if (selectedDate == null) {
+            tasks
+        } else {
+            val dateStr = selectedDate.toString()
+            tasks.filter { it.date == dateStr }
+        }
+    }
+
+    val focusDisplayState: StateFlow<FocusDisplayState> = calendarFilteredTasks.map { tasks ->
         if (tasks.isEmpty()) {
             FocusDisplayState()
         } else {
@@ -222,18 +234,6 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), FocusDisplayState())
-
-    private val _calendarSelectedDate = MutableStateFlow<LocalDate?>(null)
-    val calendarSelectedDate: StateFlow<LocalDate?> = _calendarSelectedDate.asStateFlow()
-
-    val calendarFilteredTasks = combine(_pendingTasks, _calendarSelectedDate) { tasks, selectedDate ->
-        if (selectedDate == null) {
-            tasks
-        } else {
-            val dateStr = selectedDate.toString()
-            tasks.filter { it.date == dateStr }
-        }
-    }
 
     fun setCalendarSelectedDate(date: LocalDate?) {
         _calendarSelectedDate.value = date
