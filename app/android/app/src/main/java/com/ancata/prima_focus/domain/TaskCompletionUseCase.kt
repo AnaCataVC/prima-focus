@@ -62,7 +62,6 @@ class TaskCompletionUseCase(
             startAt = now,
             endAt = now,
             mode = "direct_complete",
-            durationMinutes = null,
             result = result,
             feeling = feeling,
             createdAt = now,

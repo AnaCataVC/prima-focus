@@ -18,7 +18,7 @@ import com.ancata.prima_focus.data.local.entity.TaskEntity
         SessionEntity::class,
         EventEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class PrimaFocusDatabase : RoomDatabase() {
@@ -83,6 +83,36 @@ abstract class PrimaFocusDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Removes the durationMinutes column from sessions table.
+         */
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE sessions_new (
+                        sessionId TEXT NOT NULL PRIMARY KEY,
+                        taskId TEXT,
+                        startAt INTEGER NOT NULL,
+                        endAt INTEGER,
+                        mode TEXT,
+                        result TEXT,
+                        feeling INTEGER,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL,
+                        FOREIGN KEY (taskId) REFERENCES tasks(taskId) ON DELETE SET_NULL
+                    )
+                """.trimIndent())
+                db.execSQL("""
+                    INSERT INTO sessions_new
+                    SELECT sessionId, taskId, startAt, endAt, mode, result, feeling, createdAt, updatedAt
+                    FROM sessions
+                """.trimIndent())
+                db.execSQL("DROP TABLE sessions")
+                db.execSQL("ALTER TABLE sessions_new RENAME TO sessions")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_sessions_taskId ON sessions(taskId)")
+            }
+        }
+
         fun getDatabase(context: Context): PrimaFocusDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -90,7 +120,7 @@ abstract class PrimaFocusDatabase : RoomDatabase() {
                     PrimaFocusDatabase::class.java,
                     "primafocus_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                 INSTANCE = instance
                 instance

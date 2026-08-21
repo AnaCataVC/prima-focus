@@ -32,7 +32,6 @@ fun SettingsScreen(viewModel: TaskViewModel) {
     val context = LocalContext.current
 
     var manualBoost by remember { mutableFloatStateOf(viewModel.manualBoostAmount.toFloat()) }
-    var autoSplit by remember { mutableStateOf(viewModel.autoSplit) }
     var nonPostponableHealth by remember { mutableStateOf(viewModel.nonPostponableHealth) }
     var nonPostponableUrgent by remember { mutableStateOf(viewModel.nonPostponableUrgent) }
     var notificationFrequency by remember { mutableIntStateOf(viewModel.notificationFrequency) }
@@ -212,20 +211,8 @@ fun SettingsScreen(viewModel: TaskViewModel) {
             Column(modifier = glassModifier) {
                 SectionTitle("Motor de Prioridades")
                 
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
-                        Text("Dividir automáticamente", fontWeight = FontWeight.SemiBold, color = Color.White)
-                        Text("Sugerir dividir tareas largas (>120m)", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.6f))
-                    }
-                    Switch(checked = autoSplit, onCheckedChange = { autoSplit = it }, colors = switchColors)
-                }
-                
-                HorizontalDivider(color = glows.glassBorderStart, modifier = Modifier.padding(vertical = 12.dp))
-                
+                Spacer(modifier = Modifier.height(16.dp))
+
                 Text("Boost Manual: ${manualBoost.toInt()}", fontWeight = FontWeight.SemiBold, color = Color.White)
                 Text("Puntos de prioridad que se sumarán al presionar el botón de Boost manual en la tarea.", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(bottom = 8.dp))
                 Slider(
@@ -471,7 +458,6 @@ fun SettingsScreen(viewModel: TaskViewModel) {
             Button(
                 onClick = { 
                     viewModel.manualBoostAmount = manualBoost.toDouble()
-                    viewModel.autoSplit = autoSplit
                     viewModel.nonPostponableHealth = nonPostponableHealth
                     viewModel.nonPostponableUrgent = nonPostponableUrgent
                     viewModel.notificationFrequency = notificationFrequency

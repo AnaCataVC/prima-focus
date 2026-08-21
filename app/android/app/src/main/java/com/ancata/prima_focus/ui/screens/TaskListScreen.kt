@@ -595,20 +595,6 @@ fun CompletedTaskListItem(
                 overflow = TextOverflow.Ellipsis
             )
 
-            // Duration Pill
-            Spacer(modifier = Modifier.height(4.dp))
-            val durationText = if (item.durationMinutes != null && item.durationMinutes > 0) {
-                "Duración: ${item.durationMinutes} min"
-            } else {
-                "Completada directamente"
-            }
-            Text(
-                text = durationText,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.5f),
-                fontSize = 12.sp
-            )
-
             // Expandable Notes
             if (!item.description.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(6.dp))

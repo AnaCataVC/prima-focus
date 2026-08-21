@@ -154,20 +154,11 @@ fun QuickReviewModal(
                                         }
                                     }
                                 },
+                                modifier = Modifier.fillMaxWidth(),
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
                                 border = null
                             ) {
                                 Text("Posponer")
-                            }
-                            OutlinedButton(
-                                onClick = { 
-                                    viewModel.splitTask(taskId)
-                                    onDismiss()
-                                },
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                                border = null
-                            ) {
-                                Text("Dividir")
                             }
                         }
                     }

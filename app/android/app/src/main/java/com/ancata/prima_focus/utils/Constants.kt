@@ -11,7 +11,6 @@ object Constants {
     const val PREF_DISCONNECT_END_TIME = "disconnect_end_time"
     const val PREF_MANUAL_BOOST_AMOUNT = "manual_boost_amount"
 
-    const val PREF_AUTO_SPLIT = "auto_split"
     const val PREF_NON_POSTPONABLE_HEALTH = "non_postponable_health"
     const val PREF_NON_POSTPONABLE_URGENT = "non_postponable_urgent"
     const val PREF_DISABLED_CATEGORIES = "disabled_categories"

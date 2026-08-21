@@ -58,7 +58,6 @@ data class CompletedTaskUiModel(
     val subcategory: String?,
     val completedAt: Long,
     val formattedDate: String,
-    val durationMinutes: Int?,
     val feelingEmoji: String,
     val result: String?,
     val recurrence: String?,
@@ -134,10 +133,6 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
     var manualBoostAmount: Double
         get() = sharedPrefs.getFloat(Constants.PREF_MANUAL_BOOST_AMOUNT, 10.0f).toDouble()
         set(value) = sharedPrefs.edit().putFloat(Constants.PREF_MANUAL_BOOST_AMOUNT, value.toFloat()).apply()
-
-    var autoSplit: Boolean
-        get() = sharedPrefs.getBoolean(Constants.PREF_AUTO_SPLIT, false)
-        set(value) = sharedPrefs.edit().putBoolean(Constants.PREF_AUTO_SPLIT, value).apply()
 
     var nonPostponableHealth: Boolean
         get() = sharedPrefs.getBoolean(Constants.PREF_NON_POSTPONABLE_HEALTH, true)
@@ -253,9 +248,6 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                     5 -> "😄"
                     else -> "😐"
                 }
-                val duration = latestSession?.durationMinutes
-                    ?: taskWithSessions.task.estimatedMinutes
-
                 CompletedTaskUiModel(
                     taskId = taskWithSessions.task.taskId,
                     title = taskWithSessions.task.title,
@@ -264,7 +256,6 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                     subcategory = taskWithSessions.task.subcategory,
                     completedAt = taskWithSessions.task.updatedAt,
                     formattedDate = TimeUtils.formatEpochToDisplay(taskWithSessions.task.updatedAt),
-                    durationMinutes = duration,
                     feelingEmoji = feelingEmoji,
                     result = latestSession?.result,
                     recurrence = taskWithSessions.task.recurrence,
@@ -582,39 +573,6 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             val finalTask = priorityEngine.calculatePriority(withGroup.copy(updatedAt = System.currentTimeMillis()))
             taskDao.updateTask(finalTask)
             updateWidgets()
-        }
-    }
-
-    fun splitTask(taskId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val task = taskDao.getTaskById(taskId)
-            task?.let {
-                val part1 = it.copy(
-                    taskId = java.util.UUID.randomUUID().toString(),
-                    title = "[Parte 1] ${it.title}",
-                    estimatedMinutes = null,
-                    isProject = false,
-                    createdAt = System.currentTimeMillis(),
-                    updatedAt = System.currentTimeMillis(),
-                    status = "pending"
-                )
-                
-                val part2 = it.copy(
-                    taskId = java.util.UUID.randomUUID().toString(),
-                    title = "[Parte 2] ${it.title}",
-                    estimatedMinutes = null,
-                    isProject = false,
-                    createdAt = System.currentTimeMillis(),
-                    updatedAt = System.currentTimeMillis(),
-                    status = "pending"
-                )
-                
-                taskDao.insertTask(priorityEngine.calculatePriority(part1))
-                taskDao.insertTask(priorityEngine.calculatePriority(part2))
-                
-                taskDao.updateTask(it.copy(status = "archived", updatedAt = System.currentTimeMillis()))
-                updateWidgets()
-            }
         }
     }
 

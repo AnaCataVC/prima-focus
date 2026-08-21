@@ -40,7 +40,6 @@ class P2PSyncTest {
             startAt = now - (45 * 60 * 1000L),
             endAt = now,
             mode = "focus",
-            durationMinutes = 45,
             result = "completed",
             feeling = 5,
             createdAt = now,
@@ -66,7 +65,6 @@ class P2PSyncTest {
         assertEquals(1, deserialized.sessions.size)
         assertEquals("session-sync-1", deserialized.sessions[0].sessionId)
         assertEquals(5, deserialized.sessions[0].feeling)
-        assertEquals(45, deserialized.sessions[0].durationMinutes)
     }
 
     @Test

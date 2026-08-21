@@ -24,7 +24,6 @@ data class SessionEntity(
     val startAt: Long,
     val endAt: Long?,
     val mode: String?,
-    val durationMinutes: Int?,
     val result: String?,
     val feeling: Int?,
     val createdAt: Long,
