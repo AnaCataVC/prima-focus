@@ -37,6 +37,20 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE status = 'pending' ORDER BY priorityScore DESC, hasTime DESC, createdAt ASC LIMIT 1")
     suspend fun getTopTaskNow(): TaskEntity?
 
+    @Query("""
+        SELECT * FROM tasks 
+        WHERE status = 'pending' 
+        ORDER BY 
+            priorityScore DESC, 
+            hasTime DESC, 
+            CASE WHEN date IS NULL THEN 1 ELSE 0 END, 
+            date ASC, 
+            createdAt ASC, 
+            taskId ASC 
+        LIMIT 3
+    """)
+    suspend fun getTopThreeTasksNow(): List<TaskEntity>
+
     @Query("SELECT * FROM tasks WHERE taskId = :taskId")
     fun getTaskById(taskId: String): TaskEntity?
 

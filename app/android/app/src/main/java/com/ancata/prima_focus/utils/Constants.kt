@@ -22,4 +22,9 @@ object Constants {
     const val WORKER_RECURRENCE = "RecurrenceReconciliationWorker"
     const val NOTIFICATION_CHANNEL_ID = "prima_focus_channel"
     const val NOTIFICATION_ID = 101
+
+    // Widget Actions & Extras
+    const val ACTION_WIDGET_COMPLETE_TASK = "com.ancata.prima_focus.ACTION_WIDGET_COMPLETE_TASK"
+    const val EXTRA_TASK_ID = "extra_task_id"
+    const val EXTRA_PREFILLED_CATEGORY = "extra_prefilled_category"
 }

@@ -347,6 +347,19 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             .getAppWidgetIds(android.content.ComponentName(appContext, com.ancata.prima_focus.widget.TopTaskWidgetProvider::class.java))
         topWidgetIntent.putExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_IDS, topWidgetIds)
         appContext.sendBroadcast(topWidgetIntent)
+
+        // Update TopThreeTasksWidget (Glance)
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val manager = androidx.glance.appwidget.GlanceAppWidgetManager(appContext)
+                val glanceIds = manager.getGlanceIds(com.ancata.prima_focus.widget.TopThreeTasksWidget::class.java)
+                glanceIds.forEach { id ->
+                    com.ancata.prima_focus.widget.TopThreeTasksWidget().update(appContext, id)
+                }
+            } catch (e: Throwable) {
+                // Ignore if widget is not placed
+            }
+        }
     }
 
     fun quickAdd(
@@ -392,60 +405,11 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private val taskCompletionUseCase = com.ancata.prima_focus.domain.TaskCompletionUseCase(taskDao, sessionDao, priorityEngine)
+
     fun completeTask(taskId: String, feeling: Int, result: String) {
-        val now = System.currentTimeMillis()
-
         viewModelScope.launch(Dispatchers.IO) {
-            val task = taskDao.getTaskById(taskId)
-            task?.let {
-                val completedTask = it.copy(status = "completed", updatedAt = now)
-
-                if (it.recurrence != null) {
-                    // Spawn next occurrence immediately after completing a recurring task
-                    val baseDate = try {
-                        if (it.date != null) LocalDate.parse(it.date) else LocalDate.now()
-                    } catch (e: Exception) {
-                        LocalDate.now()
-                    }
-                    val nextDate = RecurrenceCalculator.computeNextDate(it.recurrence, baseDate)
-
-                    if (nextDate != null) {
-                        val groupId = it.recurrenceGroupId ?: it.taskId
-                        val nextTask = priorityEngine.calculatePriority(
-                            it.copy(
-                                taskId = UUID.randomUUID().toString(),
-                                date = nextDate.toString(),
-                                status = "pending",
-                                manualBoost = 0.0,
-                                postponedReason = null,
-                                recurrenceGroupId = groupId,
-                                createdAt = now,
-                                updatedAt = now
-                            )
-                        )
-                        taskDao.completeAndSpawnNext(completedTask, nextTask)
-                    } else {
-                        // Unrecognized rule: just complete without spawning
-                        taskDao.updateTask(completedTask)
-                    }
-                } else {
-                    taskDao.updateTask(completedTask)
-                }
-            }
-
-            val session = com.ancata.prima_focus.data.local.entity.SessionEntity(
-                sessionId = UUID.randomUUID().toString(),
-                taskId = taskId,
-                startAt = now,
-                endAt = now,
-                mode = "direct_complete",
-                durationMinutes = null,
-                result = result,
-                feeling = feeling,
-                createdAt = now,
-                updatedAt = now
-            )
-            sessionDao.insertSession(session)
+            taskCompletionUseCase.execute(taskId, feeling, result)
             updateWidgets()
         }
     }

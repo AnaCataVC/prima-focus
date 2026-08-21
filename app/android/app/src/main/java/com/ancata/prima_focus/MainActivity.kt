@@ -128,6 +128,7 @@ fun MainApp(
     val navController = rememberNavController()
     val viewModel: TaskViewModel = viewModel()
     var showInboxModal by remember { mutableStateOf(false) }
+    var prefilledCategory by remember { mutableStateOf<String?>(null) }
     var taskToEdit by remember { mutableStateOf<com.ancata.prima_focus.data.local.entity.TaskEntity?>(null) }
     var taskForReview by remember { mutableStateOf<String?>(null) }
     var navigateToTimer by remember { mutableStateOf<Intent?>(null) }
@@ -138,6 +139,7 @@ fun MainApp(
         currentIntent?.let { intent ->
             when (intent.action) {
                 "com.ancata.prima_focus.ACTION_ADD_TASK" -> {
+                    prefilledCategory = intent.getStringExtra(com.ancata.prima_focus.utils.Constants.EXTRA_PREFILLED_CATEGORY)
                     showInboxModal = true
                 }
                 "com.ancata.prima_focus.ACTION_START_TIMER" -> {
@@ -326,9 +328,11 @@ fun MainApp(
             InboxModal(
                 viewModel = viewModel,
                 taskToEdit = taskToEdit,
+                initialCategory = prefilledCategory,
                 onDismiss = { 
                     showInboxModal = false
                     taskToEdit = null
+                    prefilledCategory = null
                 }
             )
         }

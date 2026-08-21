@@ -31,6 +31,7 @@ import java.time.format.DateTimeFormatter
 fun InboxModal(
     viewModel: TaskViewModel,
     taskToEdit: com.ancata.prima_focus.data.local.entity.TaskEntity? = null,
+    initialCategory: String? = null,
     onDismiss: () -> Unit
 ) {
     var text by remember { mutableStateOf(taskToEdit?.title ?: "") }
@@ -46,7 +47,12 @@ fun InboxModal(
     var subcategoryExpanded by remember { mutableStateOf(false) }
 
     val categoryNames = categoriesData.keys.toList()
-    var selectedCategory by remember { mutableStateOf(taskToEdit?.category ?: categoryNames.firstOrNull() ?: "") }
+    val initialCatResolved = initialCategory?.lowercase()?.let { cat ->
+        categoryNames.find { it.equals(cat, ignoreCase = true) }
+    }
+    var selectedCategory by remember { 
+        mutableStateOf(taskToEdit?.category ?: initialCatResolved ?: categoryNames.firstOrNull() ?: "") 
+    }
 
     val currentSubcategories = categoriesData[selectedCategory] ?: emptyList()
     var selectedSubcategory by remember(selectedCategory) {

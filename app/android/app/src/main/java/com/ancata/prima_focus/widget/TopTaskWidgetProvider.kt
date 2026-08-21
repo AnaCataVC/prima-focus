@@ -40,6 +40,20 @@ class TopTaskWidgetProvider : AppWidgetProvider() {
                         val dateStr = topTask.date?.let { " • $it" } ?: ""
                         views.setTextViewText(R.id.widget_top_task_category, "$catStr$dateStr")
                         views.setViewVisibility(R.id.widget_top_task_play, View.VISIBLE)
+                        views.setViewVisibility(R.id.widget_top_task_complete, View.VISIBLE)
+
+                        // Complete Action PendingIntent
+                        val completeIntent = Intent(context, WidgetActionReceiver::class.java).apply {
+                            action = com.ancata.prima_focus.utils.Constants.ACTION_WIDGET_COMPLETE_TASK
+                            putExtra(com.ancata.prima_focus.utils.Constants.EXTRA_TASK_ID, topTask.taskId)
+                        }
+                        val completePendingIntent = PendingIntent.getBroadcast(
+                            context,
+                            topTask.taskId.hashCode(),
+                            completeIntent,
+                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                        )
+                        views.setOnClickPendingIntent(R.id.widget_top_task_complete, completePendingIntent)
 
                         val intent = Intent(context, MainActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -65,6 +79,7 @@ class TopTaskWidgetProvider : AppWidgetProvider() {
                         views.setTextViewText(R.id.widget_top_task_title, "No hay tareas pendientes")
                         views.setTextViewText(R.id.widget_top_task_category, "Todo al día")
                         views.setViewVisibility(R.id.widget_top_task_play, View.GONE)
+                        views.setViewVisibility(R.id.widget_top_task_complete, View.GONE)
                         
                         val openAppIntent = Intent(context, MainActivity::class.java)
                         val openAppPendingIntent = PendingIntent.getActivity(

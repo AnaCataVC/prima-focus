@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Prima-Focus</string>
+    <string name="widget_top_three_description">Muestra las 3 tareas de mayor prioridad y permite completarlas directamente.</string>
+    <string name="widget_quick_add_description">Atajos rápidos para crear nuevas tareas por categoría.</string>
 </resources>
