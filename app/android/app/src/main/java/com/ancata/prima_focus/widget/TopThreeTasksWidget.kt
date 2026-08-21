@@ -37,6 +37,17 @@ import com.ancata.prima_focus.data.local.PrimaFocusDatabase
 import com.ancata.prima_focus.data.local.entity.TaskEntity
 import com.ancata.prima_focus.widget.action.CompleteTaskGlanceAction
 
+// Widget surface colors — match existing widget_rounded_bg (white + gray border)
+private val WidgetBackground = Color(0xFFFFFFFF)
+private val WidgetItemBackground = Color(0xFFF5F5F5)
+private val TextPrimary = Color(0xFF000000)
+private val TextMuted = Color(0xFF666666)
+private val TextCategory = Color(0xFF888888)
+private val AccentRose = Color(0xFFF472B6)     // PrimaryRose from Color.kt
+private val PriorityHigh = Color(0xFFEC4899)   // RoseAccent
+private val PriorityMedium = Color(0xFFF59E0B) // Amber
+private val PriorityLow = Color(0xFF4ADE80)    // AccentSage
+
 class TopThreeTasksWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -60,42 +71,21 @@ fun TopThreeTasksContent(context: Context, tasks: List<TaskEntity>) {
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(ColorProvider(Color(0xFF1E1E2E)))
+            .background(ColorProvider(WidgetBackground))
             .cornerRadius(16.dp)
-            .padding(12.dp)
+            .padding(14.dp)
     ) {
-        // Header
-        Row(
-            modifier = GlanceModifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "🔥 Top 3 Tareas",
-                style = TextStyle(
-                    color = ColorProvider(Color(0xFFFFB86C)),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
-                ),
-                modifier = GlanceModifier.defaultWeight()
+        // Header — same style as widget_top_task_header
+        Text(
+            text = "Top 3 Tareas",
+            style = TextStyle(
+                color = ColorProvider(TextMuted),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
             )
+        )
 
-            // Open app shortcut badge
-            Box(
-                modifier = GlanceModifier
-                    .clickable(actionStartActivity(mainComponent))
-                    .padding(4.dp)
-            ) {
-                Text(
-                    text = "Abrir ↗",
-                    style = TextStyle(
-                        color = ColorProvider(Color(0xFF8BE9FD)),
-                        fontSize = 11.sp
-                    )
-                )
-            }
-        }
-
-        Spacer(modifier = GlanceModifier.height(8.dp))
+        Spacer(modifier = GlanceModifier.height(10.dp))
 
         if (tasks.isEmpty()) {
             Box(
@@ -105,20 +95,18 @@ fun TopThreeTasksContent(context: Context, tasks: List<TaskEntity>) {
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "🎉 ¡Todo al día!\nSin tareas pendientes",
+                    text = "Todo al día",
                     style = TextStyle(
-                        color = ColorProvider(Color(0xFF50FA7B)),
-                        fontSize = 13.sp,
+                        color = ColorProvider(TextMuted),
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.Medium
                     )
                 )
             }
         } else {
-            Column(
-                modifier = GlanceModifier.fillMaxWidth()
-            ) {
+            Column(modifier = GlanceModifier.fillMaxWidth()) {
                 tasks.forEachIndexed { index, task ->
-                    TaskGlanceRow(index = index + 1, task = task, mainComponent = mainComponent)
+                    TaskGlanceRow(task = task, mainComponent = mainComponent)
                     if (index < tasks.size - 1) {
                         Spacer(modifier = GlanceModifier.height(6.dp))
                     }
@@ -129,11 +117,11 @@ fun TopThreeTasksContent(context: Context, tasks: List<TaskEntity>) {
 }
 
 @Composable
-private fun TaskGlanceRow(index: Int, task: TaskEntity, mainComponent: ComponentName) {
+private fun TaskGlanceRow(task: TaskEntity, mainComponent: ComponentName) {
     val priorityColor = when {
-        task.priorityScore >= 70.0 -> Color(0xFFFF5555) // High priority red
-        task.priorityScore >= 40.0 -> Color(0xFFFFB86C) // Medium priority orange
-        else -> Color(0xFF50FA7B) // Low priority green
+        task.priorityScore >= 70.0 -> PriorityHigh
+        task.priorityScore >= 40.0 -> PriorityMedium
+        else -> PriorityLow
     }
 
     val categoryText = buildString {
@@ -147,32 +135,22 @@ private fun TaskGlanceRow(index: Int, task: TaskEntity, mainComponent: Component
     Row(
         modifier = GlanceModifier
             .fillMaxWidth()
-            .background(ColorProvider(Color(0xFF282A36)))
+            .background(ColorProvider(WidgetItemBackground))
             .cornerRadius(10.dp)
-            .padding(8.dp),
+            .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Priority indicator dot / Number
+        // Priority dot
         Box(
             modifier = GlanceModifier
-                .size(22.dp)
+                .size(8.dp)
                 .background(ColorProvider(priorityColor))
-                .cornerRadius(11.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "$index",
-                style = TextStyle(
-                    color = ColorProvider(Color(0xFF282A36)),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            )
-        }
+                .cornerRadius(4.dp)
+        ) {}
 
-        Spacer(modifier = GlanceModifier.width(8.dp))
+        Spacer(modifier = GlanceModifier.width(10.dp))
 
-        // Task Title & Category (clickable to open app)
+        // Task title & category — tapping opens app
         Column(
             modifier = GlanceModifier
                 .defaultWeight()
@@ -182,8 +160,8 @@ private fun TaskGlanceRow(index: Int, task: TaskEntity, mainComponent: Component
                 text = task.title,
                 maxLines = 1,
                 style = TextStyle(
-                    color = ColorProvider(Color(0xFFF8F8F2)),
-                    fontSize = 13.sp,
+                    color = ColorProvider(TextPrimary),
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
                 )
             )
@@ -191,19 +169,19 @@ private fun TaskGlanceRow(index: Int, task: TaskEntity, mainComponent: Component
                 text = categoryText,
                 maxLines = 1,
                 style = TextStyle(
-                    color = ColorProvider(Color(0xFF6272A4)),
-                    fontSize = 10.sp
+                    color = ColorProvider(TextCategory),
+                    fontSize = 12.sp
                 )
             )
         }
 
-        Spacer(modifier = GlanceModifier.width(6.dp))
+        Spacer(modifier = GlanceModifier.width(8.dp))
 
-        // Complete Button (✓)
+        // Complete button — rose circle with checkmark
         Box(
             modifier = GlanceModifier
                 .size(28.dp)
-                .background(ColorProvider(Color(0xFF50FA7B)))
+                .background(ColorProvider(AccentRose))
                 .cornerRadius(14.dp)
                 .clickable(
                     actionRunCallback<CompleteTaskGlanceAction>(
@@ -215,8 +193,8 @@ private fun TaskGlanceRow(index: Int, task: TaskEntity, mainComponent: Component
             Text(
                 text = "✓",
                 style = TextStyle(
-                    color = ColorProvider(Color(0xFF282A36)),
-                    fontSize = 15.sp,
+                    color = ColorProvider(Color.White),
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
                 )
             )

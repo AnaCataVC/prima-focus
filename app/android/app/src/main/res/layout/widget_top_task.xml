@@ -19,7 +19,8 @@
     <TextView
         android:id="@+id/widget_top_task_title"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:layout_marginTop="8dp"
         android:text="No hay tareas pendientes"
         android:textColor="#000000"
@@ -31,7 +32,6 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
         android:orientation="horizontal"
         android:gravity="center_vertical">
 
@@ -46,24 +46,14 @@
 
         <ImageView
             android:id="@+id/widget_top_task_complete"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginEnd="8dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:background="@drawable/widget_circle_bg"
             android:src="@android:drawable/checkbox_on_background"
-            android:tint="#FFFFFF"
-            android:padding="8dp"
-            android:visibility="gone" />
-
-        <ImageView
-            android:id="@+id/widget_top_task_play"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="@drawable/widget_circle_bg"
-            android:src="@android:drawable/ic_media_play"
             android:tint="#FFFFFF"
             android:padding="8dp"
             android:visibility="gone" />
     </LinearLayout>
 
 </LinearLayout>
+

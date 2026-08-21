@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <!-- Low priority — sage green, matches AccentSage from the app palette -->
+    <solid android:color="#4ADE80" />
+</shape>

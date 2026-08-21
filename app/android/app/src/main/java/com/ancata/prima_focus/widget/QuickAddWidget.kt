@@ -2,6 +2,7 @@ package com.ancata.prima_focus.widget
 
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -30,13 +31,20 @@ import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
+import androidx.glance.layout.wrapContentHeight
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.ancata.prima_focus.MainActivity
 import com.ancata.prima_focus.utils.Constants
-import android.content.Intent
+
+// Widget surface colors — match existing widget_rounded_bg (white + gray border)
+private val WidgetBackground = Color(0xFFFFFFFF)
+private val ChipBackground = Color(0xFFF5F5F5)
+private val TextPrimary = Color(0xFF000000)
+private val TextMuted = Color(0xFF666666)
+private val AccentRose = Color(0xFFF472B6)  // PrimaryRose from Color.kt
 
 class QuickAddWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -70,78 +78,71 @@ class LaunchQuickAddAction : ActionCallback {
 
 @Composable
 fun QuickAddContent(context: Context) {
+    val mainComponent = ComponentName(context, MainActivity::class.java)
+
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(ColorProvider(Color(0xFF1E1E2E)))
+            .background(ColorProvider(WidgetBackground))
             .cornerRadius(16.dp)
-            .padding(10.dp)
+            .padding(14.dp)
     ) {
-        // Header
+        // Header row — label + rose add button
         Row(
             modifier = GlanceModifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "⚡ Nueva Tarea",
+                text = "Agregar Tarea",
                 style = TextStyle(
-                    color = ColorProvider(Color(0xFFBD93F9)),
+                    color = ColorProvider(TextMuted),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
                 ),
                 modifier = GlanceModifier.defaultWeight()
             )
 
-            // Generic '+' add button
+            // Generic add button (no category)
             Box(
                 modifier = GlanceModifier
-                    .size(24.dp)
-                    .background(ColorProvider(Color(0xFFBD93F9)))
-                    .cornerRadius(12.dp)
-                    .clickable(
-                        actionRunCallback<LaunchQuickAddAction>()
-                    ),
+                    .size(28.dp)
+                    .background(ColorProvider(AccentRose))
+                    .cornerRadius(14.dp)
+                    .clickable(actionRunCallback<LaunchQuickAddAction>()),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = "+",
                     style = TextStyle(
-                        color = ColorProvider(Color(0xFF1E1E2E)),
-                        fontSize = 16.sp,
+                        color = ColorProvider(Color.White),
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
                 )
             }
         }
 
-        Spacer(modifier = GlanceModifier.height(8.dp))
+        Spacer(modifier = GlanceModifier.height(10.dp))
 
-        // Quick Category Action Chips
+        // Category chip row
         Row(
             modifier = GlanceModifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             CategoryChip(
-                label = "💼 Trabajo",
-                color = Color(0xFFFF79C6),
+                label = "Trabajo",
                 category = "trabajo",
                 modifier = GlanceModifier.defaultWeight()
             )
-
-            Spacer(modifier = GlanceModifier.width(4.dp))
-
+            Spacer(modifier = GlanceModifier.width(6.dp))
             CategoryChip(
-                label = "🏥 Salud",
-                color = Color(0xFF8BE9FD),
+                label = "Salud",
                 category = "salud",
                 modifier = GlanceModifier.defaultWeight()
             )
-
-            Spacer(modifier = GlanceModifier.width(4.dp))
-
+            Spacer(modifier = GlanceModifier.width(6.dp))
             CategoryChip(
-                label = "🏠 Casa",
-                color = Color(0xFF50FA7B),
+                label = "Casa",
                 category = "casa",
                 modifier = GlanceModifier.defaultWeight()
             )
@@ -152,15 +153,14 @@ fun QuickAddContent(context: Context) {
 @Composable
 private fun CategoryChip(
     label: String,
-    color: Color,
     category: String,
     modifier: GlanceModifier = GlanceModifier
 ) {
     Box(
         modifier = modifier
-            .background(ColorProvider(Color(0xFF282A36)))
+            .background(ColorProvider(ChipBackground))
             .cornerRadius(8.dp)
-            .padding(vertical = 6.dp, horizontal = 4.dp)
+            .padding(vertical = 8.dp, horizontal = 4.dp)
             .clickable(
                 actionRunCallback<LaunchQuickAddAction>(
                     actionParametersOf(LaunchQuickAddAction.CategoryKey to category)
@@ -172,8 +172,8 @@ private fun CategoryChip(
             text = label,
             maxLines = 1,
             style = TextStyle(
-                color = ColorProvider(color),
-                fontSize = 11.sp,
+                color = ColorProvider(TextPrimary),
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Medium
             )
         )

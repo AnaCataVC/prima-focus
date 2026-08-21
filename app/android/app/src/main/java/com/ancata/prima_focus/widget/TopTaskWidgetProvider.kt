@@ -31,18 +31,31 @@ class TopTaskWidgetProvider : AppWidgetProvider() {
                 for (appWidgetId in appWidgetIds) {
                     val views = RemoteViews(context.packageName, R.layout.widget_top_task)
 
+                    // Tapping anywhere on the widget opens the app
+                    val openIntent = Intent(context, MainActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    }
+                    val openPendingIntent = PendingIntent.getActivity(
+                        context,
+                        appWidgetId,
+                        openIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                    views.setOnClickPendingIntent(R.id.widget_top_task_container, openPendingIntent)
+
                     if (topTask != null) {
                         views.setTextViewText(R.id.widget_top_task_title, topTask.title)
+
                         val catCap = topTask.category.replaceFirstChar { it.uppercase() }
                         val subCatCap = topTask.subcategory?.replaceFirstChar { it.uppercase() }
                         val baseCat = if (catCap.isNotBlank()) catCap else "Sin categoría"
                         val catStr = if (!subCatCap.isNullOrBlank()) "$baseCat - $subCatCap" else baseCat
                         val dateStr = topTask.date?.let { " • $it" } ?: ""
                         views.setTextViewText(R.id.widget_top_task_category, "$catStr$dateStr")
-                        views.setViewVisibility(R.id.widget_top_task_play, View.VISIBLE)
+
                         views.setViewVisibility(R.id.widget_top_task_complete, View.VISIBLE)
 
-                        // Complete Action PendingIntent
+                        // Complete task action — broadcasts to WidgetActionReceiver
                         val completeIntent = Intent(context, WidgetActionReceiver::class.java).apply {
                             action = com.ancata.prima_focus.utils.Constants.ACTION_WIDGET_COMPLETE_TASK
                             putExtra(com.ancata.prima_focus.utils.Constants.EXTRA_TASK_ID, topTask.taskId)
@@ -55,40 +68,10 @@ class TopTaskWidgetProvider : AppWidgetProvider() {
                         )
                         views.setOnClickPendingIntent(R.id.widget_top_task_complete, completePendingIntent)
 
-                        val intent = Intent(context, MainActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                        }
-                        val pendingIntent = PendingIntent.getActivity(
-                            context,
-                            appWidgetId, 
-                            intent,
-                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                        )
-                        views.setOnClickPendingIntent(R.id.widget_top_task_play, pendingIntent)
-                        
-                        val openAppIntent = Intent(context, MainActivity::class.java)
-                        val openAppPendingIntent = PendingIntent.getActivity(
-                            context,
-                            appWidgetId + 1000,
-                            openAppIntent,
-                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                        )
-                        views.setOnClickPendingIntent(R.id.widget_top_task_container, openAppPendingIntent)
-
                     } else {
                         views.setTextViewText(R.id.widget_top_task_title, "No hay tareas pendientes")
-                        views.setTextViewText(R.id.widget_top_task_category, "Todo al día")
-                        views.setViewVisibility(R.id.widget_top_task_play, View.GONE)
+                        views.setTextViewText(R.id.widget_top_task_category, "Todo al día ✓")
                         views.setViewVisibility(R.id.widget_top_task_complete, View.GONE)
-                        
-                        val openAppIntent = Intent(context, MainActivity::class.java)
-                        val openAppPendingIntent = PendingIntent.getActivity(
-                            context,
-                            appWidgetId,
-                            openAppIntent,
-                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                        )
-                        views.setOnClickPendingIntent(R.id.widget_top_task_container, openAppPendingIntent)
                     }
 
                     appWidgetManager.updateAppWidget(appWidgetId, views)
