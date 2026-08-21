@@ -284,6 +284,9 @@ fun MainApp(
                     onEditTask = { task ->
                         taskToEdit = task
                         showInboxModal = true
+                    },
+                    onRequestReview = { taskId ->
+                        taskForReview = taskId
                     }
                 )
             }

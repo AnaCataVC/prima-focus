@@ -44,12 +44,30 @@ import kotlinx.coroutines.launch
 fun TaskListScreen(
     viewModel: TaskViewModel,
     snackbarHostState: SnackbarHostState,
-    onEditTask: (TaskEntity) -> Unit = {}
+    onEditTask: (TaskEntity) -> Unit = {},
+    onRequestReview: (String) -> Unit = {}
 ) {
     val pendingTasks by viewModel.calendarFilteredTasks.collectAsState(initial = emptyList())
     val completedTasks by viewModel.completedTasksList.collectAsState()
     val glows = LocalPremiumGlows.current
     val coroutineScope = rememberCoroutineScope()
+
+    val handleCompleteTask: (TaskEntity) -> Unit = { task ->
+        if (viewModel.isHistoryTrackingEnabled.value) {
+            onRequestReview(task.taskId)
+        } else {
+            viewModel.completeTask(task.taskId, feeling = 3, result = "Quick complete")
+            coroutineScope.launch {
+                val res = snackbarHostState.showSnackbar(
+                    message = "¡Tarea completada!",
+                    actionLabel = "Deshacer"
+                )
+                if (res == SnackbarResult.ActionPerformed) {
+                    viewModel.uncompleteTask(task)
+                }
+            }
+        }
+    }
 
     var selectedTab by remember { mutableIntStateOf(0) }
     var showClearHistoryDialog by remember { mutableStateOf(false) }
@@ -124,18 +142,7 @@ fun TaskListScreen(
                         items(pendingTasks, key = { it.taskId }) { task ->
                             TaskListItem(
                                 task = task,
-                                onComplete = {
-                                    viewModel.completeTask(task.taskId, feeling = 3, result = "Quick complete")
-                                    coroutineScope.launch {
-                                        val res = snackbarHostState.showSnackbar(
-                                            message = "¡Tarea completada!",
-                                            actionLabel = "Deshacer"
-                                        )
-                                        if (res == SnackbarResult.ActionPerformed) {
-                                            viewModel.uncompleteTask(task)
-                                        }
-                                    }
-                                },
+                                onComplete = { handleCompleteTask(task) },
                                 onBoost = {
                                     viewModel.boostTask(task.taskId)
                                     coroutineScope.launch {
