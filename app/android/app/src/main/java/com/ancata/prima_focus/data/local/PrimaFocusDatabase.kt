@@ -88,7 +88,6 @@ abstract class PrimaFocusDatabase : RoomDatabase() {
          */
         private val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("PRAGMA foreign_keys=OFF;")
                 db.execSQL("""
                     CREATE TABLE IF NOT EXISTS sessions_new (
                         sessionId TEXT NOT NULL PRIMARY KEY,
@@ -100,7 +99,7 @@ abstract class PrimaFocusDatabase : RoomDatabase() {
                         feeling INTEGER,
                         createdAt INTEGER NOT NULL,
                         updatedAt INTEGER NOT NULL,
-                        FOREIGN KEY (taskId) REFERENCES tasks(taskId) ON DELETE SET_NULL
+                        FOREIGN KEY (taskId) REFERENCES tasks(taskId) ON DELETE SET NULL
                     )
                 """.trimIndent())
                 db.execSQL("""
@@ -111,7 +110,6 @@ abstract class PrimaFocusDatabase : RoomDatabase() {
                 db.execSQL("DROP TABLE IF EXISTS sessions")
                 db.execSQL("ALTER TABLE sessions_new RENAME TO sessions")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_sessions_taskId ON sessions(taskId)")
-                db.execSQL("PRAGMA foreign_keys=ON;")
             }
         }
 
@@ -123,7 +121,6 @@ abstract class PrimaFocusDatabase : RoomDatabase() {
                     "primafocus_database"
                 )
                     .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
-                    .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance
