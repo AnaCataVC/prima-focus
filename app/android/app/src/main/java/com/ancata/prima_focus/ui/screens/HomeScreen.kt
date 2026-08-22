@@ -96,9 +96,9 @@ fun HomeScreen(
                 val headerText = if (selectedDate != null) {
                     val isToday = selectedDate == java.time.LocalDate.now()
                     if (isToday) {
-                        "HOY (${selectedDate!!.dayOfMonth} ${selectedDate!!.month.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale("es", "ES")).uppercase()})"
+                        "HOY (${selectedDate!!.dayOfMonth} ${selectedDate!!.month.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.forLanguageTag("es-ES")).uppercase()})"
                     } else {
-                        "${selectedDate!!.dayOfMonth} ${selectedDate!!.month.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale("es", "ES")).uppercase()} ${selectedDate!!.year}"
+                        "${selectedDate!!.dayOfMonth} ${selectedDate!!.month.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.forLanguageTag("es-ES")).uppercase()} ${selectedDate!!.year}"
                     }
                 } else {
                     "HOY"
