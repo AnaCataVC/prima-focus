@@ -23,7 +23,7 @@
         android:orientation="horizontal"
         android:padding="10dp">
 
-        <View
+        <ImageView
             android:layout_width="8dp"
             android:layout_height="8dp"
             android:layout_gravity="center_vertical"
@@ -72,7 +72,7 @@
         android:orientation="horizontal"
         android:padding="10dp">
 
-        <View
+        <ImageView
             android:layout_width="8dp"
             android:layout_height="8dp"
             android:layout_gravity="center_vertical"
@@ -121,7 +121,7 @@
         android:orientation="horizontal"
         android:padding="10dp">
 
-        <View
+        <ImageView
             android:layout_width="8dp"
             android:layout_height="8dp"
             android:layout_gravity="center_vertical"
