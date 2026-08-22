@@ -8,11 +8,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
+import androidx.glance.LocalSize
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
+import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
@@ -48,7 +50,13 @@ private val PriorityHigh = Color(0xFFEC4899)   // RoseAccent
 private val PriorityMedium = Color(0xFFF59E0B) // Amber
 private val PriorityLow = Color(0xFF4ADE80)    // AccentSage
 
+private val ContentPadding = 12.dp
+private val RowGap = 6.dp
+
 class TopThreeTasksWidget : GlanceAppWidget() {
+
+    // Exact so LocalSize reports the real cell size and the layout can scale to it.
+    override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val db = PrimaFocusDatabase.getDatabase(context)
@@ -64,28 +72,45 @@ class TopThreeTasksWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = TopThreeTasksWidget()
 }
 
+/**
+ * Typography and control sizes derived from the height each task row actually gets,
+ * so the widget fills its cell instead of leaving dead space under the last row.
+ */
+private class RowMetrics(availableHeight: Float, rowCount: Int) {
+    private val slot = (availableHeight / rowCount.coerceAtLeast(1)).coerceAtLeast(36f)
+
+    val title = (slot * 0.26f).coerceIn(14f, 26f)
+    val category = (title * 0.75f).coerceIn(11f, 18f)
+    val header = (title * 0.8f).coerceIn(12f, 17f)
+    val button = (slot * 0.52f).coerceIn(28f, 48f)
+    val dot = (button * 0.3f).coerceIn(8f, 14f)
+}
+
 @Composable
 fun TopThreeTasksContent(context: Context, tasks: List<TaskEntity>) {
     val mainComponent = ComponentName(context, MainActivity::class.java)
+    val listHeight = LocalSize.current.height.value -
+        (ContentPadding.value * 2) - 26f - (RowGap.value * (tasks.size - 1).coerceAtLeast(0))
+    val metrics = RowMetrics(listHeight, tasks.size)
 
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
             .background(ColorProvider(WidgetBackground))
             .cornerRadius(16.dp)
-            .padding(14.dp)
+            .padding(ContentPadding)
     ) {
         // Header — same style as widget_top_task_header
         Text(
             text = "Top 3 Tareas",
             style = TextStyle(
                 color = ColorProvider(TextMuted),
-                fontSize = 12.sp,
+                fontSize = metrics.header.sp,
                 fontWeight = FontWeight.Bold
             )
         )
 
-        Spacer(modifier = GlanceModifier.height(10.dp))
+        Spacer(modifier = GlanceModifier.height(6.dp))
 
         if (tasks.isEmpty()) {
             Box(
@@ -98,18 +123,21 @@ fun TopThreeTasksContent(context: Context, tasks: List<TaskEntity>) {
                     text = "Todo al día",
                     style = TextStyle(
                         color = ColorProvider(TextMuted),
-                        fontSize = 14.sp,
+                        fontSize = metrics.title.sp,
                         fontWeight = FontWeight.Medium
                     )
                 )
             }
         } else {
-            Column(modifier = GlanceModifier.fillMaxWidth()) {
-                tasks.forEachIndexed { index, task ->
-                    TaskGlanceRow(task = task, mainComponent = mainComponent)
-                    if (index < tasks.size - 1) {
-                        Spacer(modifier = GlanceModifier.height(6.dp))
-                    }
+            tasks.forEachIndexed { index, task ->
+                TaskGlanceRow(
+                    task = task,
+                    mainComponent = mainComponent,
+                    metrics = metrics,
+                    modifier = GlanceModifier.defaultWeight()
+                )
+                if (index < tasks.size - 1) {
+                    Spacer(modifier = GlanceModifier.height(RowGap))
                 }
             }
         }
@@ -117,7 +145,12 @@ fun TopThreeTasksContent(context: Context, tasks: List<TaskEntity>) {
 }
 
 @Composable
-private fun TaskGlanceRow(task: TaskEntity, mainComponent: ComponentName) {
+private fun TaskGlanceRow(
+    task: TaskEntity,
+    mainComponent: ComponentName,
+    metrics: RowMetrics,
+    modifier: GlanceModifier = GlanceModifier
+) {
     val priorityColor = when {
         task.priorityScore >= 70.0 -> PriorityHigh
         task.priorityScore >= 40.0 -> PriorityMedium
@@ -133,19 +166,19 @@ private fun TaskGlanceRow(task: TaskEntity, mainComponent: ComponentName) {
     }
 
     Row(
-        modifier = GlanceModifier
+        modifier = modifier
             .fillMaxWidth()
             .background(ColorProvider(WidgetItemBackground))
             .cornerRadius(10.dp)
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+            .padding(horizontal = 10.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Priority dot
         Box(
             modifier = GlanceModifier
-                .size(8.dp)
+                .size(metrics.dot.dp)
                 .background(ColorProvider(priorityColor))
-                .cornerRadius(4.dp)
+                .cornerRadius((metrics.dot / 2).dp)
         ) {}
 
         Spacer(modifier = GlanceModifier.width(10.dp))
@@ -161,7 +194,7 @@ private fun TaskGlanceRow(task: TaskEntity, mainComponent: ComponentName) {
                 maxLines = 1,
                 style = TextStyle(
                     color = ColorProvider(TextPrimary),
-                    fontSize = 14.sp,
+                    fontSize = metrics.title.sp,
                     fontWeight = FontWeight.Bold
                 )
             )
@@ -170,7 +203,7 @@ private fun TaskGlanceRow(task: TaskEntity, mainComponent: ComponentName) {
                 maxLines = 1,
                 style = TextStyle(
                     color = ColorProvider(TextCategory),
-                    fontSize = 12.sp
+                    fontSize = metrics.category.sp
                 )
             )
         }
@@ -180,9 +213,9 @@ private fun TaskGlanceRow(task: TaskEntity, mainComponent: ComponentName) {
         // Complete button — rose circle with checkmark
         Box(
             modifier = GlanceModifier
-                .size(28.dp)
+                .size(metrics.button.dp)
                 .background(ColorProvider(AccentRose))
-                .cornerRadius(14.dp)
+                .cornerRadius((metrics.button / 2).dp)
                 .clickable(
                     actionRunCallback<CompleteTaskGlanceAction>(
                         actionParametersOf(CompleteTaskGlanceAction.TaskIdKey to task.taskId)
@@ -194,7 +227,7 @@ private fun TaskGlanceRow(task: TaskEntity, mainComponent: ComponentName) {
                 text = "✓",
                 style = TextStyle(
                     color = ColorProvider(Color.White),
-                    fontSize = 14.sp,
+                    fontSize = (metrics.button * 0.5f).sp,
                     fontWeight = FontWeight.Bold
                 )
             )

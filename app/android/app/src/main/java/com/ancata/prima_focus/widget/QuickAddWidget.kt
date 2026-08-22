@@ -1,6 +1,5 @@
 package com.ancata.prima_focus.widget
 
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
@@ -9,12 +8,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
+import androidx.glance.LocalSize
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.actionParametersOf
-import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
+import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.cornerRadius
@@ -25,13 +25,13 @@ import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
+import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
-import androidx.glance.layout.wrapContentHeight
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
@@ -46,10 +46,16 @@ private val TextPrimary = Color(0xFF000000)
 private val TextMuted = Color(0xFF666666)
 private val AccentRose = Color(0xFFF472B6)  // PrimaryRose from Color.kt
 
+private val ContentPadding = 12.dp
+
 class QuickAddWidget : GlanceAppWidget() {
+
+    // Exact so LocalSize reports the real cell size and the layout can scale to it.
+    override val sizeMode = SizeMode.Exact
+
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
-            QuickAddContent(context = context)
+            QuickAddContent()
         }
     }
 }
@@ -77,15 +83,19 @@ class LaunchQuickAddAction : ActionCallback {
 }
 
 @Composable
-fun QuickAddContent(context: Context) {
-    val mainComponent = ComponentName(context, MainActivity::class.java)
+fun QuickAddContent() {
+    // Sizes derived from the real cell height so the chip row fills what's left.
+    val usableHeight = LocalSize.current.height.value - (ContentPadding.value * 2)
+    val headerSize = (usableHeight * 0.13f).coerceIn(12f, 18f)
+    val buttonSize = (usableHeight * 0.32f).coerceIn(28f, 52f)
+    val chipSize = (usableHeight * 0.14f).coerceIn(12f, 20f)
 
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
             .background(ColorProvider(WidgetBackground))
             .cornerRadius(16.dp)
-            .padding(14.dp)
+            .padding(ContentPadding)
     ) {
         // Header row — label + rose add button
         Row(
@@ -96,7 +106,7 @@ fun QuickAddContent(context: Context) {
                 text = "Agregar Tarea",
                 style = TextStyle(
                     color = ColorProvider(TextMuted),
-                    fontSize = 12.sp,
+                    fontSize = headerSize.sp,
                     fontWeight = FontWeight.Bold
                 ),
                 modifier = GlanceModifier.defaultWeight()
@@ -105,9 +115,9 @@ fun QuickAddContent(context: Context) {
             // Generic add button (no category)
             Box(
                 modifier = GlanceModifier
-                    .size(28.dp)
+                    .size(buttonSize.dp)
                     .background(ColorProvider(AccentRose))
-                    .cornerRadius(14.dp)
+                    .cornerRadius((buttonSize / 2).dp)
                     .clickable(actionRunCallback<LaunchQuickAddAction>()),
                 contentAlignment = Alignment.Center
             ) {
@@ -115,35 +125,38 @@ fun QuickAddContent(context: Context) {
                     text = "+",
                     style = TextStyle(
                         color = ColorProvider(Color.White),
-                        fontSize = 18.sp,
+                        fontSize = (buttonSize * 0.6f).sp,
                         fontWeight = FontWeight.Bold
                     )
                 )
             }
         }
 
-        Spacer(modifier = GlanceModifier.height(10.dp))
+        Spacer(modifier = GlanceModifier.height(8.dp))
 
-        // Category chip row
+        // Category chips — take all the remaining height
         Row(
-            modifier = GlanceModifier.fillMaxWidth(),
+            modifier = GlanceModifier.fillMaxWidth().defaultWeight(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             CategoryChip(
                 label = "Trabajo",
                 category = "trabajo",
+                fontSize = chipSize,
                 modifier = GlanceModifier.defaultWeight()
             )
             Spacer(modifier = GlanceModifier.width(6.dp))
             CategoryChip(
                 label = "Salud",
                 category = "salud",
+                fontSize = chipSize,
                 modifier = GlanceModifier.defaultWeight()
             )
             Spacer(modifier = GlanceModifier.width(6.dp))
             CategoryChip(
                 label = "Casa",
                 category = "casa",
+                fontSize = chipSize,
                 modifier = GlanceModifier.defaultWeight()
             )
         }
@@ -154,13 +167,15 @@ fun QuickAddContent(context: Context) {
 private fun CategoryChip(
     label: String,
     category: String,
+    fontSize: Float,
     modifier: GlanceModifier = GlanceModifier
 ) {
     Box(
         modifier = modifier
+            .fillMaxHeight()
             .background(ColorProvider(ChipBackground))
             .cornerRadius(8.dp)
-            .padding(vertical = 8.dp, horizontal = 4.dp)
+            .padding(horizontal = 4.dp)
             .clickable(
                 actionRunCallback<LaunchQuickAddAction>(
                     actionParametersOf(LaunchQuickAddAction.CategoryKey to category)
@@ -173,7 +188,7 @@ private fun CategoryChip(
             maxLines = 1,
             style = TextStyle(
                 color = ColorProvider(TextPrimary),
-                fontSize = 12.sp,
+                fontSize = fontSize.sp,
                 fontWeight = FontWeight.Medium
             )
         )

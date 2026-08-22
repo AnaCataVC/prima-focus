@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Picker preview only. Mirrors TopThreeTasksWidget.kt at its target 4x3 cell size. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_rounded_bg"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="12dp">
 
     <TextView
         android:layout_width="wrap_content"
@@ -17,16 +18,18 @@
     <!-- Row 1 -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="6dp"
         android:background="@drawable/widget_item_bg"
         android:orientation="horizontal"
-        android:padding="10dp">
+        android:gravity="center_vertical"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="4dp">
 
         <ImageView
             android:layout_width="8dp"
             android:layout_height="8dp"
-            android:layout_gravity="center_vertical"
             android:layout_marginEnd="10dp"
             android:background="@drawable/widget_priority_dot_high" />
 
@@ -50,32 +53,36 @@
                 android:layout_height="wrap_content"
                 android:text="Trabajo"
                 android:textColor="#888888"
-                android:textSize="12sp" />
+                android:textSize="11sp" />
         </LinearLayout>
 
-        <ImageView
+        <TextView
             android:layout_width="28dp"
             android:layout_height="28dp"
-            android:layout_gravity="center_vertical"
+            android:layout_marginStart="8dp"
             android:background="@drawable/widget_circle_bg"
-            android:src="@android:drawable/checkbox_on_background"
-            android:tint="#FFFFFF"
-            android:padding="6dp" />
+            android:gravity="center"
+            android:text="✓"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
     <!-- Row 2 -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:layout_marginTop="6dp"
         android:background="@drawable/widget_item_bg"
         android:orientation="horizontal"
-        android:padding="10dp">
+        android:gravity="center_vertical"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="4dp">
 
         <ImageView
             android:layout_width="8dp"
             android:layout_height="8dp"
-            android:layout_gravity="center_vertical"
             android:layout_marginEnd="10dp"
             android:background="@drawable/widget_priority_dot_medium" />
 
@@ -99,32 +106,36 @@
                 android:layout_height="wrap_content"
                 android:text="Salud"
                 android:textColor="#888888"
-                android:textSize="12sp" />
+                android:textSize="11sp" />
         </LinearLayout>
 
-        <ImageView
+        <TextView
             android:layout_width="28dp"
             android:layout_height="28dp"
-            android:layout_gravity="center_vertical"
+            android:layout_marginStart="8dp"
             android:background="@drawable/widget_circle_bg"
-            android:src="@android:drawable/checkbox_on_background"
-            android:tint="#FFFFFF"
-            android:padding="6dp" />
+            android:gravity="center"
+            android:text="✓"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
     <!-- Row 3 -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:layout_marginTop="6dp"
         android:background="@drawable/widget_item_bg"
         android:orientation="horizontal"
-        android:padding="10dp">
+        android:gravity="center_vertical"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="4dp">
 
         <ImageView
             android:layout_width="8dp"
             android:layout_height="8dp"
-            android:layout_gravity="center_vertical"
             android:layout_marginEnd="10dp"
             android:background="@drawable/widget_priority_dot_low" />
 
@@ -148,17 +159,19 @@
                 android:layout_height="wrap_content"
                 android:text="Casa"
                 android:textColor="#888888"
-                android:textSize="12sp" />
+                android:textSize="11sp" />
         </LinearLayout>
 
-        <ImageView
+        <TextView
             android:layout_width="28dp"
             android:layout_height="28dp"
-            android:layout_gravity="center_vertical"
+            android:layout_marginStart="8dp"
             android:background="@drawable/widget_circle_bg"
-            android:src="@android:drawable/checkbox_on_background"
-            android:tint="#FFFFFF"
-            android:padding="6dp" />
+            android:gravity="center"
+            android:text="✓"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
 </LinearLayout>

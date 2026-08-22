@@ -1,76 +1,78 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Picker preview only. Mirrors QuickAddWidget.kt at its target 3x2 cell size. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_rounded_bg"
     android:orientation="vertical"
-    android:gravity="center_vertical"
-    android:padding="14dp">
+    android:padding="12dp">
 
-    <!-- Header -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Agregar Tarea"
-        android:textColor="#666666"
-        android:textSize="12sp"
-        android:textStyle="bold" />
-
-    <!-- Category chips row -->
+    <!-- Header row — label + rose add button -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Agregar Tarea"
+            android:textColor="#666666"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:background="@drawable/widget_circle_bg"
+            android:gravity="center"
+            android:text="+"
+            android:textColor="#FFFFFF"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- Category chips — take all the remaining height -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="8dp"
         android:orientation="horizontal">
 
         <TextView
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_marginEnd="6dp"
             android:background="@drawable/widget_chip_bg"
             android:gravity="center"
-            android:padding="8dp"
             android:text="Trabajo"
             android:textColor="#000000"
-            android:textSize="12sp"
-            android:textStyle="bold" />
+            android:textSize="12sp" />
 
         <TextView
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_marginEnd="6dp"
             android:background="@drawable/widget_chip_bg"
             android:gravity="center"
-            android:padding="8dp"
             android:text="Salud"
             android:textColor="#000000"
-            android:textSize="12sp"
-            android:textStyle="bold" />
+            android:textSize="12sp" />
 
         <TextView
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:layout_weight="1"
-            android:layout_marginEnd="6dp"
             android:background="@drawable/widget_chip_bg"
             android:gravity="center"
-            android:padding="8dp"
             android:text="Casa"
             android:textColor="#000000"
-            android:textSize="12sp"
-            android:textStyle="bold" />
-
-        <!-- Add button -->
-        <ImageView
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:layout_gravity="center_vertical"
-            android:background="@drawable/widget_circle_bg"
-            android:src="@android:drawable/ic_input_add"
-            android:tint="#FFFFFF"
-            android:padding="8dp" />
+            android:textSize="12sp" />
     </LinearLayout>
 
 </LinearLayout>
