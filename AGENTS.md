@@ -10,9 +10,9 @@ This document serves as the operational manual, architecture reference, and work
 
 ### System Architecture:
 - **`app/android/`**:
-  - `app/src/main/`: Jetpack Compose UI (Timer, Task Manager, Stats, Settings), ViewModels, Room Entities & DAOs.
+  - `app/src/main/`: Jetpack Compose UI (Timer, Task Manager, Stats, Settings), ViewModels, Room v5 Entities (with soft delete tombstones & `syncVersion`) & DAOs.
   - `app/build.gradle.kts`: Android SDK configuration (`minSdk = 26`, `targetSdk = 34+`), Compose compiler, and signing configs.
-- **`docs/`**: Comprehensive design documents, database schemas (`database_schema.sql`), notification flow charts (`notification_flow.md`), and priority logic.
+- **`docs/`**: Comprehensive design documents, database schemas (`database_schema.sql`), notification flow charts (`notification_flow.md`), priority logic, and learning records.
 - **`releases/`**: Compiled APK binaries (`prima-focus-vX.Y.Z.apk`).
 
 ---
@@ -31,7 +31,7 @@ prima-focus/
 ├── design/                        # UI wireframes, tokens, and component specifications
 ├── docs/                          # Architecture, database schema, and notification guides
 ├── releases/                      # Compiled APK artifacts (gitignored)
-└── README.md                      # Bilingual project documentation (EN/ES)
+└── README.md                      # Bilingual project documentation (EN/ES, no flag emojis)
 ```
 
 ---
@@ -42,7 +42,7 @@ prima-focus/
 - **Source Code**: All Kotlin code (classes, functions, variables, comments) MUST be in **English**.
 - **User Chat**: Communicate with the user in **Spanish** unless requested otherwise.
 - **Git Commits**: Use **Conventional Commits** in **English** (e.g., `feat: ...`, `fix: ...`, `docs: ...`, `refactor: ...`).
-- **README**: Maintain bilingual documentation (English and Spanish).
+- **README**: Maintain bilingual documentation (English and Spanish) **WITHOUT country flag emojis** (use plain `## English` and `## Español`, never 🇬🇧 or 🇪🇸).
 
 ### 🔒 Security & Privacy
 - **Source Code Protection**: This is a private application repository. NEVER leak private source code into public repositories or documentation.

@@ -15,4 +15,5 @@ La URL del repositorio en GitHub es: `https://github.com/AnaCataVC/prima-focus-s
    - **Página del Showcase:** Recuerda siempre actualizar el número de versión en la página principal o `README.md` del Showcase.
    - **Publicación:** Actualiza el repositorio y genera un nuevo Release en GitHub para el Showcase (usando `gh release create`) con notas de versión detalladas.
 3. **Privacidad del Código:** NUNCA copies el código fuente (`/app` ni la lógica de la aplicación) al Showcase. El Showcase está diseñado para ser público y contener únicamente: `README.md`, el archivo APK, el archivo LICENSE y la carpeta `docs/`.
+4. **README Sin Banderas:** En los `README.md` (tanto de este repositorio como del Showcase), las secciones de idioma deben titularse limpiamente sin emojis de banderas (ej. `## English` y `## Español`, sin 🇬🇧 ni 🇪🇸).
 
