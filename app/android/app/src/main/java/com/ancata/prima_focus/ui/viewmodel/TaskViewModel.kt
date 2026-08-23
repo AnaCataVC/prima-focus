@@ -8,6 +8,7 @@ import com.ancata.prima_focus.data.local.entity.TaskEntity
 import com.ancata.prima_focus.domain.PriorityEngine
 import kotlinx.coroutines.Dispatchers
 import android.content.Context
+import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -279,8 +280,8 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteCompletedTask(taskId: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            taskDao.deleteTask(taskId)
-            sessionDao.deleteSessionsForTask(taskId)
+            taskDao.softDeleteTask(taskId)
+            sessionDao.softDeleteSessionsForTask(taskId)
             updateWidgets()
         }
     }
@@ -294,6 +295,12 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     init {
+        viewModelScope.launch(Dispatchers.IO) {
+            // Purge tombstones older than 30 days on launch
+            val thirtyDaysAgo = System.currentTimeMillis() - (30L * 24 * 60 * 60 * 1000L)
+            taskDao.purgeOldTombstones(thirtyDaysAgo)
+            sessionDao.purgeOldTombstones(thirtyDaysAgo)
+        }
         viewModelScope.launch {
             taskDao.getPendingTasksOrderedByPriority().collectLatest { tasks ->
                 _pendingTasks.value = tasks
@@ -468,14 +475,15 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteTask(taskId: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            taskDao.deleteTask(taskId)
+            taskDao.softDeleteTask(taskId)
+            sessionDao.softDeleteSessionsForTask(taskId)
             updateWidgets()
         }
     }
 
     fun deleteSeries(groupId: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            taskDao.deleteTasksByGroupId(groupId)
+            taskDao.softDeleteTasksByGroupId(groupId)
             updateWidgets()
         }
     }
@@ -531,17 +539,9 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                         sessionDao.insertSessions(payload.sessions)
                     }
                 } else {
-                    val localTasks = taskDao.getAllTasks().associateBy { it.taskId }
-                    processedTasks.forEach { received ->
-                        val local = localTasks[received.taskId]
-                        if (local == null) {
-                            taskDao.insertTask(received)
-                        } else if (received.updatedAt > local.updatedAt) {
-                            taskDao.updateTask(received)
-                        }
-                    }
+                    taskDao.syncMergeTasksAtomic(processedTasks) { priorityEngine.calculatePriority(it) }
                     if (!payload.sessions.isNullOrEmpty()) {
-                        sessionDao.insertSessions(payload.sessions)
+                        sessionDao.syncMergeSessionsAtomic(payload.sessions)
                     }
                 }
 
@@ -555,7 +555,13 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
     fun restoreTask(task: TaskEntity) {
         viewModelScope.launch(Dispatchers.IO) {
-            taskDao.insertTask(task)
+            val restored = task.copy(
+                isDeleted = false,
+                deletedAt = null,
+                updatedAt = System.currentTimeMillis(),
+                syncVersion = task.syncVersion + 1
+            )
+            taskDao.insertTask(restored)
             updateWidgets()
         }
     }
@@ -570,7 +576,12 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 task
             }
-            val finalTask = priorityEngine.calculatePriority(withGroup.copy(updatedAt = System.currentTimeMillis()))
+            val finalTask = priorityEngine.calculatePriority(
+                withGroup.copy(
+                    updatedAt = System.currentTimeMillis(),
+                    syncVersion = withGroup.syncVersion + 1
+                )
+            )
             taskDao.updateTask(finalTask)
             updateWidgets()
         }
@@ -584,7 +595,8 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                 val updatedTask = it.copy(
                     date = tomorrow,
                     status = "pending",
-                    updatedAt = System.currentTimeMillis()
+                    updatedAt = System.currentTimeMillis(),
+                    syncVersion = it.syncVersion + 1
                 )
                 taskDao.updateTask(priorityEngine.calculatePriority(updatedTask))
                 updateWidgets()
@@ -594,34 +606,17 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun syncMergeData(receivedTasks: List<TaskEntity>, receivedSessions: List<SessionEntity>) {
         viewModelScope.launch(Dispatchers.IO) {
-            val localTasks = taskDao.getAllTasks().associateBy { it.taskId }
-            
-            receivedTasks.forEach { received ->
-                val local = localTasks[received.taskId]
-                val processed = if (received.status == "pending") priorityEngine.calculatePriority(received) else received
-                if (local == null) {
-                    // Task doesn't exist locally, insert it
-                    taskDao.insertTask(processed)
-                } else {
-                    // Task exists locally, Last-Write-Wins based on updatedAt
-                    if (received.updatedAt > local.updatedAt) {
-                        taskDao.updateTask(processed)
-                    }
-                }
+            val updatedTasksCount = taskDao.syncMergeTasksAtomic(receivedTasks) {
+                priorityEngine.calculatePriority(it)
             }
-
-            if (receivedSessions.isNotEmpty()) {
-                val localSessions = sessionDao.getAllSessions().associateBy { it.sessionId }
-                val sessionsToUpsert = receivedSessions.filter { received ->
-                    val local = localSessions[received.sessionId]
-                    local == null || received.updatedAt > local.updatedAt
-                }
-                if (sessionsToUpsert.isNotEmpty()) {
-                    sessionDao.insertSessions(sessionsToUpsert)
-                }
-            }
-
+            val updatedSessionsCount = sessionDao.syncMergeSessionsAtomic(receivedSessions)
             updateWidgets()
+            Log.d("TaskViewModel", "P2P Merge completed: $updatedTasksCount tasks, $updatedSessionsCount sessions updated")
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        p2pSyncManager.stopAll()
     }
 }

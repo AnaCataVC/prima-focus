@@ -23,16 +23,28 @@ class TaskCompletionUseCaseTest {
 
         override fun getPendingTasksOrderedByPriority() = throw UnsupportedOperationException()
         override fun getAllTasks(): List<TaskEntity> = tasks.values.toList()
+        override fun getActiveTasks(): List<TaskEntity> = tasks.values.filter { !it.isDeleted }
         override fun getCompletedTasksWithSessions() = throw UnsupportedOperationException()
         override fun deleteCompletedTasks() {}
-        override suspend fun getTopTaskNow(): TaskEntity? = tasks.values.firstOrNull { it.status == "pending" }
-        override suspend fun getTopThreeTasksNow(): List<TaskEntity> = tasks.values.filter { it.status == "pending" }.take(3)
+        override suspend fun getTopTaskNow(): TaskEntity? = tasks.values.firstOrNull { it.status == "pending" && !it.isDeleted }
+        override suspend fun getTopThreeTasksNow(): List<TaskEntity> = tasks.values.filter { it.status == "pending" && !it.isDeleted }.take(3)
         override fun getTaskById(taskId: String): TaskEntity? = tasks[taskId]
         override fun insertTask(task: TaskEntity) { tasks[task.taskId] = task }
         override fun insertTasks(tasks: List<TaskEntity>) { tasks.forEach { insertTask(it) } }
         override fun updateTask(task: TaskEntity) {
             tasks[task.taskId] = task
             lastCompletedTask = task
+        }
+        override fun softDeleteTask(taskId: String, deletedAt: Long, updatedAt: Long) {
+            tasks[taskId]?.let { tasks[taskId] = it.copy(isDeleted = true, deletedAt = deletedAt, updatedAt = updatedAt) }
+        }
+        override fun softDeleteTasksByGroupId(groupId: String, deletedAt: Long, updatedAt: Long) {
+            tasks.values.filter { it.recurrenceGroupId == groupId }.forEach {
+                tasks[it.taskId] = it.copy(isDeleted = true, deletedAt = deletedAt, updatedAt = updatedAt)
+            }
+        }
+        override fun purgeOldTombstones(cutoffTimestamp: Long) {
+            tasks.entries.removeIf { it.value.isDeleted && (it.value.deletedAt ?: 0L) < cutoffTimestamp }
         }
         override fun deleteTask(taskId: String) { tasks.remove(taskId) }
         override fun deleteTasksByGroupId(groupId: String) {}
@@ -50,9 +62,22 @@ class TaskCompletionUseCaseTest {
     private class FakeSessionDao : SessionDao {
         val sessions = mutableListOf<SessionEntity>()
         override fun getAllSessions(): List<SessionEntity> = sessions
-        override fun getSessionsForTask(taskId: String): Flow<List<SessionEntity>> = flowOf(sessions.filter { it.taskId == taskId })
+        override fun getActiveSessions(): List<SessionEntity> = sessions.filter { !it.isDeleted }
+        override fun getSessionsForTask(taskId: String): Flow<List<SessionEntity>> = flowOf(sessions.filter { it.taskId == taskId && !it.isDeleted })
         override fun insertSession(session: SessionEntity) { sessions.add(session) }
         override fun insertSessions(sessions: List<SessionEntity>) { this.sessions.addAll(sessions) }
+        override fun softDeleteSession(sessionId: String, deletedAt: Long, updatedAt: Long) {
+            val idx = sessions.indexOfFirst { it.sessionId == sessionId }
+            if (idx != -1) sessions[idx] = sessions[idx].copy(isDeleted = true, deletedAt = deletedAt, updatedAt = updatedAt)
+        }
+        override fun softDeleteSessionsForTask(taskId: String, deletedAt: Long, updatedAt: Long) {
+            sessions.indices.filter { sessions[it].taskId == taskId }.forEach {
+                sessions[it] = sessions[it].copy(isDeleted = true, deletedAt = deletedAt, updatedAt = updatedAt)
+            }
+        }
+        override fun purgeOldTombstones(cutoffTimestamp: Long) {
+            sessions.removeIf { it.isDeleted && (it.deletedAt ?: 0L) < cutoffTimestamp }
+        }
         override fun deleteSessionsForTask(taskId: String) {}
         override fun deleteOrphanedSessions() {}
         override fun clearAllSessions() { sessions.clear() }

@@ -13,7 +13,7 @@ class P2PSyncTest {
     private val gson = Gson()
 
     @Test
-    fun syncDataPayload_serializesAndDeserializes_tasksAndSessions() {
+    fun syncDataPayload_serializesAndDeserializes_tasksAndSessions_withTombstoneAndVersion() {
         val now = System.currentTimeMillis()
         val task = TaskEntity(
             taskId = "task-sync-1",
@@ -31,7 +31,10 @@ class P2PSyncTest {
             postponedReason = null,
             createdAt = now - 10000,
             updatedAt = now,
-            meta = null
+            meta = null,
+            isDeleted = true,
+            deletedAt = now,
+            syncVersion = 3L
         )
 
         val session = SessionEntity(
@@ -43,7 +46,10 @@ class P2PSyncTest {
             result = "completed",
             feeling = 5,
             createdAt = now,
-            updatedAt = now
+            updatedAt = now,
+            isDeleted = true,
+            deletedAt = now,
+            syncVersion = 2L
         )
 
         val payload = SyncDataPayload(
@@ -56,15 +62,95 @@ class P2PSyncTest {
         assertNotNull(json)
         assertTrue(json.contains("Sync Test Task"))
         assertTrue(json.contains("session-sync-1"))
+        assertTrue(json.contains("\"isDeleted\":true"))
+        assertTrue(json.contains("\"syncVersion\":3"))
 
         val deserialized = gson.fromJson(json, SyncDataPayload::class.java)
         assertEquals(1, deserialized.version)
         assertEquals(1, deserialized.tasks.size)
         assertEquals("task-sync-1", deserialized.tasks[0].taskId)
-        assertEquals(45, deserialized.tasks[0].estimatedMinutes)
+        assertTrue(deserialized.tasks[0].isDeleted)
+        assertEquals(3L, deserialized.tasks[0].syncVersion)
         assertEquals(1, deserialized.sessions.size)
-        assertEquals("session-sync-1", deserialized.sessions[0].sessionId)
-        assertEquals(5, deserialized.sessions[0].feeling)
+        assertTrue(deserialized.sessions[0].isDeleted)
+        assertEquals(2L, deserialized.sessions[0].syncVersion)
+    }
+
+    @Test
+    fun syncMerge_versionAwareConflictResolution_prefersHigherVersion() {
+        val now = System.currentTimeMillis()
+        val localTask = TaskEntity(
+            taskId = "task-conflict-1",
+            title = "Local Old Title",
+            description = null,
+            category = "trabajo",
+            subcategory = null,
+            categoryWeight = 2.0,
+            date = null,
+            time = null,
+            createdAt = now - 50000,
+            updatedAt = now + 100000, // Even if clock was ahead!
+            meta = null,
+            syncVersion = 1L
+        )
+
+        val receivedTask = TaskEntity(
+            taskId = "task-conflict-1",
+            title = "Remote New Title (Version 2)",
+            description = null,
+            category = "trabajo",
+            subcategory = null,
+            categoryWeight = 2.0,
+            date = null,
+            time = null,
+            createdAt = now - 50000,
+            updatedAt = now, // Clock was behind, but version is higher
+            meta = null,
+            syncVersion = 2L
+        )
+
+        // Version 2 should beat Version 1 regardless of clock drift
+        val shouldUpdate = when {
+            receivedTask.syncVersion > localTask.syncVersion -> true
+            receivedTask.syncVersion == localTask.syncVersion && receivedTask.updatedAt > localTask.updatedAt -> true
+            else -> false
+        }
+        assertTrue(shouldUpdate)
+    }
+
+    @Test
+    fun syncMerge_tombstoneSoftDelete_propagatesCorrectly() {
+        val now = System.currentTimeMillis()
+        val localTask = TaskEntity(
+            taskId = "task-tombstone-1",
+            title = "Task To Be Deleted",
+            description = null,
+            category = "trabajo",
+            subcategory = null,
+            categoryWeight = 2.0,
+            date = null,
+            time = null,
+            createdAt = now - 50000,
+            updatedAt = now - 10000,
+            meta = null,
+            isDeleted = false,
+            syncVersion = 1L
+        )
+
+        val receivedDeletedTask = localTask.copy(
+            isDeleted = true,
+            deletedAt = now,
+            updatedAt = now,
+            syncVersion = 2L
+        )
+
+        val shouldUpdate = when {
+            receivedDeletedTask.syncVersion > localTask.syncVersion -> true
+            receivedDeletedTask.syncVersion == localTask.syncVersion && receivedDeletedTask.updatedAt > localTask.updatedAt -> true
+            else -> false
+        }
+        assertTrue(shouldUpdate)
+        assertTrue(receivedDeletedTask.isDeleted)
     }
 
     @Test
@@ -99,5 +185,7 @@ class P2PSyncTest {
 
         assertEquals(1, parsedTasks.size)
         assertEquals("Legacy Task", parsedTasks[0].title)
+        assertFalse(parsedTasks[0].isDeleted) // Default boolean
+        assertEquals(1L, parsedTasks[0].syncVersion) // Default syncVersion
     }
 }

@@ -18,7 +18,7 @@ import com.ancata.prima_focus.data.local.entity.TaskEntity
         SessionEntity::class,
         EventEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class PrimaFocusDatabase : RoomDatabase() {
@@ -113,6 +113,21 @@ abstract class PrimaFocusDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Adds isDeleted, deletedAt, and syncVersion for robust P2P sync and tombstones.
+         */
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE tasks ADD COLUMN isDeleted INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE tasks ADD COLUMN deletedAt INTEGER DEFAULT NULL")
+                db.execSQL("ALTER TABLE tasks ADD COLUMN syncVersion INTEGER NOT NULL DEFAULT 1")
+
+                db.execSQL("ALTER TABLE sessions ADD COLUMN isDeleted INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE sessions ADD COLUMN deletedAt INTEGER DEFAULT NULL")
+                db.execSQL("ALTER TABLE sessions ADD COLUMN syncVersion INTEGER NOT NULL DEFAULT 1")
+            }
+        }
+
         fun getDatabase(context: Context): PrimaFocusDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -120,7 +135,7 @@ abstract class PrimaFocusDatabase : RoomDatabase() {
                     PrimaFocusDatabase::class.java,
                     "primafocus_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build()
                 INSTANCE = instance
                 instance

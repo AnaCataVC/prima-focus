@@ -429,8 +429,15 @@ fun SettingsScreen(viewModel: TaskViewModel) {
 
             Column(modifier = glassModifier) {
                 SectionTitle("Sincronización P2P (Local)")
-                Text("Conecta este dispositivo con otro en la misma red para sincronizar tareas sin usar internet.", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(bottom = 16.dp))
+                Text("Conecta este dispositivo con otro en la misma red para sincronizar tareas sin usar internet.", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(bottom = 8.dp))
                 
+                Text(
+                    text = "Dispositivo: ${viewModel.p2pSyncManager.deviceDisplayName}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.8f),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
                 val syncStatus by viewModel.syncStatus.collectAsState()
                 
                 Text("Estado: $syncStatus", color = glows.primaryAccent, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 16.dp))
@@ -449,6 +456,14 @@ fun SettingsScreen(viewModel: TaskViewModel) {
                         colors = ButtonDefaults.buttonColors(containerColor = glows.primaryGlow.copy(alpha = 0.5f))
                     ) {
                         Text("Ser Cliente", fontSize = 12.sp, color = Color.White)
+                    }
+                    if (syncStatus != "Desconectado") {
+                        OutlinedButton(
+                            onClick = { viewModel.p2pSyncManager.stopAll() },
+                            modifier = Modifier.weight(0.8f)
+                        ) {
+                            Text("Detener", fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
+                        }
                     }
                 }
             }

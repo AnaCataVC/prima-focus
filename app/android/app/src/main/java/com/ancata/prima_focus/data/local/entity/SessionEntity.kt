@@ -27,5 +27,8 @@ data class SessionEntity(
     val result: String?,
     val feeling: Int?,
     val createdAt: Long,
-    val updatedAt: Long
+    val updatedAt: Long,
+    val isDeleted: Boolean = false,
+    val deletedAt: Long? = null,
+    val syncVersion: Long = 1L
 )
