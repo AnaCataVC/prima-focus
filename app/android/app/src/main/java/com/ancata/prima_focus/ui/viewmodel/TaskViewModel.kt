@@ -210,7 +210,10 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
     val calendarFilteredTasks = combine(_pendingTasks, _calendarSelectedDate) { tasks, selectedDate ->
         if (selectedDate == null) {
-            tasks
+            // "HOY" view: exclude tasks scheduled strictly in the future (tomorrow, future dates).
+            // Includes: tasks for today ("Hoy" or today's date), overdue tasks (< today), and unscheduled backlog (date == null).
+            val today = LocalDate.now()
+            tasks.filter { !TimeUtils.isFutureScheduled(it.date, today) }
         } else {
             val dateStr = selectedDate.toString()
             tasks.filter { it.date == dateStr }
@@ -304,11 +307,9 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             taskDao.getPendingTasksOrderedByPriority().collectLatest { tasks ->
                 _pendingTasks.value = tasks
-                if (tasks.isNotEmpty()) {
-                    _topTask.value = tasks.first()
-                } else {
-                    _topTask.value = null
-                }
+                val today = LocalDate.now()
+                val topTodayTask = tasks.firstOrNull { !TimeUtils.isFutureScheduled(it.date, today) }
+                _topTask.value = topTodayTask
             }
         }
         scheduleRecurrenceWorker()

@@ -22,6 +22,7 @@ class TaskCompletionUseCaseTest {
         var spawnedNextTask: TaskEntity? = null
 
         override fun getPendingTasksOrderedByPriority() = throw UnsupportedOperationException()
+        override suspend fun getPendingTasksListNow(): List<TaskEntity> = tasks.values.filter { it.status == "pending" && !it.isDeleted }
         override fun getAllTasks(): List<TaskEntity> = tasks.values.toList()
         override fun getActiveTasks(): List<TaskEntity> = tasks.values.filter { !it.isDeleted }
         override fun getCompletedTasksWithSessions() = throw UnsupportedOperationException()
@@ -222,4 +223,28 @@ class TaskCompletionUseCaseTest {
         useCase.execute("task_good", feeling = 5, result = "completed")
         assertEquals(5, sessionDao.sessions.last().feeling)
     }
+
+    @Test
+    fun `isFutureScheduled correctly separates future recurring tasks from today and unscheduled backlog`() {
+        val today = java.time.LocalDate.of(2026, 8, 25)
+
+        // Today / relative
+        assertFalse(com.ancata.prima_focus.utils.TimeUtils.isFutureScheduled("Hoy", today))
+        assertFalse(com.ancata.prima_focus.utils.TimeUtils.isFutureScheduled("2026-08-25", today))
+
+        // Overdue / past
+        assertFalse(com.ancata.prima_focus.utils.TimeUtils.isFutureScheduled("2026-08-20", today))
+
+        // Unscheduled backlog (null date) MUST remain visible (false for future)
+        assertFalse(com.ancata.prima_focus.utils.TimeUtils.isFutureScheduled(null, today))
+
+        // Tomorrow / relative future
+        assertTrue(com.ancata.prima_focus.utils.TimeUtils.isFutureScheduled("Mañana", today))
+        assertTrue(com.ancata.prima_focus.utils.TimeUtils.isFutureScheduled("El siguiente lunes", today))
+
+        // ISO future date (e.g. newly spawned daily recurring instance)
+        assertTrue(com.ancata.prima_focus.utils.TimeUtils.isFutureScheduled("2026-08-26", today))
+        assertTrue(com.ancata.prima_focus.utils.TimeUtils.isFutureScheduled("2026-09-01", today))
+    }
 }
+

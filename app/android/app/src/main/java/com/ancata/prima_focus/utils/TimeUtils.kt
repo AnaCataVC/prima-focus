@@ -62,4 +62,25 @@ object TimeUtils {
             else -> localDateTime.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM, HH:mm"))
         }
     }
+
+    /**
+     * Checks if a scheduled date string represents a date strictly in the future (after today).
+     * Returns false if dateStr is null (backlog/no date), "Hoy", or a past/today ISO date.
+     */
+    fun isFutureScheduled(dateStr: String?, today: java.time.LocalDate = java.time.LocalDate.now()): Boolean {
+        if (dateStr == null) return false
+        return when (dateStr) {
+            "Hoy" -> false
+            "Mañana", "El siguiente lunes" -> true
+            else -> {
+                try {
+                    val parsed = java.time.LocalDate.parse(dateStr)
+                    parsed.isAfter(today)
+                } catch (e: Exception) {
+                    false
+                }
+            }
+        }
+    }
 }
+

@@ -53,7 +53,10 @@ class NotificationWorker(
                 taskDao.updateTask(it)
             }
 
-            val topTask = updatedTasks.maxByOrNull { it.priorityScore ?: 0.0 }
+            val today = java.time.LocalDate.now()
+            val topTask = updatedTasks
+                .filter { !TimeUtils.isFutureScheduled(it.date, today) }
+                .maxByOrNull { it.priorityScore ?: 0.0 }
             
             topTask?.let {
                 val score = it.priorityScore ?: 0.0

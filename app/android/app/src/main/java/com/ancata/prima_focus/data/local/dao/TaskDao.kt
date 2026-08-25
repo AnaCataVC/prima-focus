@@ -24,6 +24,19 @@ interface TaskDao {
     """)
     fun getPendingTasksOrderedByPriority(): Flow<List<TaskEntity>>
 
+    @Query("""
+        SELECT * FROM tasks 
+        WHERE status = 'pending' AND isDeleted = 0
+        ORDER BY 
+            priorityScore DESC, 
+            hasTime DESC, 
+            CASE WHEN date IS NULL THEN 1 ELSE 0 END, 
+            date ASC, 
+            createdAt ASC, 
+            taskId ASC
+    """)
+    suspend fun getPendingTasksListNow(): List<TaskEntity>
+
     @Query("SELECT * FROM tasks")
     fun getAllTasks(): List<TaskEntity>
 

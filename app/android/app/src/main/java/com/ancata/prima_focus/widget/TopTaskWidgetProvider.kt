@@ -25,7 +25,9 @@ class TopTaskWidgetProvider : AppWidgetProvider() {
         val dao = PrimaFocusDatabase.getDatabase(context).taskDao()
 
         CoroutineScope(Dispatchers.IO).launch {
-            val topTask = dao.getTopTaskNow()
+            val pendingTasks = dao.getPendingTasksListNow()
+            val today = java.time.LocalDate.now()
+            val topTask = pendingTasks.firstOrNull { !com.ancata.prima_focus.utils.TimeUtils.isFutureScheduled(it.date, today) }
 
             withContext(Dispatchers.Main) {
                 for (appWidgetId in appWidgetIds) {

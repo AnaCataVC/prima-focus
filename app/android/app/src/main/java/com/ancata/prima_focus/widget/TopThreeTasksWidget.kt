@@ -60,7 +60,9 @@ class TopThreeTasksWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val db = PrimaFocusDatabase.getDatabase(context)
-        val topTasks = db.taskDao().getTopThreeTasksNow()
+        val pendingTasks = db.taskDao().getPendingTasksListNow()
+        val today = java.time.LocalDate.now()
+        val topTasks = pendingTasks.filter { !com.ancata.prima_focus.utils.TimeUtils.isFutureScheduled(it.date, today) }.take(3)
 
         provideContent {
             TopThreeTasksContent(context = context, tasks = topTasks)
