@@ -106,12 +106,12 @@ fun QuickReviewModal(
                     onClick = { moodState = "bad" }
                 )
                 EmojiButton(
-                    emoji = "🙂",
+                    emoji = "😊",
                     selected = moodState == "ok",
                     onClick = { moodState = "ok" }
                 )
                 EmojiButton(
-                    emoji = "😃",
+                    emoji = "😁",
                     selected = moodState == "good",
                     onClick = { moodState = "good" }
                 )

@@ -245,9 +245,9 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             list.map { taskWithSessions ->
                 val latestSession = taskWithSessions.sessions.maxByOrNull { it.createdAt }
                 val feelingEmoji = when (latestSession?.feeling) {
-                    1 -> "😢"
-                    5 -> "😄"
-                    else -> "😐"
+                    1 -> "😐"
+                    5 -> "😁"
+                    else -> "😊"
                 }
                 CompletedTaskUiModel(
                     taskId = taskWithSessions.task.taskId,

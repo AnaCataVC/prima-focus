@@ -187,4 +187,39 @@ class TaskCompletionUseCaseTest {
         assertFalse(result)
         assertEquals(0, sessionDao.sessions.size)
     }
+
+    @Test
+    fun `execute logs feeling ratings 1, 3, 5 accurately for feedback review`() = runBlocking {
+        val taskDao = FakeTaskDao()
+        val sessionDao = FakeSessionDao()
+        val useCase = TaskCompletionUseCase(taskDao, sessionDao)
+
+        val task1 = TaskEntity(
+            taskId = "task_bad",
+            title = "Hard Task",
+            description = null,
+            category = "trabajo",
+            subcategory = null,
+            categoryWeight = 2.0,
+            date = "2026-08-25",
+            time = null,
+            estimatedMinutes = 20,
+            isProject = false,
+            status = "pending",
+            createdAt = 1000L,
+            updatedAt = 1000L,
+            meta = null,
+            postponedReason = null,
+            recurrence = null,
+            recurrenceGroupId = null
+        )
+        taskDao.insertTask(task1)
+        useCase.execute("task_bad", feeling = 1, result = "completed")
+        assertEquals(1, sessionDao.sessions.last().feeling)
+
+        val task2 = task1.copy(taskId = "task_good")
+        taskDao.insertTask(task2)
+        useCase.execute("task_good", feeling = 5, result = "completed")
+        assertEquals(5, sessionDao.sessions.last().feeling)
+    }
 }
