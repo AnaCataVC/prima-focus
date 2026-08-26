@@ -220,6 +220,11 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    val futureScheduledTasks: StateFlow<List<TaskEntity>> = _pendingTasks.map { tasks ->
+        val today = LocalDate.now()
+        tasks.filter { TimeUtils.isFutureScheduled(it.date, today) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val focusDisplayState: StateFlow<FocusDisplayState> = calendarFilteredTasks.map { tasks ->
         if (tasks.isEmpty()) {
             FocusDisplayState()

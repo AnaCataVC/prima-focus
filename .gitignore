@@ -20,7 +20,9 @@ releases/
 # ========================
 *.iml
 .gradle
-/local.properties
+.kotlin/
+local.properties
+**/local.properties
 /.idea/caches
 /.idea/libraries
 /.idea/modules.xml
@@ -32,3 +34,5 @@ releases/
 .externalNativeBuild
 .cxx
 /releases/
+*.log
+

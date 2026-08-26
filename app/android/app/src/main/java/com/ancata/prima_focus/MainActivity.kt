@@ -153,6 +153,23 @@ fun MainApp(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
+    LaunchedEffect(navigateToTimer) {
+        navigateToTimer?.let { intent ->
+            val id = intent.getStringExtra("taskId") ?: return@let
+            val title = intent.getStringExtra("title") ?: return@let
+            val minutes = intent.getIntExtra("minutes", 25)
+            val encodedTitle = android.net.Uri.encode(title)
+            
+            // Prevent multiple navigations
+            if (navController.currentDestination?.route != "timer/{taskId}/{title}/{minutes}") {
+                navController.navigate("timer/$id/$encodedTitle/$minutes") {
+                    popUpTo("home")
+                }
+            }
+            navigateToTimer = null
+        }
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
@@ -259,24 +276,7 @@ fun MainApp(
                             }
                         )
                     }
-
-                LaunchedEffect(navigateToTimer) {
-                    navigateToTimer?.let { intent ->
-                        val id = intent.getStringExtra("taskId") ?: return@let
-                        val title = intent.getStringExtra("title") ?: return@let
-                        val minutes = intent.getIntExtra("minutes", 25)
-                        val encodedTitle = android.net.Uri.encode(title)
-                        
-                        // Prevent multiple navigations
-                        if (navController.currentDestination?.route != "timer/{taskId}/{title}/{minutes}") {
-                            navController.navigate("timer/$id/$encodedTitle/$minutes") {
-                                popUpTo("home")
-                            }
-                        }
-                        navigateToTimer = null
-                    }
                 }
-            }
             composable("list") {
                 TaskListScreen(
                     viewModel = viewModel,

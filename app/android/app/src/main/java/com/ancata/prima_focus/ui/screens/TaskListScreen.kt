@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import com.ancata.prima_focus.ui.viewmodel.CompletedTaskUiModel
@@ -48,9 +49,12 @@ fun TaskListScreen(
     onRequestReview: (String) -> Unit = {}
 ) {
     val pendingTasks by viewModel.calendarFilteredTasks.collectAsState(initial = emptyList())
+    val futureTasks by viewModel.futureScheduledTasks.collectAsState()
     val completedTasks by viewModel.completedTasksList.collectAsState()
     val glows = LocalPremiumGlows.current
     val coroutineScope = rememberCoroutineScope()
+
+    var isFutureExpanded by remember { mutableStateOf(false) }
 
     val handleCompleteTask: (TaskEntity) -> Unit = { task ->
         if (viewModel.isHistoryTrackingEnabled.value) {
@@ -98,6 +102,12 @@ fun TaskListScreen(
             )
 
             // Segmented Glassmorphic Tabs
+            val totalPendingLabel = if (futureTasks.isNotEmpty()) {
+                "Pendientes (${pendingTasks.size + futureTasks.size})"
+            } else {
+                "Pendientes (${pendingTasks.size})"
+            }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -108,7 +118,7 @@ fun TaskListScreen(
                     .padding(4.dp)
             ) {
                 TabButton(
-                    text = "Pendientes (${pendingTasks.size})",
+                    text = totalPendingLabel,
                     selected = selectedTab == 0,
                     modifier = Modifier.weight(1f),
                     onClick = { selectedTab = 0 }
@@ -123,7 +133,7 @@ fun TaskListScreen(
 
             if (selectedTab == 0) {
                 // ==================== PENDING TASKS VIEW ====================
-                if (pendingTasks.isEmpty()) {
+                if (pendingTasks.isEmpty() && futureTasks.isEmpty()) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -139,6 +149,7 @@ fun TaskListScreen(
                         contentPadding = PaddingValues(bottom = 96.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        // Section: Today & Backlog tasks
                         items(pendingTasks, key = { it.taskId }) { task ->
                             TaskListItem(
                                 task = task,
@@ -175,6 +186,110 @@ fun TaskListScreen(
                                     }
                                 }
                             )
+                        }
+
+                        // Section: Collapsible Future Scheduled Tasks Accordion
+                        if (futureTasks.isNotEmpty()) {
+                            item(key = "future_tasks_accordion_header") {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(glows.glassSurface.copy(alpha = 0.45f))
+                                        .border(
+                                            width = 1.dp,
+                                            brush = Brush.linearGradient(
+                                                colors = listOf(
+                                                    glows.glassBorderStart.copy(alpha = 0.4f),
+                                                    glows.glassBorderEnd.copy(alpha = 0.2f)
+                                                )
+                                            ),
+                                            shape = RoundedCornerShape(16.dp)
+                                        )
+                                        .clickable { isFutureExpanded = !isFutureExpanded }
+                                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(32.dp)
+                                                .background(glows.primaryAccent.copy(alpha = 0.15f), CircleShape),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Schedule,
+                                                contentDescription = null,
+                                                tint = glows.primaryAccent,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                        Column {
+                                            Text(
+                                                text = "Programadas a futuro",
+                                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                                color = Color.White
+                                            )
+                                            Text(
+                                                text = "${futureTasks.size} ${if (futureTasks.size == 1) "tarea agendada" else "tareas agendadas"}",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = Color.White.copy(alpha = 0.5f)
+                                            )
+                                        }
+                                    }
+                                    Icon(
+                                        imageVector = if (isFutureExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                        contentDescription = if (isFutureExpanded) "Ocultar tareas futuras" else "Ver tareas futuras",
+                                        tint = Color.White.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
+
+                            if (isFutureExpanded) {
+                                items(futureTasks, key = { "future_${it.taskId}" }) { task ->
+                                    TaskListItem(
+                                        task = task,
+                                        onComplete = { handleCompleteTask(task) },
+                                        onBoost = {
+                                            viewModel.boostTask(task.taskId)
+                                            coroutineScope.launch {
+                                                snackbarHostState.showSnackbar("¡Prioridad aumentada (+10)!")
+                                            }
+                                        },
+                                        onDemote = {
+                                            viewModel.demoteTask(task.taskId)
+                                            coroutineScope.launch {
+                                                snackbarHostState.showSnackbar("Prioridad reducida (-10)")
+                                            }
+                                        },
+                                        onEdit = { onEditTask(task) },
+                                        onSnooze = {
+                                            viewModel.snoozeTask(task.taskId)
+                                            coroutineScope.launch {
+                                                snackbarHostState.showSnackbar("Tarea pospuesta para mañana")
+                                            }
+                                        },
+                                        onDelete = {
+                                            viewModel.deleteTask(task.taskId)
+                                            coroutineScope.launch {
+                                                val result = snackbarHostState.showSnackbar(
+                                                    message = "Tarea eliminada",
+                                                    actionLabel = "Deshacer"
+                                                )
+                                                if (result == SnackbarResult.ActionPerformed) {
+                                                    viewModel.restoreTask(task)
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
