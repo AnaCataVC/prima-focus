@@ -30,9 +30,11 @@ local.properties
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
 /build
+**/build/
 /captures
 .externalNativeBuild
 .cxx
 /releases/
 *.log
+
 

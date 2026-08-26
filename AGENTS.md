@@ -22,16 +22,17 @@ This document serves as the operational manual, architecture reference, and work
 ```text
 prima-focus/
 ├── app/
-│   └── android/                   # Native Android Studio / Gradle project
-│       ├── app/
-│       │   ├── src/main/          # Kotlin source code, resources, manifests
-│       │   └── build.gradle.kts   # App-level dependencies & build rules
+│   └── android/                   # Multi-module Kotlin / Gradle project
+│       ├── app/                   # Android native client (Compose UI, Room v5, WorkManager)
+│       ├── desktop/               # Desktop native client (Desktop UI, SQLite JDBC, LAN Sync Server)
+│       ├── shared/                # Core domain (PriorityEngine, models, LWW merge, LAN crypto protocol)
 │       ├── gradle/                # Version catalogs and Gradle wrapper
 │       └── build.gradle.kts       # Root project build script
 ├── design/                        # UI wireframes, tokens, and component specifications
 ├── docs/                          # Architecture, database schema, and notification guides
-├── releases/                      # Compiled APK artifacts (gitignored)
+├── releases/                      # Compiled artifacts (gitignored)
 └── README.md                      # Bilingual project documentation (EN/ES, no flag emojis)
+
 ```
 
 ---
