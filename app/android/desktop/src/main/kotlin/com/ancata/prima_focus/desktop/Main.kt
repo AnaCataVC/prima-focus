@@ -7,12 +7,18 @@ import java.util.concurrent.atomic.AtomicReference
 import javax.swing.SwingUtilities
 
 fun main() {
+    try {
+        javax.swing.UIManager.setLookAndFeel(javax.swing.UIManager.getSystemLookAndFeelClassName())
+    } catch (e: Exception) {
+        // Fallback to default L&F
+    }
+
     val dbManager = DesktopDatabaseManager()
     val viewRef = AtomicReference<DesktopMainView>()
 
     val syncServer = DesktopSyncServer(
         dbManager = dbManager,
-        port = 8765,
+        initialPort = 8765,
         onSyncCompleted = { changesCount ->
             println("[SyncServer] Sync completed successfully. $changesCount entities processed.")
             viewRef.get()?.refreshTasks()
@@ -20,9 +26,8 @@ fun main() {
     )
 
     syncServer.start()
-    println("[DesktopApp] Prima-Focus LAN server started on port 8765.")
+    println("[DesktopApp] Prima-Focus LAN server started on port ${syncServer.activePort}.")
     println("[DesktopApp] Pairing PIN: ${syncServer.currentPin}")
-
 
     SwingUtilities.invokeLater {
         val view = DesktopMainView(dbManager, syncServer)
@@ -30,3 +35,4 @@ fun main() {
         view.show()
     }
 }
+

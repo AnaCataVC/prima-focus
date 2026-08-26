@@ -124,8 +124,14 @@ class DesktopMainView(
         setupKeyboardShortcuts()
 
         refreshTasks()
+        frame.pack()
+        frame.size = Dimension(980, 680)
+        frame.setLocationRelativeTo(null)
         frame.isVisible = true
+        frame.toFront()
+        frame.requestFocus()
     }
+
 
     private fun setupKeyboardShortcuts() {
         val rootPane = frame.rootPane

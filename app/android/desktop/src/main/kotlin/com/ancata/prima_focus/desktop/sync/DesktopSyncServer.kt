@@ -17,9 +17,10 @@ import java.util.concurrent.Executors
 
 class DesktopSyncServer(
     private val dbManager: DesktopDatabaseManager,
-    private val port: Int = 8765,
+    initialPort: Int = 8765,
     private val onSyncCompleted: (Int) -> Unit = {}
 ) {
+
     private var server: HttpServer? = null
     private val gson = Gson()
     private val deviceId = UUID.randomUUID().toString()
@@ -29,6 +30,8 @@ class DesktopSyncServer(
     var currentPin: String = generateRandomPin()
         private set
     var sessionKey: String? = null
+        private set
+    var activePort: Int = initialPort
         private set
 
     fun generateNewPin(): String {
@@ -41,15 +44,27 @@ class DesktopSyncServer(
     }
 
     fun start() {
-        if (server != null) return
-        server = HttpServer.create(InetSocketAddress(port), 0).apply {
-            executor = Executors.newCachedThreadPool()
+        var portToTry = activePort
+        var bound = false
+        var attempts = 0
 
-            createContext("/api/pair", PairingHandler())
-            createContext("/api/sync", SyncDataHandler())
-            createContext("/api/health", HealthHandler())
-            start()
+        while (!bound && attempts < 10) {
+            try {
+                server = HttpServer.create(InetSocketAddress(portToTry), 0)
+                activePort = portToTry
+                bound = true
+            } catch (e: java.net.BindException) {
+                portToTry++
+                attempts++
+            }
         }
+
+        val s = server ?: throw IllegalStateException("Could not bind HTTP server to any available port in range.")
+        s.createContext("/api/pair", PairingHandler())
+        s.createContext("/api/sync", SyncDataHandler())
+        s.createContext("/api/health", HealthHandler())
+        s.executor = Executors.newCachedThreadPool()
+        s.start()
     }
 
     fun stop() {
