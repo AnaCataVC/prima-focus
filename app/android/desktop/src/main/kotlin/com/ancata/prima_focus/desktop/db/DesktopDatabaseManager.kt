@@ -30,6 +30,11 @@ class DesktopDatabaseManager(
     private fun initSchema() {
         getConnection().use { conn ->
             conn.createStatement().use { stmt ->
+                // P1: Enable WAL mode to prevent SQLITE_BUSY between HTTP sync server and EDT reader
+                stmt.execute("PRAGMA journal_mode=WAL;")
+                stmt.execute("PRAGMA busy_timeout=5000;")
+                stmt.execute("PRAGMA synchronous=NORMAL;")
+
                 stmt.execute("""
                     CREATE TABLE IF NOT EXISTS tasks (
                         taskId TEXT PRIMARY KEY,

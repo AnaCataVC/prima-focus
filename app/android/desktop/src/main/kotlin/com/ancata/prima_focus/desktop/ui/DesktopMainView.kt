@@ -132,7 +132,6 @@ class DesktopMainView(
         frame.requestFocus()
     }
 
-
     private fun setupKeyboardShortcuts() {
         val rootPane = frame.rootPane
         rootPane.registerKeyboardAction(
@@ -148,13 +147,24 @@ class DesktopMainView(
     }
 
     fun refreshTasks() {
-        SwingUtilities.invokeLater {
-            taskListModel.clear()
-            val tasks = dbManager.getPendingActiveTasks()
-            tasks.forEach { taskListModel.addElement(it) }
-            titleLabel.text = "Tareas Priorizadas (${tasks.size} pendientes)"
-        }
+        // P0: Load tasks on a background daemon thread — never block the EDT with DB calls
+        Thread {
+            try {
+                val tasks = dbManager.getPendingActiveTasks()
+                SwingUtilities.invokeLater {
+                    taskListModel.clear()
+                    tasks.forEach { taskListModel.addElement(it) }
+                    titleLabel.text = "Tareas Priorizadas (${tasks.size} pendientes)"
+                }
+            } catch (ex: Exception) {
+                System.err.println("[ERROR] Failed to refresh tasks from DB: ${ex.message}")
+                SwingUtilities.invokeLater {
+                    statusLabel.text = "Error cargando tareas: ${ex.message}"
+                }
+            }
+        }.also { it.isDaemon = true; it.name = "PrimaFocus-DBRefresh" }.start()
     }
+
 
     private fun openNewTaskDialog() {
         val title = JOptionPane.showInputDialog(frame, "Título de la tarea:", "Nueva Tarea", JOptionPane.PLAIN_MESSAGE)
