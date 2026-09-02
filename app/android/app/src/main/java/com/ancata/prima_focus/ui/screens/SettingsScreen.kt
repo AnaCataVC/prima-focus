@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ancata.prima_focus.ui.theme.LocalPremiumGlows
 import com.ancata.prima_focus.ui.viewmodel.TaskViewModel
+import com.ancata.prima_focus.utils.Constants
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,6 +40,11 @@ fun SettingsScreen(viewModel: TaskViewModel) {
     var disconnectStartTime by remember { mutableStateOf(viewModel.disconnectStartTime) }
     var disconnectEndTime by remember { mutableStateOf(viewModel.disconnectEndTime) }
     var isHistoryTrackingEnabled by remember { mutableStateOf(viewModel.isHistoryTrackingEnabledPref) }
+
+    val sharedPrefs = remember { context.getSharedPreferences(Constants.PREF_FILE, android.content.Context.MODE_PRIVATE) }
+    var desktopIp by remember { mutableStateOf(sharedPrefs.getString(Constants.PREF_LAST_DESKTOP_IP, "192.168.1.") ?: "192.168.1.") }
+    var desktopPort by remember { mutableStateOf(sharedPrefs.getString(Constants.PREF_LAST_DESKTOP_PORT, "8765") ?: "8765") }
+    var desktopPin by remember { mutableStateOf("") }
 
     var notifExpanded by remember { mutableStateOf(false) }
 
@@ -428,8 +434,127 @@ fun SettingsScreen(viewModel: TaskViewModel) {
             Spacer(modifier = Modifier.height(24.dp))
 
             Column(modifier = glassModifier) {
-                SectionTitle("Sincronización P2P (Local)")
-                Text("Conecta este dispositivo con otro en la misma red para sincronizar tareas sin usar internet.", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(bottom = 8.dp))
+                SectionTitle("Companion PC (Wi-Fi Local)")
+                Text(
+                    "Sincroniza tus tareas directamente con la aplicación de escritorio en tu computadora en la misma red Wi-Fi.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                val desktopStatus by viewModel.desktopSyncStatus.collectAsState()
+                val isDesktopSyncing by viewModel.isDesktopSyncing.collectAsState()
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = desktopIp,
+                        onValueChange = { desktopIp = it },
+                        label = { Text("IP de la PC", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp) },
+                        placeholder = { Text("ej. 192.168.1.50", color = Color.White.copy(alpha = 0.3f), fontSize = 12.sp) },
+                        modifier = Modifier.weight(1.4f),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = glows.primaryAccent,
+                            unfocusedBorderColor = glows.glassBorderStart,
+                            focusedContainerColor = Color(0x19, 0x0E, 0x1D),
+                            unfocusedContainerColor = Color(0x19, 0x0E, 0x1D)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = desktopPort,
+                        onValueChange = { desktopPort = it },
+                        label = { Text("Puerto", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp) },
+                        placeholder = { Text("8765", color = Color.White.copy(alpha = 0.3f), fontSize = 12.sp) },
+                        modifier = Modifier.weight(0.7f),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = glows.primaryAccent,
+                            unfocusedBorderColor = glows.glassBorderStart,
+                            focusedContainerColor = Color(0x19, 0x0E, 0x1D),
+                            unfocusedContainerColor = Color(0x19, 0x0E, 0x1D)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = desktopPin,
+                    onValueChange = { desktopPin = it },
+                    label = { Text("PIN de la PC (6 dígitos)", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp) },
+                    placeholder = { Text("Código mostrado en la pantalla de la PC", color = Color.White.copy(alpha = 0.3f), fontSize = 12.sp) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = glows.primaryAccent,
+                        unfocusedBorderColor = glows.glassBorderStart,
+                        focusedContainerColor = Color(0x19, 0x0E, 0x1D),
+                        unfocusedContainerColor = Color(0x19, 0x0E, 0x1D)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Text(
+                    text = "Estado: $desktopStatus",
+                    color = glows.primaryAccent,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                Button(
+                    onClick = {
+                        sharedPrefs.edit()
+                            .putString(Constants.PREF_LAST_DESKTOP_IP, desktopIp.trim())
+                            .putString(Constants.PREF_LAST_DESKTOP_PORT, desktopPort.trim())
+                            .apply()
+
+                        viewModel.syncWithDesktopCompanion(
+                            host = desktopIp.trim(),
+                            port = desktopPort.trim().toIntOrNull() ?: 8765,
+                            pin = desktopPin.trim(),
+                            onResult = { _, msg ->
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    },
+                    enabled = !isDesktopSyncing,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = glows.primaryAccent)
+                ) {
+                    if (isDesktopSyncing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Sincronizando...", fontSize = 13.sp, color = Color.White)
+                    } else {
+                        Text("Sincronizar con PC", fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Column(modifier = glassModifier) {
+                SectionTitle("Móvil a Móvil (Nearby Android)")
+                Text("Conecta directamente dos teléfonos o tablets Android cercanos mediante Bluetooth y Wi-Fi Direct.", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(bottom = 8.dp))
                 
                 Text(
                     text = "Dispositivo: ${viewModel.p2pSyncManager.deviceDisplayName}",
@@ -457,13 +582,17 @@ fun SettingsScreen(viewModel: TaskViewModel) {
                     ) {
                         Text("Ser Cliente", fontSize = 12.sp, color = Color.White)
                     }
-                    if (syncStatus != "Desconectado") {
-                        OutlinedButton(
-                            onClick = { viewModel.p2pSyncManager.stopAll() },
-                            modifier = Modifier.weight(0.8f)
-                        ) {
-                            Text("Detener", fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
-                        }
+                }
+
+                if (syncStatus != "Desconectado") {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { viewModel.p2pSyncManager.stopAll() },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.6f))
+                    ) {
+                        Text("Detener Sincronización", fontSize = 12.sp, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }

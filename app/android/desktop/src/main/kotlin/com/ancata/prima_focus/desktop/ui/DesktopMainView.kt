@@ -1,10 +1,14 @@
 package com.ancata.prima_focus.desktop.ui
 
 import com.ancata.prima_focus.core.engine.SharedPriorityEngine
+import com.ancata.prima_focus.core.model.PriorityBand
 import com.ancata.prima_focus.core.model.Task
+import com.ancata.prima_focus.core.sync.LANSyncPacket
+import com.ancata.prima_focus.core.sync.LanSyncClient
 import com.ancata.prima_focus.desktop.db.DesktopDatabaseManager
 import com.ancata.prima_focus.desktop.sync.DesktopSyncServer
 import java.awt.*
+import java.awt.datatransfer.StringSelection
 import java.awt.event.KeyEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
@@ -13,9 +17,11 @@ import java.awt.geom.RoundRectangle2D
 import java.io.File
 import java.time.LocalDate
 import java.util.UUID
+import java.util.concurrent.Executors
 import javax.imageio.ImageIO
 import javax.swing.*
 import javax.swing.border.EmptyBorder
+import kotlinx.coroutines.runBlocking
 
 class DesktopMainView(
     private val dbManager: DesktopDatabaseManager,
@@ -23,15 +29,17 @@ class DesktopMainView(
 ) {
     private val priorityEngine = SharedPriorityEngine()
     private val frame = JFrame("Prima-Focus")
+    private val bgExecutor = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "PrimaFocus-DBRefresh").apply { isDaemon = true }
+    }
     
-    // Modelos para pestañas
     private val pendingTasksModel = DefaultListModel<Task>()
     private val completedTasksModel = DefaultListModel<Task>()
     
     private val pendingTaskList = JList(pendingTasksModel)
     private val completedTaskList = JList(completedTasksModel)
 
-    private var currentTab = 0 // 0 = Pendientes, 1 = Historial
+    private var currentTab = 0
 
     // Mobile Brand Colors (Dark Feminine Glassmorphism)
     private val primaryRose = Color(0xF4, 0x72, 0xB6)
@@ -110,22 +118,15 @@ class DesktopMainView(
         titleBox.add(headerSubtitle, BorderLayout.SOUTH)
 
         val headerRight = JPanel(FlowLayout(FlowLayout.RIGHT, 12, 0)).apply { isOpaque = false }
-        val pinBadge = JLabel("PIN: ${syncServer.currentPin}").apply {
-            foreground = roseGlow
-            font = Font("Segoe UI", Font.BOLD, 13)
-            isOpaque = true
-            background = Color(0x3B, 0x1D, 0x40)
-            border = BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(primaryRose.darker(), 1, true),
-                EmptyBorder(8, 16, 8, 16)
-            )
+        val btnSync = createGlassButton("📡 Sincronización LAN", Color(0x3B, 0x1D, 0x40), roseGlow, isPill = true) {
+            openSyncDialog()
         }
 
         val btnNewTask = createGlassButton("+ Nueva Tarea", roseAccent, textPrimary, isPill = true) {
             openNewTaskDialog()
         }
 
-        headerRight.add(pinBadge)
+        headerRight.add(btnSync)
         headerRight.add(btnNewTask)
 
         headerPanel.add(titleBox, BorderLayout.WEST)
@@ -255,9 +256,16 @@ class DesktopMainView(
         footerActions.add(btnExport)
         footerActions.add(btnImport)
 
-        val statusText = JLabel("Puerto LAN: ${syncServer.activePort}").apply {
+        val statusText = JLabel("LAN: ${syncServer.getLocalIpAddress()}:${syncServer.activePort}  •  PIN: ${syncServer.currentPin}").apply {
             foreground = textMuted
             font = Font("Segoe UI", Font.PLAIN, 12)
+            cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+            toolTipText = "Haga clic para abrir la configuración de sincronización LAN"
+            addMouseListener(object : MouseAdapter() {
+                override fun mouseClicked(e: MouseEvent?) {
+                    openSyncDialog()
+                }
+            })
         }
         val footerRight = JPanel(FlowLayout(FlowLayout.RIGHT, 0, 4)).apply {
             isOpaque = false
@@ -357,7 +365,7 @@ class DesktopMainView(
     }
 
     fun refreshTasks() {
-        Thread {
+        bgExecutor.execute {
             try {
                 val pending = dbManager.getPendingActiveTasks()
                 val all = dbManager.getAllTasks()
@@ -377,7 +385,7 @@ class DesktopMainView(
             } catch (ex: Exception) {
                 System.err.println("[ERROR] Failed to refresh tasks: ${ex.message}")
             }
-        }.also { it.isDaemon = true; it.name = "PrimaFocus-DBRefresh" }.start()
+        }
     }
 
     private fun openNewTaskDialog() {
@@ -530,6 +538,286 @@ class DesktopMainView(
         }
     }
 
+    private fun openSyncDialog() {
+        val dialog = JDialog(frame, "Sincronización LAN — Modo Anfitrión / Cliente", true)
+        dialog.layout = BorderLayout()
+        dialog.setSize(540, 520)
+        dialog.setLocationRelativeTo(frame)
+
+        val mainPanel = JPanel(BorderLayout(0, 16)).apply {
+            background = bgPlumCenter
+            border = EmptyBorder(20, 24, 20, 24)
+        }
+
+        // Mode Switcher Header (Anfitrión / Cliente)
+        val modeCardsLayout = CardLayout()
+        val modeCardsPanel = JPanel(modeCardsLayout).apply { isOpaque = false }
+
+        val modeSelectorPanel = JPanel(GridLayout(1, 2, 8, 0)).apply {
+            isOpaque = false
+            preferredSize = Dimension(480, 42)
+        }
+
+        val btnModeHost = JButton("Modo Anfitrión (Servidor)").apply {
+            font = Font("Segoe UI", Font.BOLD, 13)
+        }
+        val btnModeClient = JButton("Modo Cliente (Conectar)").apply {
+            font = Font("Segoe UI", Font.BOLD, 13)
+        }
+
+        styleTabButton(btnModeHost, isSelected = true)
+        styleTabButton(btnModeClient, isSelected = false)
+
+        btnModeHost.addActionListener {
+            styleTabButton(btnModeHost, isSelected = true)
+            styleTabButton(btnModeClient, isSelected = false)
+            modeCardsLayout.show(modeCardsPanel, "HOST")
+        }
+
+        btnModeClient.addActionListener {
+            styleTabButton(btnModeHost, isSelected = false)
+            styleTabButton(btnModeClient, isSelected = true)
+            modeCardsLayout.show(modeCardsPanel, "CLIENT")
+        }
+
+        modeSelectorPanel.add(btnModeHost)
+        modeSelectorPanel.add(btnModeClient)
+
+        // --- HOST PANEL ---
+        val hostPanel = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            isOpaque = false
+        }
+
+        val lblHostDesc = JLabel("<html>La PC actúa como servidor en la red local. Ingrese estos datos en la app de Android para sincronizar.</html>").apply {
+            foreground = textMuted
+            font = Font("Segoe UI", Font.PLAIN, 13)
+            alignmentX = Component.LEFT_ALIGNMENT
+        }
+
+        val serverStatusLabel = JLabel(if (syncServer.isRunning) "🟢 Servidor LAN Activo" else "🔴 Servidor LAN Pausado").apply {
+            foreground = if (syncServer.isRunning) accentSage else errorRose
+            font = Font("Segoe UI", Font.BOLD, 14)
+            alignmentX = Component.LEFT_ALIGNMENT
+        }
+
+        val currentIp = syncServer.getLocalIpAddress()
+        val currentPort = syncServer.activePort
+
+        val ipBox = JPanel(FlowLayout(FlowLayout.LEFT, 8, 4)).apply {
+            isOpaque = false
+            alignmentX = Component.LEFT_ALIGNMENT
+        }
+        val lblIpTitle = JLabel("IP Local:").apply { foreground = textPrimary; font = Font("Segoe UI", Font.BOLD, 13) }
+        val txtIpVal = JTextField("$currentIp:$currentPort").apply {
+            isEditable = false
+            background = Color(0x19, 0x0E, 0x1D)
+            foreground = Color.WHITE
+            font = Font("Segoe UI", Font.BOLD, 13)
+            border = EmptyBorder(6, 10, 6, 10)
+        }
+        val btnCopyIp = createGlassButton("Copiar", Color(0xFF, 0xFF, 0xFF, 0x20), textPrimary) {
+            Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection("$currentIp:$currentPort"), null)
+            JOptionPane.showMessageDialog(dialog, "Dirección IP copiada: $currentIp:$currentPort", "Copiado", JOptionPane.INFORMATION_MESSAGE)
+        }
+        ipBox.add(lblIpTitle)
+        ipBox.add(txtIpVal)
+        ipBox.add(btnCopyIp)
+
+        // PIN Display
+        val pinBox = JPanel(FlowLayout(FlowLayout.LEFT, 12, 6)).apply {
+            isOpaque = false
+            alignmentX = Component.LEFT_ALIGNMENT
+        }
+        val lblPinTitle = JLabel("PIN de Seguridad:").apply { foreground = textPrimary; font = Font("Segoe UI", Font.BOLD, 13) }
+        val lblPinValue = JLabel(syncServer.currentPin).apply {
+            foreground = roseGlow
+            font = Font("Segoe UI", Font.BOLD, 22)
+            isOpaque = true
+            background = Color(0x3B, 0x1D, 0x40)
+            border = BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(primaryRose, 1, true),
+                EmptyBorder(6, 16, 6, 16)
+            )
+        }
+        val btnNewPin = createGlassButton("Nuevo PIN", Color(0xFF, 0xFF, 0xFF, 0x20), textPrimary) {
+            val newPin = syncServer.generateNewPin()
+            lblPinValue.text = newPin
+        }
+        pinBox.add(lblPinTitle)
+        pinBox.add(lblPinValue)
+        pinBox.add(btnNewPin)
+
+        val btnToggleServer = createGlassButton(if (syncServer.isRunning) "Pausar Servidor" else "Iniciar Servidor", Color(0xFF, 0xFF, 0xFF, 0x20), textPrimary) {
+            if (syncServer.isRunning) {
+                syncServer.stop()
+                serverStatusLabel.text = "🔴 Servidor LAN Pausado"
+                serverStatusLabel.foreground = errorRose
+            } else {
+                syncServer.start()
+                serverStatusLabel.text = "🟢 Servidor LAN Activo"
+                serverStatusLabel.foreground = accentSage
+            }
+        }.apply { alignmentX = Component.LEFT_ALIGNMENT }
+
+        hostPanel.add(lblHostDesc)
+        hostPanel.add(Box.createVerticalStrut(12))
+        hostPanel.add(serverStatusLabel)
+        hostPanel.add(Box.createVerticalStrut(12))
+        hostPanel.add(ipBox)
+        hostPanel.add(Box.createVerticalStrut(8))
+        hostPanel.add(pinBox)
+        hostPanel.add(Box.createVerticalStrut(12))
+        hostPanel.add(btnToggleServer)
+
+        // --- CLIENT PANEL ---
+        val clientPanel = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            isOpaque = false
+        }
+
+        val lblClientDesc = JLabel("<html>Conecte este companion a otro nodo o servidor ingresando su dirección IP y PIN.</html>").apply {
+            foreground = textMuted
+            font = Font("Segoe UI", Font.PLAIN, 13)
+            alignmentX = Component.LEFT_ALIGNMENT
+        }
+
+        val targetIpField = JTextField("192.168.1.").apply {
+            background = Color(0x19, 0x0E, 0x1D)
+            foreground = textPrimary
+            border = BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(glassBorder, 1, true),
+                EmptyBorder(8, 10, 8, 10)
+            )
+            font = Font("Segoe UI", Font.PLAIN, 13)
+            maximumSize = Dimension(Integer.MAX_VALUE, 38)
+            alignmentX = Component.LEFT_ALIGNMENT
+        }
+
+        val targetPortField = JTextField("8765").apply {
+            background = Color(0x19, 0x0E, 0x1D)
+            foreground = textPrimary
+            border = BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(glassBorder, 1, true),
+                EmptyBorder(8, 10, 8, 10)
+            )
+            font = Font("Segoe UI", Font.PLAIN, 13)
+            maximumSize = Dimension(Integer.MAX_VALUE, 38)
+            alignmentX = Component.LEFT_ALIGNMENT
+        }
+
+        val targetPinField = JTextField().apply {
+            background = Color(0x19, 0x0E, 0x1D)
+            foreground = textPrimary
+            border = BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(glassBorder, 1, true),
+                EmptyBorder(8, 10, 8, 10)
+            )
+            font = Font("Segoe UI", Font.PLAIN, 13)
+            maximumSize = Dimension(Integer.MAX_VALUE, 38)
+            alignmentX = Component.LEFT_ALIGNMENT
+        }
+
+        val clientStatusLabel = JLabel("Listo para conectar.").apply {
+            foreground = textMuted
+            font = Font("Segoe UI", Font.PLAIN, 12)
+            alignmentX = Component.LEFT_ALIGNMENT
+        }
+
+        val btnConnectAndSync = createGlassButton("Conectar y Sincronizar", roseAccent, Color.WHITE) {
+            val host = targetIpField.text.trim()
+            val port = targetPortField.text.trim().toIntOrNull() ?: 8765
+            val pin = targetPinField.text.trim()
+
+            if (host.isBlank() || pin.isBlank()) {
+                clientStatusLabel.text = "Por favor ingrese IP y PIN válidos."
+                clientStatusLabel.foreground = errorRose
+                return@createGlassButton
+            }
+
+            clientStatusLabel.text = "Conectando con $host:$port..."
+            clientStatusLabel.foreground = roseGlow
+
+            Thread {
+                try {
+                    val client = LanSyncClient()
+                    val localTasks = dbManager.getAllTasks()
+                    val localSessions = dbManager.getAllSessions()
+                    val packet = LANSyncPacket(
+                        deviceId = UUID.randomUUID().toString(),
+                        deviceName = "PrimaFocus Desktop Client",
+                        tasks = localTasks,
+                        sessions = localSessions
+                    )
+
+                    val result = kotlinx.coroutines.runBlocking {
+                        client.executeFullSync(host, port, pin, packet)
+                    }
+
+                    result.fold(
+                        onSuccess = { remotePacket ->
+                            val changes = dbManager.mergeSyncPayload(remotePacket.tasks, remotePacket.sessions)
+                            refreshTasks()
+                            SwingUtilities.invokeLater {
+                                clientStatusLabel.text = "✓ Sincronización exitosa ($changes entidades actualizadas)."
+                                clientStatusLabel.foreground = accentSage
+                                JOptionPane.showMessageDialog(dialog, "Sincronización exitosa. Se integraron $changes cambios.", "Éxito", JOptionPane.INFORMATION_MESSAGE)
+                            }
+                        },
+                        onFailure = { err ->
+                            SwingUtilities.invokeLater {
+                                clientStatusLabel.text = "Error: ${err.message}"
+                                clientStatusLabel.foreground = errorRose
+                            }
+                        }
+                    )
+                } catch (e: Exception) {
+                    SwingUtilities.invokeLater {
+                        clientStatusLabel.text = "Fallo de conexión: ${e.message}"
+                        clientStatusLabel.foreground = errorRose
+                    }
+                }
+            }.start()
+        }.apply { alignmentX = Component.LEFT_ALIGNMENT }
+
+        clientPanel.add(lblClientDesc)
+        clientPanel.add(Box.createVerticalStrut(10))
+        clientPanel.add(JLabel("IP de Destino (Host):").apply { foreground = textPrimary; font = Font("Segoe UI", Font.BOLD, 12); alignmentX = Component.LEFT_ALIGNMENT })
+        clientPanel.add(Box.createVerticalStrut(4))
+        clientPanel.add(targetIpField)
+        clientPanel.add(Box.createVerticalStrut(8))
+        clientPanel.add(JLabel("Puerto:").apply { foreground = textPrimary; font = Font("Segoe UI", Font.BOLD, 12); alignmentX = Component.LEFT_ALIGNMENT })
+        clientPanel.add(Box.createVerticalStrut(4))
+        clientPanel.add(targetPortField)
+        clientPanel.add(Box.createVerticalStrut(8))
+        clientPanel.add(JLabel("PIN de 6 dígitos:").apply { foreground = textPrimary; font = Font("Segoe UI", Font.BOLD, 12); alignmentX = Component.LEFT_ALIGNMENT })
+        clientPanel.add(Box.createVerticalStrut(4))
+        clientPanel.add(targetPinField)
+        clientPanel.add(Box.createVerticalStrut(12))
+        clientPanel.add(btnConnectAndSync)
+        clientPanel.add(Box.createVerticalStrut(8))
+        clientPanel.add(clientStatusLabel)
+
+        modeCardsPanel.add(hostPanel, "HOST")
+        modeCardsPanel.add(clientPanel, "CLIENT")
+
+        mainPanel.add(modeSelectorPanel, BorderLayout.NORTH)
+        mainPanel.add(modeCardsPanel, BorderLayout.CENTER)
+
+        val bottomBar = JPanel(FlowLayout(FlowLayout.RIGHT)).apply {
+            background = bgDarkEdge
+            border = EmptyBorder(8, 16, 8, 16)
+        }
+        val btnClose = createGlassButton("Cerrar", Color(0xFF, 0xFF, 0xFF, 0x20), textMuted) {
+            dialog.dispose()
+        }
+        bottomBar.add(btnClose)
+
+        dialog.add(mainPanel, BorderLayout.CENTER)
+        dialog.add(bottomBar, BorderLayout.SOUTH)
+        dialog.isVisible = true
+    }
+
     // --- CELL RENDERER IDENTICO A MOBILE TASKLISTITEM ---
     private inner class MobileTaskRenderer(private val isHistory: Boolean) : ListCellRenderer<Task> {
         override fun getListCellRendererComponent(
@@ -565,15 +853,15 @@ class DesktopMainView(
             val rank = index + 1
             val leftBox = JPanel(FlowLayout(FlowLayout.LEFT, 12, 0)).apply { isOpaque = false }
 
-            // Priority Text & Color matching Android TaskListItem
-            val (priorityText, priorityColor) = when {
-                value.priorityScore >= 70 -> "Urgente" to errorRose
-                value.priorityScore >= 40 -> "Alta" to primaryRose
-                value.priorityScore < 20 -> "Baja" to textMuted
-                else -> "Normal" to Color(0xFF, 0xFF, 0xFF, 0xB0)
+            val band = PriorityBand.fromScore(value.priorityScore)
+            val priorityText = band.label
+            val priorityColor = when (band) {
+                PriorityBand.URGENT -> errorRose
+                PriorityBand.HIGH -> primaryRose
+                PriorityBand.LOW -> textMuted
+                PriorityBand.NORMAL -> Color(0xFF, 0xFF, 0xFF, 0xB0)
             }
 
-            // Checkbox / Circle indicator
             val checkIcon = JLabel(if (isHistory) "✓" else "○").apply {
                 foreground = if (isHistory) accentSage else primaryRose
                 font = Font("Segoe UI", Font.BOLD, 18)

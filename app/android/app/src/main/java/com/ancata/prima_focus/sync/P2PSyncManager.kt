@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -207,6 +208,7 @@ class P2PSyncManager(
         stopAdvertisingAndDiscovery()
         connectionsClient.stopAllEndpoints()
         connectedEndpointId = null
+        syncScope.coroutineContext.cancelChildren()
     }
 
     private fun sendLocalData() {
