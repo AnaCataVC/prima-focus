@@ -42,3 +42,20 @@ data class Session(
     val deletedAt: Long? = null,
     val syncVersion: Long = 1L
 )
+
+enum class PriorityBand(val label: String, val minScore: Double) {
+    URGENT("Urgente", 70.0),
+    HIGH("Alta", 40.0),
+    NORMAL("Normal", 20.0),
+    LOW("Baja", 0.0);
+
+    companion object {
+        fun fromScore(score: Double): PriorityBand = when {
+            score >= 70.0 -> URGENT
+            score >= 40.0 -> HIGH
+            score < 20.0 -> LOW
+            else -> NORMAL
+        }
+    }
+}
+

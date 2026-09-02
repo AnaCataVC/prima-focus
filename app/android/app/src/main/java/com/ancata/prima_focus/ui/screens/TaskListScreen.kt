@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.ancata.prima_focus.core.model.PriorityBand
 import com.ancata.prima_focus.ui.viewmodel.CompletedTaskUiModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -403,18 +404,14 @@ fun TaskListItem(
     val glows = LocalPremiumGlows.current
     var notesExpanded by remember { mutableStateOf(false) }
 
-    val priorityText = when {
-        task.priorityScore >= 70 -> "Urgente"
-        task.priorityScore >= 40 -> "Alta"
-        task.priorityScore < 20 -> "Baja"
-        else -> "Normal"
-    }
+    val band = PriorityBand.fromScore(task.priorityScore)
+    val priorityText = band.label
 
-    val priorityColor = when {
-        task.priorityScore >= 70 -> MaterialTheme.colorScheme.error.copy(alpha = 0.9f)
-        task.priorityScore >= 40 -> glows.primaryAccent.copy(alpha = 0.9f)
-        task.priorityScore < 20 -> Color.White.copy(alpha = 0.4f)
-        else -> Color.White.copy(alpha = 0.7f)
+    val priorityColor = when (band) {
+        PriorityBand.URGENT -> MaterialTheme.colorScheme.error.copy(alpha = 0.9f)
+        PriorityBand.HIGH -> glows.primaryAccent.copy(alpha = 0.9f)
+        PriorityBand.LOW -> Color.White.copy(alpha = 0.4f)
+        PriorityBand.NORMAL -> Color.White.copy(alpha = 0.7f)
     }
 
     Box(

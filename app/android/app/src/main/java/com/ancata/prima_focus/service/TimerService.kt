@@ -17,7 +17,10 @@ class TimerService : Service() {
         val action = intent?.action
         when (action) {
             "START" -> startForegroundService()
-            "STOP" -> stopForeground(STOP_FOREGROUND_REMOVE)
+            "STOP" -> {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
         }
         return START_NOT_STICKY
     }

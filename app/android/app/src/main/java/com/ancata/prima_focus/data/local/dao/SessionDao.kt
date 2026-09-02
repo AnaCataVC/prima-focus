@@ -5,7 +5,11 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import com.ancata.prima_focus.core.sync.MergeAction
+import com.ancata.prima_focus.core.sync.SyncMergeEngine
 import com.ancata.prima_focus.data.local.entity.SessionEntity
+import com.ancata.prima_focus.data.mapper.toDomain
+import com.ancata.prima_focus.data.mapper.toEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -49,23 +53,23 @@ interface SessionDao {
     @Transaction
     fun syncMergeSessionsAtomic(receivedSessions: List<SessionEntity>): Int {
         val localSessions = getAllSessions().associateBy { it.sessionId }
-        var changesCount = 0
-        val sessionsToUpsert = receivedSessions.filter { received ->
+        val sessionsToUpsert = mutableListOf<SessionEntity>()
+
+        receivedSessions.forEach { received ->
             val local = localSessions[received.sessionId]
-            if (local == null) {
-                true
-            } else {
-                when {
-                    received.syncVersion > local.syncVersion -> true
-                    received.syncVersion == local.syncVersion && received.updatedAt > local.updatedAt -> true
-                    else -> false
-                }
+            val localDomain = local?.toDomain()
+            val receivedDomain = received.toDomain()
+
+            when (val action = SyncMergeEngine.resolveSessionConflict(localDomain, receivedDomain)) {
+                is MergeAction.Insert -> sessionsToUpsert.add(action.item.toEntity())
+                is MergeAction.Update -> sessionsToUpsert.add(action.item.toEntity())
+                is MergeAction.KeepLocal -> {}
             }
         }
+
         if (sessionsToUpsert.isNotEmpty()) {
             insertSessions(sessionsToUpsert)
-            changesCount = sessionsToUpsert.size
         }
-        return changesCount
+        return sessionsToUpsert.size
     }
 }

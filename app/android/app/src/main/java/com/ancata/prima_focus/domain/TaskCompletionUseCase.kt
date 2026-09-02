@@ -24,7 +24,7 @@ class TaskCompletionUseCase(
             return false
         }
 
-        val completedTask = task.copy(status = "completed", updatedAt = now)
+        val completedTask = task.copy(status = "completed", updatedAt = now, syncVersion = task.syncVersion + 1)
 
         if (task.recurrence != null) {
             val baseDate = try {

@@ -13,6 +13,7 @@ import com.ancata.prima_focus.MainActivity
 import com.ancata.prima_focus.R
 import com.ancata.prima_focus.data.local.PrimaFocusDatabase
 import com.ancata.prima_focus.domain.PriorityEngine
+import com.ancata.prima_focus.core.model.PriorityBand
 import kotlinx.coroutines.flow.first
 import com.ancata.prima_focus.utils.Constants
 import com.ancata.prima_focus.utils.TimeUtils
@@ -49,8 +50,8 @@ class NotificationWorker(
                 priorityEngine.calculatePriority(task)
             }
 
-            updatedTasks.forEach {
-                taskDao.updateTask(it)
+            if (updatedTasks.isNotEmpty()) {
+                taskDao.updateTasks(updatedTasks)
             }
 
             val today = java.time.LocalDate.now()
@@ -64,15 +65,16 @@ class NotificationWorker(
                 createNotificationChannel()
                 
                 val title = "Prima-Focus: ${it.title}"
-                val text = when {
-                    score >= 70.0 -> "¡Urgentísimo! Inicia esta tarea ahora."
-                    score >= 40.0 -> "Deberías enfocarte en esta tarea pronto."
+                val band = PriorityBand.fromScore(score)
+                val text = when (band) {
+                    PriorityBand.URGENT -> "¡Urgentísimo! Inicia esta tarea ahora."
+                    PriorityBand.HIGH -> "Deberías enfocarte en esta tarea pronto."
                     else -> "Para cuando tengas un tiempo libre."
                 }
                 
-                val priority = when {
-                    score >= 70.0 -> NotificationCompat.PRIORITY_MAX
-                    score >= 40.0 -> NotificationCompat.PRIORITY_DEFAULT
+                val priority = when (band) {
+                    PriorityBand.URGENT -> NotificationCompat.PRIORITY_MAX
+                    PriorityBand.HIGH -> NotificationCompat.PRIORITY_DEFAULT
                     else -> NotificationCompat.PRIORITY_LOW
                 }
 

@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ancata.prima_focus.core.model.PriorityBand
 import com.ancata.prima_focus.data.local.entity.TaskEntity
 import com.ancata.prima_focus.ui.theme.LocalPremiumGlows
 import com.ancata.prima_focus.ui.viewmodel.TaskViewModel
@@ -165,17 +166,13 @@ fun HomeScreen(
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            val priorityBg = when {
-                                heroTask.priorityScore >= 70 -> MaterialTheme.colorScheme.error.copy(alpha = 0.25f)
-                                heroTask.priorityScore >= 40 -> glows.primaryGlow.copy(alpha = 0.25f)
+                            val band = PriorityBand.fromScore(heroTask.priorityScore)
+                            val priorityBg = when (band) {
+                                PriorityBand.URGENT -> MaterialTheme.colorScheme.error.copy(alpha = 0.25f)
+                                PriorityBand.HIGH -> glows.primaryGlow.copy(alpha = 0.25f)
                                 else -> glows.glassSurface.copy(alpha = 0.3f)
                             }
-                            val priorityLabel = when {
-                                heroTask.priorityScore >= 70 -> "Urgente"
-                                heroTask.priorityScore >= 40 -> "Alta"
-                                heroTask.priorityScore < 20 -> "Baja"
-                                else -> "Normal"
-                            }
+                            val priorityLabel = band.label
                             Box(
                                 modifier = Modifier
                                     .background(color = priorityBg, shape = CircleShape)
@@ -299,7 +296,6 @@ fun HomeScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Left group: Edit, Snooze
                             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                 IconButton(
                                     onClick = { onEditTask(heroTask) },
@@ -316,7 +312,7 @@ fun HomeScreen(
                                     onClick = {
                                         viewModel.snoozeTask(heroTask.taskId)
                                         coroutineScope.launch {
-                                            snackbarHostState.showSnackbar("Tarea pospuesta para mañana")
+                                             snackbarHostState.showSnackbar("Tarea pospuesta para mañana")
                                         }
                                     },
                                     modifier = Modifier.size(40.dp)
@@ -330,7 +326,6 @@ fun HomeScreen(
                                 }
                             }
 
-                            // Center group: Boost, Demote
                             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                 IconButton(
                                     onClick = {

@@ -35,6 +35,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.ancata.prima_focus.MainActivity
+import com.ancata.prima_focus.core.model.PriorityBand
 import com.ancata.prima_focus.data.local.PrimaFocusDatabase
 import com.ancata.prima_focus.data.local.entity.TaskEntity
 import com.ancata.prima_focus.widget.action.CompleteTaskGlanceAction
@@ -153,9 +154,10 @@ private fun TaskGlanceRow(
     metrics: RowMetrics,
     modifier: GlanceModifier = GlanceModifier
 ) {
-    val priorityColor = when {
-        task.priorityScore >= 70.0 -> PriorityHigh
-        task.priorityScore >= 40.0 -> PriorityMedium
+    val band = PriorityBand.fromScore(task.priorityScore)
+    val priorityColor = when (band) {
+        PriorityBand.URGENT -> PriorityHigh
+        PriorityBand.HIGH -> PriorityMedium
         else -> PriorityLow
     }
 

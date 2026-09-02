@@ -65,10 +65,14 @@ fun TimerScreen(
         }
     }
 
-    LaunchedEffect(isRunning, remainingSeconds) {
-        if (isRunning && remainingSeconds > 0) {
+    LaunchedEffect(isRunning) {
+        while (isRunning && remainingSeconds > 0) {
             delay(1000L)
             remainingSeconds--
+        }
+        if (isRunning && remainingSeconds == 0) {
+            isRunning = false
+            showConfetti = true
         }
     }
 

@@ -6,7 +6,11 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import com.ancata.prima_focus.core.sync.MergeAction
+import com.ancata.prima_focus.core.sync.SyncMergeEngine
 import com.ancata.prima_focus.data.local.entity.TaskEntity
+import com.ancata.prima_focus.data.mapper.toDomain
+import com.ancata.prima_focus.data.mapper.toEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -79,6 +83,9 @@ interface TaskDao {
     @Update
     fun updateTask(task: TaskEntity)
 
+    @Update
+    fun updateTasks(tasks: List<TaskEntity>)
+
     @Query("UPDATE tasks SET isDeleted = 1, deletedAt = :deletedAt, updatedAt = :updatedAt, syncVersion = syncVersion + 1 WHERE taskId = :taskId")
     fun softDeleteTask(taskId: String, deletedAt: Long = System.currentTimeMillis(), updatedAt: Long = System.currentTimeMillis())
 
@@ -126,31 +133,32 @@ interface TaskDao {
         priorityCalculator: (TaskEntity) -> TaskEntity
     ): Int {
         val localTasks = getAllTasks().associateBy { it.taskId }
-        var changesCount = 0
+        val tasksToUpsert = mutableListOf<TaskEntity>()
+
         receivedTasks.forEach { received ->
             val local = localTasks[received.taskId]
-            val processed = if (received.status == "pending" && !received.isDeleted) {
-                priorityCalculator(received)
-            } else {
-                received
-            }
+            val localDomain = local?.toDomain()
+            val receivedDomain = received.toDomain()
 
-            if (local == null) {
-                insertTask(processed)
-                changesCount++
-            } else {
-                val shouldUpdate = when {
-                    received.syncVersion > local.syncVersion -> true
-                    received.syncVersion == local.syncVersion && received.updatedAt > local.updatedAt -> true
-                    else -> false
+            when (val action = SyncMergeEngine.resolveTaskConflict(localDomain, receivedDomain)) {
+                is MergeAction.Insert -> {
+                    val entity = action.item.toEntity()
+                    val processed = if (entity.status == "pending" && !entity.isDeleted) priorityCalculator(entity) else entity
+                    tasksToUpsert.add(processed)
                 }
-                if (shouldUpdate) {
-                    insertTask(processed)
-                    changesCount++
+                is MergeAction.Update -> {
+                    val entity = action.item.toEntity()
+                    val processed = if (entity.status == "pending" && !entity.isDeleted) priorityCalculator(entity) else entity
+                    tasksToUpsert.add(processed)
                 }
+                is MergeAction.KeepLocal -> {}
             }
         }
-        return changesCount
+
+        if (tasksToUpsert.isNotEmpty()) {
+            insertTasks(tasksToUpsert)
+        }
+        return tasksToUpsert.size
     }
 
     /**

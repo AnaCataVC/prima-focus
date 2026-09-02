@@ -36,6 +36,12 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlin.math.abs
+import com.ancata.prima_focus.core.model.Task
+import com.ancata.prima_focus.core.model.Session
+import com.ancata.prima_focus.core.sync.LANSyncPacket
+import com.ancata.prima_focus.core.sync.LanSyncClient
+import com.ancata.prima_focus.data.mapper.toDomain
+import com.ancata.prima_focus.data.mapper.toEntity
 
 data class FocusDisplayState(
     val heroTask: TaskEntity? = null,
@@ -187,6 +193,12 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _syncStatus = MutableStateFlow<String>("Desconectado")
     val syncStatus: StateFlow<String> = _syncStatus.asStateFlow()
+
+    private val _desktopSyncStatus = MutableStateFlow<String>("Desconectado")
+    val desktopSyncStatus: StateFlow<String> = _desktopSyncStatus.asStateFlow()
+
+    private val _isDesktopSyncing = MutableStateFlow<Boolean>(false)
+    val isDesktopSyncing: StateFlow<Boolean> = _isDesktopSyncing.asStateFlow()
 
     private val _backupRestoreState = MutableStateFlow<BackupRestoreState>(BackupRestoreState.Idle)
     val backupRestoreState: StateFlow<BackupRestoreState> = _backupRestoreState.asStateFlow()
@@ -446,7 +458,8 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             taskDao.updateTask(task.copy(
                 status = "pending",
                 postponedReason = reason,
-                updatedAt = now
+                updatedAt = now,
+                syncVersion = task.syncVersion + 1
             ))
             updateWidgets()
             kotlinx.coroutines.withContext(Dispatchers.Main) { onResult(true) }
@@ -459,7 +472,10 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             task?.let {
                 val boostAmount = manualBoostAmount
                 val newBoost = (it.manualBoost + boostAmount).coerceAtMost(50.0)
-                val updatedTask = priorityEngine.calculatePriority(it.copy(manualBoost = newBoost))
+                val updatedTask = priorityEngine.calculatePriority(it.copy(
+                    manualBoost = newBoost,
+                    syncVersion = it.syncVersion + 1
+                ))
                 taskDao.updateTask(updatedTask)
                 updateWidgets()
             }
@@ -472,7 +488,10 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             task?.let {
                 val boostAmount = manualBoostAmount
                 val newBoost = (it.manualBoost - boostAmount).coerceAtLeast(-50.0)
-                val updatedTask = priorityEngine.calculatePriority(it.copy(manualBoost = newBoost))
+                val updatedTask = priorityEngine.calculatePriority(it.copy(
+                    manualBoost = newBoost,
+                    syncVersion = it.syncVersion + 1
+                ))
                 taskDao.updateTask(updatedTask)
                 updateWidgets()
             }
@@ -618,6 +637,74 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             val updatedSessionsCount = sessionDao.syncMergeSessionsAtomic(receivedSessions)
             updateWidgets()
             Log.d("TaskViewModel", "P2P Merge completed: $updatedTasksCount tasks, $updatedSessionsCount sessions updated")
+        }
+    }
+
+    fun syncWithDesktopCompanion(
+        host: String,
+        port: Int = 8765,
+        pin: String,
+        onResult: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+        if (host.isBlank() || pin.isBlank()) {
+            val msg = "IP y PIN son obligatorios"
+            _desktopSyncStatus.value = msg
+            onResult(false, msg)
+            return
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            _isDesktopSyncing.value = true
+            _desktopSyncStatus.value = "Conectando con $host:$port..."
+            try {
+                val localTasks = taskDao.getAllTasks().map { it.toDomain() }
+                val localSessions = sessionDao.getAllSessions().map { it.toDomain() }
+
+                val localPacket = LANSyncPacket(
+                    deviceId = p2pSyncManager.deviceDisplayName,
+                    deviceName = p2pSyncManager.deviceDisplayName,
+                    tasks = localTasks,
+                    sessions = localSessions
+                )
+
+                val client = LanSyncClient(connectTimeoutMs = 5000, readTimeoutMs = 10000)
+                val result = client.executeFullSync(host.trim(), port, pin.trim(), localPacket)
+
+                result.fold(
+                    onSuccess = { remotePacket ->
+                        val remoteTasksEntities = remotePacket.tasks.map { it.toEntity() }
+                        val remoteSessionEntities = remotePacket.sessions.map { it.toEntity() }
+
+                        val updatedTasks = taskDao.syncMergeTasksAtomic(remoteTasksEntities) {
+                            priorityEngine.calculatePriority(it)
+                        }
+                        val updatedSessions = sessionDao.syncMergeSessionsAtomic(remoteSessionEntities)
+                        updateWidgets()
+
+                        val successMsg = "Sincronización exitosa ($updatedTasks tareas, $updatedSessions sesiones integradas)"
+                        _desktopSyncStatus.value = successMsg
+                        _isDesktopSyncing.value = false
+                        kotlinx.coroutines.withContext(Dispatchers.Main) {
+                            onResult(true, successMsg)
+                        }
+                    },
+                    onFailure = { error ->
+                        val errorMsg = error.localizedMessage ?: "Fallo de conexión"
+                        _desktopSyncStatus.value = "Error: $errorMsg"
+                        _isDesktopSyncing.value = false
+                        kotlinx.coroutines.withContext(Dispatchers.Main) {
+                            onResult(false, errorMsg)
+                        }
+                    }
+                )
+            } catch (e: Exception) {
+                val errorMsg = e.localizedMessage ?: "Error inesperado"
+                _desktopSyncStatus.value = "Error: $errorMsg"
+                _isDesktopSyncing.value = false
+                kotlinx.coroutines.withContext(Dispatchers.Main) {
+                    onResult(false, errorMsg)
+                }
+            }
         }
     }
 
