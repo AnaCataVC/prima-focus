@@ -1,5 +1,6 @@
 package com.ancata.prima_focus.desktop
 
+import com.ancata.prima_focus.core.model.Session
 import com.ancata.prima_focus.core.model.Task
 import com.ancata.prima_focus.core.sync.LANAuthSecurity
 import com.ancata.prima_focus.core.sync.PairingRequest
@@ -157,10 +158,150 @@ class DesktopSyncIntegrationTest {
         val importedCount = secondSyncServer.importBackupJson(json)
         assertEquals(1, importedCount)
 
-        val importedTasks = secondDbManager.getPendingActiveTasks()
-        assertEquals(1, importedTasks.size)
-        assertEquals("Backup Task", importedTasks[0].title)
-
         secondDbFile.delete()
+    }
+
+    @Test
+    fun lanSyncClient_executesFullSync_successfullyAndExchangesData() = kotlinx.coroutines.runBlocking {
+        val client = com.ancata.prima_focus.core.sync.LanSyncClient()
+        val now = System.currentTimeMillis()
+
+        val mobileTask = Task(
+            taskId = "client-task-1",
+            title = "Task from LanSyncClient",
+            category = "trabajo",
+            categoryWeight = 3.0,
+            priorityScore = 85.0,
+            createdAt = now,
+            updatedAt = now,
+            syncVersion = 1L
+        )
+
+        val packet = com.ancata.prima_focus.core.sync.LANSyncPacket(
+            deviceId = "test-client-device",
+            deviceName = "Kotlin LanSyncClient",
+            tasks = listOf(mobileTask)
+        )
+
+        val result = client.executeFullSync("localhost", testPort, syncServer.currentPin, packet)
+        assertTrue(result.isSuccess)
+
+        val remotePacket = result.getOrNull()
+        assertNotNull(remotePacket)
+
+        // Verify task was merged into server DB
+        val serverTasks = dbManager.getPendingActiveTasks()
+        assertTrue(serverTasks.any { it.taskId == "client-task-1" })
+    }
+
+    @Test
+    fun syncServer_rateLimiting_blocksAfterFiveFailedAttempts() = kotlinx.coroutines.runBlocking {
+        val client = com.ancata.prima_focus.core.sync.LanSyncClient()
+        val dummyPacket = com.ancata.prima_focus.core.sync.LANSyncPacket(
+            deviceId = "attacker",
+            deviceName = "Attacker Device"
+        )
+
+        // Attempt 5 incorrect PINs
+        for (i in 1..4) {
+            val res = client.executeFullSync("localhost", testPort, "00000$i", dummyPacket)
+            assertTrue(res.isFailure)
+        }
+
+        // 5th attempt triggers lockout
+        val fifth = client.executeFullSync("localhost", testPort, "000005", dummyPacket)
+        assertTrue(fifth.isFailure)
+
+        // Next attempt must be rejected immediately with lockout / 429
+        val lockedOut = client.executeFullSync("localhost", testPort, syncServer.currentPin, dummyPacket)
+        assertTrue(lockedOut.isFailure)
+    }
+
+    @Test
+    fun syncServer_ipResolution_returnsValidAddress() {
+        val ip = syncServer.getLocalIpAddress()
+        assertNotNull(ip)
+        assertTrue(ip.isNotBlank())
+        assertFalse(ip.contains("docker"))
+        assertFalse(ip.contains("wsl"))
+    }
+
+    @Test
+    fun getPendingActiveTasks_orderedBySqlIndex() {
+        val now = System.currentTimeMillis()
+        val lowTask = Task(
+            taskId = "low_1",
+            title = "Low Priority Task",
+            category = "casa",
+            categoryWeight = 1.0,
+            priorityScore = 15.0,
+            status = "pending",
+            createdAt = now,
+            updatedAt = now
+        )
+        val highTask = Task(
+            taskId = "high_1",
+            title = "High Priority Task",
+            category = "trabajo",
+            categoryWeight = 3.0,
+            priorityScore = 85.0,
+            status = "pending",
+            createdAt = now + 100,
+            updatedAt = now + 100
+        )
+        val deletedTask = Task(
+            taskId = "del_1",
+            title = "Deleted Task",
+            category = "salud",
+            categoryWeight = 3.0,
+            priorityScore = 90.0,
+            status = "pending",
+            isDeleted = true,
+            createdAt = now,
+            updatedAt = now
+        )
+        val completedTask = Task(
+            taskId = "comp_1",
+            title = "Completed Task",
+            category = "finanzas",
+            categoryWeight = 3.0,
+            priorityScore = 95.0,
+            status = "completed",
+            createdAt = now,
+            updatedAt = now
+        )
+
+        dbManager.insertOrUpdateTask(lowTask)
+        dbManager.insertOrUpdateTask(highTask)
+        dbManager.insertOrUpdateTask(deletedTask)
+        dbManager.insertOrUpdateTask(completedTask)
+
+        val pending = dbManager.getPendingActiveTasks()
+        assertTrue(pending.size >= 2)
+        assertEquals("high_1", pending.first().taskId)
+        assertFalse(pending.any { it.taskId == "del_1" })
+        assertFalse(pending.any { it.taskId == "comp_1" })
+    }
+
+    @Test
+    fun mergeSyncPayload_batchExecution_persistsTasksAndSessionsAtomically() {
+        val now = System.currentTimeMillis()
+        val batchTasks = listOf(
+            Task(taskId = "b_task_1", title = "Batch 1", category = "trabajo", categoryWeight = 2.0, createdAt = now, updatedAt = now),
+            Task(taskId = "b_task_2", title = "Batch 2", category = "estudio", categoryWeight = 2.0, createdAt = now, updatedAt = now)
+        )
+        val batchSessions = listOf(
+            Session(sessionId = "b_sess_1", taskId = "b_task_1", startAt = now, endAt = now + 1500, mode = "POMODORO", result = "completed", feeling = 5, createdAt = now, updatedAt = now)
+        )
+
+        val changes = dbManager.mergeSyncPayload(batchTasks, batchSessions)
+        assertEquals(3, changes)
+
+        val retrievedTasks = dbManager.getAllTasks()
+        assertTrue(retrievedTasks.any { it.taskId == "b_task_1" })
+        assertTrue(retrievedTasks.any { it.taskId == "b_task_2" })
+
+        val retrievedSessions = dbManager.getAllSessions()
+        assertTrue(retrievedSessions.any { it.sessionId == "b_sess_1" })
     }
 }

@@ -36,6 +36,9 @@ class TaskCompletionUseCaseTest {
             tasks[task.taskId] = task
             lastCompletedTask = task
         }
+        override fun updateTasks(tasks: List<TaskEntity>) {
+            tasks.forEach { updateTask(it) }
+        }
         override fun softDeleteTask(taskId: String, deletedAt: Long, updatedAt: Long) {
             tasks[taskId]?.let { tasks[taskId] = it.copy(isDeleted = true, deletedAt = deletedAt, updatedAt = updatedAt) }
         }
@@ -245,6 +248,44 @@ class TaskCompletionUseCaseTest {
         // ISO future date (e.g. newly spawned daily recurring instance)
         assertTrue(com.ancata.prima_focus.utils.TimeUtils.isFutureScheduled("2026-08-26", today))
         assertTrue(com.ancata.prima_focus.utils.TimeUtils.isFutureScheduled("2026-09-01", today))
+    }
+
+    @Test
+    fun `execute increments syncVersion on completion for LWW consistency`() = kotlinx.coroutines.runBlocking {
+        val taskDao = FakeTaskDao()
+        val sessionDao = FakeSessionDao()
+        val useCase = TaskCompletionUseCase(taskDao, sessionDao)
+
+        val task = TaskEntity(
+            taskId = "sync_ver_task",
+            title = "Test Task",
+            category = "trabajo",
+            subcategory = null,
+            categoryWeight = 2.0,
+            date = null,
+            time = null,
+            hasTime = false,
+            timeUrgency = 0.0,
+            priorityScore = 50.0,
+            estimatedMinutes = 15,
+            isProject = false,
+            status = "pending",
+            createdAt = 1000L,
+            updatedAt = 1000L,
+            meta = null,
+            postponedReason = null,
+            recurrence = null,
+            recurrenceGroupId = null,
+            syncVersion = 3L
+        )
+        taskDao.insertTask(task)
+
+        useCase.execute("sync_ver_task", feeling = 4, result = "completed")
+
+        val completed = taskDao.lastCompletedTask
+        assertNotNull(completed)
+        assertEquals("completed", completed!!.status)
+        assertEquals(4L, completed.syncVersion)
     }
 }
 
