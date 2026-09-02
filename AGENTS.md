@@ -10,7 +10,7 @@ This document serves as the operational manual, architecture reference, and work
 
 ### System Architecture:
 - **`app/android/`**:
-  - `app/src/main/`: Jetpack Compose UI (Timer, Task Manager, Stats, Settings), ViewModels, Room v5 Entities (with soft delete tombstones & `syncVersion`) & DAOs.
+  - `app/src/main/`: Jetpack Compose UI (Timer, Task Manager, Stats, Settings), ViewModels, Room v6 Entities (with soft delete tombstones & `syncVersion`) & DAOs.
   - `app/build.gradle.kts`: Android SDK configuration (`minSdk = 26`, `targetSdk = 34+`), Compose compiler, and signing configs.
 - **`docs/`**: Comprehensive design documents, database schemas (`database_schema.sql`), notification flow charts (`notification_flow.md`), priority logic, and learning records.
 - **`releases/`**: Compiled APK binaries (`prima-focus-vX.Y.Z.apk`).
@@ -23,7 +23,7 @@ This document serves as the operational manual, architecture reference, and work
 prima-focus/
 ├── app/
 │   └── android/                   # Multi-module Kotlin / Gradle project
-│       ├── app/                   # Android native client (Compose UI, Room v5, WorkManager)
+│       ├── app/                   # Android native client (Compose UI, Room v6, WorkManager)
 │       ├── desktop/               # Desktop native client (Desktop UI, SQLite JDBC, LAN Sync Server)
 │       ├── shared/                # Core domain (PriorityEngine, models, LWW merge, LAN crypto protocol)
 │       ├── gradle/                # Version catalogs and Gradle wrapper
