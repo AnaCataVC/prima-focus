@@ -4,6 +4,9 @@
 sdkconfig.js
 .DS_Store
 releases/
+node_modules/
+.vercel/
+
 
 # Editor directories and files
 .vscode/*
