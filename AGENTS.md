@@ -46,8 +46,9 @@ prima-focus/
 - **README**: Maintain bilingual documentation (English and Spanish) **WITHOUT country flag emojis** (use plain `## English` and `## Español`, never 🇬🇧 or 🇪🇸).
 
 ### 🔒 Security & Privacy
-- **Source Code Protection**: This is a private application repository. NEVER leak private source code into public repositories or documentation.
+- **Source-Available Codebase**: This repository is public with an *All Rights Reserved* license.
 - **Path Privacy**: NEVER leak absolute user paths (e.g., `C:\Users\...`) into code, documentation, or commit messages. Always use relative paths (`app/android/...`).
+- **Secret Hygiene**: NEVER hardcode API keys, signing keystore passwords, or sensitive credentials in git.
 
 ### 💻 PowerShell Environment
 - **Command Chaining**: NEVER use `&&` or `||` in terminal commands. Use `;` or separate sequential commands.
@@ -77,11 +78,9 @@ cd app/android; ./gradlew assembleRelease
 
 ---
 
-## 5. Showcase Synchronization Protocol
+## 5. Release & Artifact Management Protocol
 
-Whenever significant updates, new releases, or architecture documentation changes are made:
-1. **Showcase Repo Location**: Public showcase repository is hosted at `https://github.com/AnaCataVC/prima-focus-showcase` (sibling directory `../prima-focus-showcase`).
-2. **Version Bump Verification**: Compare release versions against the latest published tag in the public Showcase repository.
-3. **Artifact Transfer**: Copy the signed release APK (`app-release.apk`) to `../prima-focus-showcase/apk/` renamed to `prima-focus-vX.Y.Z.apk`.
-4. **Documentation Synchronization**: Copy any updated architectural guides or database schemas from `docs/` to `../prima-focus-showcase/docs/`.
-5. **Zero Source Code Leaks**: NEVER copy raw source code (`/app`) to the public Showcase repository.
+This repository is the single source of truth for code, documentation, and official releases:
+1. **GitHub Releases**: All production APKs and Desktop binaries are distributed directly via GitHub Releases (`gh release create <tag> <files>`).
+2. **Version Bump Verification**: Check current git tags in this repository (`git tag`) and semantic version constants across modules.
+3. **Single Source of Truth**: All architectural documentation, database schemas, and guides live in `docs/`.
