@@ -26,3 +26,10 @@ Dado que ambos clientes (Móvil y Web) podían editar la misma tarea simultánea
 ## 4. Notas sobre Notificaciones
 *   Para la web, se requerían Cloud Functions opcionales en Firebase para programar recordatorios en el servidor y disparar alertas Push (FCM) al navegador si este no estaba en ejecución.
 *   El cálculo de la prioridad (`priorityScore`) debía ser implementado de manera idéntica tanto en el motor TypeScript de la Web como en el motor Kotlin de Android.
+
+---
+
+## 5. Deprecación y Archivo de Desktop Companion
+El prototipo de cliente de escritorio (`:desktop`) implementado en Java Swing / SQLite JDBC y su servidor de sincronización LAN local (`DesktopSyncServer`) fueron formalmente deprecados y retirados del árbol principal en septiembre de 2026.
+- **Razón**: Priorizar y optimizar la experiencia en dispositivos Android nativos (teléfonos y tabletas) con sincronización directa peer-to-peer (P2P) vía Google Nearby Connections.
+- **Estado Actual**: La aplicación concentra su soporte multiplataforma en el ecosistema Android con diseño adaptativo para tablets (Split View con Calendario) y sincronización móvil-a-móvil / móvil-a-tablet sin nube.

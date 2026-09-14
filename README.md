@@ -1,10 +1,10 @@
 # Prima-Focus
 
-![Platform Android](https://img.shields.io/badge/Platform-Android%20%7C%20Desktop%20(PC)-3DDC84?style=flat&logo=android)
+![Platform Android](https://img.shields.io/badge/Platform-Android-3DDC84?style=flat&logo=android)
 ![Architecture Local-First](https://img.shields.io/badge/Architecture-Local--First%20(KMP)-blue?style=flat)
-![Room Database v6](https://img.shields.io/badge/Room-v6%20%2B%20SQLite%20JDBC-4285F4?style=flat&logo=sqlite&logoColor=white)
+![Room Database v6](https://img.shields.io/badge/Room-v6%20(SQLite)-4285F4?style=flat&logo=sqlite&logoColor=white)
 ![Kotlin Multiplatform](https://img.shields.io/badge/Kotlin-Multiplatform%202.2.10-0095D5?style=flat&logo=kotlin&logoColor=white)
-![Jetpack Compose](https://img.shields.io/badge/Compose-Multiplatform%20Ready-4285F4?style=flat&logo=android&logoColor=white)
+![Jetpack Compose](https://img.shields.io/badge/Compose-Material%203-4285F4?style=flat&logo=android&logoColor=white)
 
 *English version below | Versión en español abajo*
 
@@ -13,16 +13,13 @@
 ## English
 
 ### Project Description
-Prima-Focus is a local-first task management and deep work application designed to help you focus on what truly matters. Built primarily as a **native Android mobile application** (and extended with a desktop workstation companion client via **Kotlin Multiplatform**), it uses an advanced predictive priority scoring system to dynamically select your "Today Task." All data is stored locally on each device for maximum privacy and performance, featuring hardened local LAN / P2P synchronization with cryptographic authentication without requiring any cloud backend.
+Prima-Focus is a local-first task management and deep work application designed to help you focus on what truly matters. Built as a **native Android mobile application** with **Kotlin Multiplatform** shared domain logic, it uses an advanced predictive priority scoring system to dynamically select your "Today Task." All data is stored locally on each device for maximum privacy and performance, featuring hardened local peer-to-peer (P2P) synchronization via Google Nearby Connections without requiring any cloud backend.
 
 ### Key Architectural Highlights
 - **Native Android Core (`:app`)**: The flagship mobile experience featuring Room Database v6 persistence, Material 3 Glassmorphism UI, Jetpack Glance Home Screen Widgets, and WorkManager background reminders.
 - **Modular KMP Core (`:shared`)**: Unified predictive priority scoring (`SharedPriorityEngine`), recurrence projecting, quiet hours scheduling, and Last-Write-Wins (LWW) conflict resolution logic.
-- **Companion Desktop Client (`:desktop`)**: Workstation productivity client for PC with independent SQLite storage, fast keyboard shortcuts (`Ctrl+N`, `Ctrl+Enter`), and offline JSON backup tools.
-- **Hardened Local LAN Sync (Android & Desktop Companion)**: Secure local Wi-Fi synchronization powered by an embedded HTTP sync server (`DesktopSyncServer`, port 8765) and Android client (`LanSyncClient`). Features mutual authentication via **6-digit PIN hashing**, per-request **HMAC-SHA256 payload signatures**, and rate-limiting brute force protection (lockout after 5 failed attempts with automated PIN rotation).
-- **Flexible Host / Client Mode Selection**:
-  - *Mobile-to-Mobile (Android Nearby Connections)*: Seamless peer-to-peer Wi-Fi Direct and BLE synchronization with explicit user mode selection between **Host ("Ser Anfitrión")** and **Client ("Ser Cliente")**, backed by a 45-second auto-timeout for battery conservation.
-  - *Mobile-to-Desktop (LAN Sync)*: Desktop workstation functions as the **Host / Sync Server**, broadcasting its local IP and 6-digit pairing PIN, while the Android mobile client initiates authenticated bidirectional synchronization.
+- **Flexible Host / Client P2P Synchronization (Nearby Connections)**:
+  - *Mobile-to-Mobile*: Seamless peer-to-peer Wi-Fi Direct and BLE synchronization with explicit user mode selection between **Host ("Ser Anfitrión")** and **Client ("Ser Cliente")**, backed by a 45-second auto-timeout for battery conservation and a 5 MB payload limit.
 - **Room Database v6 (Android)**: Clean, streamlined relational schema with `MIGRATION_5_6` permanently pruning legacy unused events. Full support for Soft Deletes (Tombstones: `isDeleted`, `deletedAt`) and monotonic `syncVersion` to prevent deleted items from resurrecting.
 - **Clock-Drift Resilient LWW**: Advanced conflict resolution that prioritizes logical version increments over system clocks, immunizing sync against device time skew.
 - **Non-Regressive Task Completion**: Completed tasks are guaranteed to remain completed during merges regardless of time drift.
@@ -31,16 +28,16 @@ Prima-Focus is a local-first task management and deep work application designed 
 
 ### Technologies Used
 - **Languages & Frameworks**: Kotlin Multiplatform, Java 17 Toolchain
-- **UI Toolkits**: Jetpack Compose (Android), Jetpack Glance (App Widgets), Swing / Desktop UI
-- **Local Persistence**: Room Database v6 (Android) & SQLite JDBC (Desktop)
-- **Networking & Security**: Google Nearby Connections, Embedded HTTP Sync Server, HMAC-SHA256, SHA-256 PIN Hashing
+- **UI Toolkits**: Jetpack Compose (Android), Jetpack Glance (App Widgets)
+- **Local Persistence**: Room Database v6 (Android SQLite)
+- **Networking & Security**: Google Nearby Connections API (P2P Star Topology)
 - **Background Processing**: WorkManager & Foreground Services
 
 ### Key Learnings
 This project was a major architectural milestone. Throughout the process, I learned how to:
 - Architect and build a modular **Kotlin Multiplatform (KMP)** project with pure shared domain logic.
-- Implement independent local databases on mobile (**Room v6**) and desktop (**SQLite JDBC**).
-- Design and red-team stress-test local network protocols with cryptographic authentication (HMAC/PIN) and brute-force defenses.
+- Implement robust local databases on mobile (**Room v6**) with migration safety and soft-delete tombstones.
+- Design and red-team stress-test local peer-to-peer network protocols with battery safeguards and payload size limits.
 - Handle clock-drift resilience, soft-delete tombstones, and garbage collection in distributed local-first systems.
 - Master declarative UI design using **Jetpack Compose** and home screen widgets with **Jetpack Glance**.
 
@@ -61,16 +58,13 @@ Explore our comprehensive technical documentation to understand how Prima-Focus 
 ## Español
 
 ### Descripción del Proyecto
-Prima-Focus es una aplicación de gestión de tareas y enfoque profundo "local-first" diseñada para ayudarte a concentrarte en lo que realmente importa. Construida primordialmente como una **aplicación móvil nativa para Android** (y extendida con un cliente companion de escritorio mediante **Kotlin Multiplatform**), utiliza un avanzado sistema predictivo de puntuación de prioridad para seleccionar dinámicamente tu "Tarea de Hoy". Todos los datos se almacenan localmente en cada dispositivo para garantizar máxima privacidad y rendimiento, con sincronización local LAN / P2P blindada criptográficamente sin necesidad de servidores en la nube.
+Prima-Focus es una aplicación de gestión de tareas y enfoque profundo "local-first" diseñada para ayudarte a concentrarte en lo que realmente importa. Construida como una **aplicación móvil nativa para Android** con lógica de dominio compartida mediante **Kotlin Multiplatform**, utiliza un avanzado sistema predictivo de puntuación de prioridad para seleccionar dinámicamente tu "Tarea de Hoy". Todos los datos se almacenan localmente en cada dispositivo para garantizar máxima privacidad y rendimiento, con sincronización local peer-to-peer (P2P) mediante Google Nearby Connections sin necesidad de servidores en la nube.
 
 ### Puntos Destacados de la Arquitectura
 - **Experiencia Insignia en Android (`:app`)**: App nativa completa con base de datos Room v6, diseño Material 3 Glassmorphism, widgets interactivos con Jetpack Glance y recordatorios en segundo plano con WorkManager.
 - **Núcleo Modular KMP (`:shared`)**: Motor de prioridad unificado (`SharedPriorityEngine`), cálculo de recurrencias, ventanas de descanso y resolución determinista *Last-Write-Wins* (LWW).
-- **Cliente Companion de Escritorio (`:desktop`)**: Aplicación para PC con almacenamiento SQLite local independiente, atajos de teclado rápidos (`Ctrl+N`, `Ctrl+Enter`) y herramientas de respaldo JSON.
-- **Sincronización LAN Local Blindada (Android y Desktop Companion)**: Sincronización segura por red Wi-Fi local mediante servidor HTTP embebido (`DesktopSyncServer`, puerto 8765) y cliente Android (`LanSyncClient`). Protegida por **emparejamiento con PIN de 6 dígitos**, **firmas criptográficas HMAC-SHA256** por petición y protección contra fuerza bruta (bloqueo tras 5 intentos fallidos y regeneración automática del PIN).
-- **Selección Flexible de Modo Anfitrión / Cliente (Host / Client)**:
-  - *Móvil a Móvil (Nearby Connections Android)*: Sincronización directa peer-to-peer con selección explícita del usuario entre modo **Anfitrión ("Ser Anfitrión")** y **Cliente ("Ser Cliente")**, con temporizador de desconexión automática a los 45 segundos para ahorro de batería.
-  - *Móvil a Escritorio (Sincronización LAN)*: La aplicación de PC actúa como **Anfitrión (Servidor)** mostrando su dirección IP local y PIN de 6 dígitos, mientras que el móvil Android se conecta como **Cliente** para realizar el intercambio bidireccional atómico.
+- **Sincronización P2P Flexible Anfitrión / Cliente (Nearby Connections)**:
+  - *Móvil a Móvil*: Sincronización directa peer-to-peer con selección explícita del usuario entre modo **Anfitrión ("Ser Anfitrión")** y **Cliente ("Ser Cliente")**, con temporizador de desconexión automática a los 45 segundos para ahorro de batería y límite de seguridad de 5 MB por transferencia.
 - **Base de Datos Room v6 (Android)**: Esquema relacional limpio y optimizado con `MIGRATION_5_6` que elimina permanentemente tablas obsoletas sin uso (`events`). Soporte completo de borrado lógico (*Soft Deletes* con lápidas `isDeleted`, `deletedAt`) y `syncVersion` incremental para evitar la resurrección de tareas borradas.
 - **Resolución de Conflictos LWW Inmune al Clock Drift**: Algoritmo que prioriza la versión lógica antes que el reloj del sistema, tolerando cualquier desfase horario entre dispositivos.
 - **No-Regresión de Tareas Completadas**: Las tareas finalizadas permanecen completadas durante el merge independientemente de diferencias en la hora local.
@@ -79,16 +73,16 @@ Prima-Focus es una aplicación de gestión de tareas y enfoque profundo "local-f
 
 ### Tecnologías Utilizadas
 - **Lenguajes y Frameworks**: Kotlin Multiplatform, Java 17 Toolchain
-- **Interfaces Gráficas**: Jetpack Compose (Android), Jetpack Glance (App Widgets), Swing / Desktop UI
-- **Persistencia Local**: Base de datos Room v6 (Android) y SQLite JDBC (Escritorio)
-- **Red y Seguridad**: Google Nearby Connections, Servidor HTTP Embebido, HMAC-SHA256, Hash SHA-256 para PIN
+- **Interfaces Gráficas**: Jetpack Compose (Android), Jetpack Glance (App Widgets)
+- **Persistencia Local**: Base de datos Room v6 (Android SQLite)
+- **Red y Seguridad**: Google Nearby Connections API (Topología Star P2P)
 - **Procesamiento en Segundo Plano**: WorkManager y Foreground Services
 
 ### Aprendizajes Clave
 Este proyecto representó un gran hito de ingeniería y arquitectura. A lo largo del proceso aprendí a:
 - Diseñar y construir una arquitectura modular en **Kotlin Multiplatform (KMP)** con capa de dominio desacoplada.
-- Implementar bases de datos locales independientes en móvil (**Room v6**) y escritorio (**SQLite JDBC**).
-- Diseñar y someter a auditoría *Red Team* protocolos de red local protegidos con firmas criptográficas (HMAC/PIN) y mitigación de fuerza bruta.
+- Implementar bases de datos locales robustas en móvil (**Room v6**) con seguridad en migraciones y lápidas tombstones.
+- Diseñar y someter a auditoría *Red Team* protocolos de red local peer-to-peer con límites de batería y tamaño de paquetes.
 - Resolver desafíos de *Clock Drift*, lápidas tombstones y recolección de basura en sistemas distribuidos *local-first*.
 - Dominar el diseño de interfaces declarativas con **Jetpack Compose** y widgets con **Jetpack Glance**.
 

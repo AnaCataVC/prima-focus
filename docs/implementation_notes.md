@@ -2,20 +2,16 @@
 
 ## Local-First Strategy & Synchronization
 The core tenet of Prima-Focus is privacy, speed, and device independence.
-- All modifications immediately persist to the local Room Database v6 (SQLite) on Android or SQLite JDBC on Desktop.
+- All modifications immediately persist to the local Room Database v6 (SQLite) on Android.
 - There is no cloud synchronization or remote server dependency. No internet connection is required.
 - **Local P2P Sync**: Devices sync their state offline using the Google Nearby Connections API (`P2P_STAR` topology).
-- **Local LAN Sync**: Android and Desktop companion synchronize over local Wi-Fi via `DesktopSyncServer` (HTTP/JSON port 8765) and `LanSyncClient`, secured with SHA-256 PIN hashing and HMAC-SHA256 payload signatures.
-- **Host / Client Selection**:
-  - Android Nearby: Users explicitly toggle between "Ser Anfitrión" (Host / Advertising) and "Ser Cliente" (Client / Discovery).
-  - Desktop LAN: Desktop serves as Host; Android connects as Client using the displayed IP and 6-digit PIN.
+- **Host / Client Selection**: Android Nearby users explicitly toggle between "Ser Anfitrión" (Host / Advertising) and "Ser Cliente" (Client / Discovery).
 - **Clock-Drift Resilient LWW**: Conflict resolution compares `syncVersion` first, falling back to `updatedAt` only when versions match. This prevents local clock skew from corrupting newer edits.
 - **Soft Deletes (Tombstones)**: Deletions flag `isDeleted = 1` with a `deletedAt` timestamp and incremented `syncVersion`, preventing deleted tasks from resurrecting when synced against offline peers.
 - **30-Day Tombstone Purge**: The database executes an automatic garbage collection query on application start (`TaskViewModel`), physically deleting tombstones older than 30 days to keep SQLite performant.
-- **P2P & LAN Safety Protections**:
+- **P2P Safety Protections**:
   - `AUTO_TIMEOUT_MS = 45000L`: Discovery and Advertising automatically abort after 45 seconds of inactivity to protect battery life.
   - `MAX_PAYLOAD_BYTES = 5MB`: Payloads exceeding 5 MB are rejected immediately to prevent heap exhaustion.
-  - Rate Limiting: Desktop sync server locks pairing for 30 seconds after 5 failed PIN attempts and rotates the PIN automatically.
 
 ## Migrations (v1 -> v6)
 - Strictly version the database schema.

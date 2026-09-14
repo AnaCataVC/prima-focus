@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   createdAt INTEGER NOT NULL,             -- Epoch ms
   updatedAt INTEGER NOT NULL,             -- Epoch ms (LWW secondary comparison)
   meta TEXT,
-  isDeleted INTEGER NOT NULL DEFAULT 0,   -- Soft delete tombstone for P2P/LAN sync (0 = active, 1 = deleted)
+  isDeleted INTEGER NOT NULL DEFAULT 0,   -- Soft delete tombstone for Android P2P sync (0 = active, 1 = deleted)
   deletedAt INTEGER DEFAULT NULL,         -- Epoch ms when soft-deleted (used for 30-day GC purge)
   syncVersion INTEGER NOT NULL DEFAULT 1  -- Incremental version counter for clock-drift resilience
 );
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   feeling INTEGER,                        -- Subjective satisfaction score (1 to 5)
   createdAt INTEGER NOT NULL,             -- Epoch ms
   updatedAt INTEGER NOT NULL,             -- Epoch ms
-  isDeleted INTEGER NOT NULL DEFAULT 0,   -- Soft delete tombstone for P2P/LAN sync
+  isDeleted INTEGER NOT NULL DEFAULT 0,   -- Soft delete tombstone for Android P2P sync
   deletedAt INTEGER DEFAULT NULL,         -- Epoch ms when soft-deleted (used for 30-day GC purge)
   syncVersion INTEGER NOT NULL DEFAULT 1, -- Incremental version counter for clock-drift resilience
   FOREIGN KEY(taskId) REFERENCES tasks(taskId) ON DELETE SET NULL

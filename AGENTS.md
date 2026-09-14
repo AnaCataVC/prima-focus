@@ -23,16 +23,14 @@ This document serves as the operational manual, architecture reference, and work
 prima-focus/
 ├── app/
 │   └── android/                   # Multi-module Kotlin / Gradle project
-│       ├── app/                   # Android native client (Compose UI, Room v6, WorkManager)
-│       ├── desktop/               # Desktop native client (Desktop UI, SQLite JDBC, LAN Sync Server)
-│       ├── shared/                # Core domain (PriorityEngine, models, LWW merge, LAN crypto protocol)
+│       ├── app/                   # Android native client (Compose UI, Room v6, WorkManager, Nearby P2P)
+│       ├── shared/                # Core domain (PriorityEngine, models, LWW merge)
 │       ├── gradle/                # Version catalogs and Gradle wrapper
 │       └── build.gradle.kts       # Root project build script
 ├── design/                        # UI wireframes, tokens, and component specifications
 ├── docs/                          # Architecture, database schema, and notification guides
 ├── releases/                      # Compiled artifacts (gitignored)
 └── README.md                      # Bilingual project documentation (EN/ES, no flag emojis)
-
 ```
 
 ---
@@ -81,6 +79,6 @@ cd app/android; ./gradlew assembleRelease
 ## 5. Release & Artifact Management Protocol
 
 This repository is the single source of truth for code, documentation, and official releases:
-1. **GitHub Releases**: All production APKs and Desktop binaries are distributed directly via GitHub Releases (`gh release create <tag> <files>`).
+1. **GitHub Releases**: Production APKs are distributed directly via GitHub Releases (`gh release create <tag> <files>`).
 2. **Version Bump Verification**: Check current git tags in this repository (`git tag`) and semantic version constants across modules.
 3. **Single Source of Truth**: All architectural documentation, database schemas, and guides live in `docs/`.
