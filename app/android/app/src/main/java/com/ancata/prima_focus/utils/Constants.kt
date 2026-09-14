@@ -15,8 +15,6 @@ object Constants {
     const val PREF_NON_POSTPONABLE_URGENT = "non_postponable_urgent"
     const val PREF_DISABLED_CATEGORIES = "disabled_categories"
     const val PREF_HISTORY_TRACKING_ENABLED = "history_tracking_enabled"
-    const val PREF_LAST_DESKTOP_IP = "last_desktop_ip"
-    const val PREF_LAST_DESKTOP_PORT = "last_desktop_port"
 
     // Worker & Notifications
     const val WORKER_NOTIFICATION = "NotificationWorker"

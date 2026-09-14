@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -318,7 +319,7 @@ fun HomeScreen(
                                     modifier = Modifier.size(40.dp)
                                 ) {
                                     Icon(
-                                        Icons.Default.ArrowForward,
+                                        Icons.AutoMirrored.Filled.ArrowForward,
                                         contentDescription = "Posponer",
                                         tint = Color.White.copy(alpha = 0.6f),
                                         modifier = Modifier.size(20.dp)
@@ -728,7 +729,7 @@ fun SecondaryTaskCard(
                         Icon(Icons.Default.Edit, contentDescription = "Editar", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
                     }
                     IconButton(onClick = onSnooze, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.ArrowForward, contentDescription = "Posponer", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Posponer", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
                     }
                     IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
                         Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(16.dp))

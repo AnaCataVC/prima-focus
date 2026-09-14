@@ -25,6 +25,5 @@ dependencyResolutionManagement {
 rootProject.name = "Prima-Focus"
 include(":shared")
 include(":app")
-include(":desktop")
 
 
