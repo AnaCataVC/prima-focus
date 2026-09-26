@@ -90,6 +90,7 @@
             android:exported="false">
             <intent-filter>
                 <action android:name="com.ancata.prima_focus.ACTION_WIDGET_COMPLETE_TASK" />
+                <action android:name="com.ancata.prima_focus.ACTION_UNDO_COMPLETE_TASK" />
             </intent-filter>
         </receiver>
 

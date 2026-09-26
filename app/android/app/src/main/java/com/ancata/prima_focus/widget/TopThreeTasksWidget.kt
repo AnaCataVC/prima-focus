@@ -3,6 +3,14 @@ package com.ancata.prima_focus.widget
 import android.content.ComponentName
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -13,6 +21,9 @@ import androidx.glance.action.actionParametersOf
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.GlanceAppWidgetManager
+import androidx.glance.appwidget.state.updateAppWidgetState
+import androidx.glance.currentState
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionRunCallback
@@ -31,6 +42,7 @@ import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
+import androidx.glance.text.TextDecoration
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
@@ -38,7 +50,11 @@ import com.ancata.prima_focus.MainActivity
 import com.ancata.prima_focus.core.model.PriorityBand
 import com.ancata.prima_focus.data.local.PrimaFocusDatabase
 import com.ancata.prima_focus.data.local.entity.TaskEntity
+import com.ancata.prima_focus.data.prefs.UserPreferences
+import com.ancata.prima_focus.utils.TimeUtils
+import com.ancata.prima_focus.utils.formatCategoryLine
 import com.ancata.prima_focus.widget.action.CompleteTaskGlanceAction
+import java.time.LocalDate
 
 // Widget surface colors — match existing widget_rounded_bg (white + gray border)
 private val WidgetBackground = Color(0xFFFFFFFF)
@@ -60,13 +76,35 @@ class TopThreeTasksWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val db = PrimaFocusDatabase.getDatabase(context)
-        val pendingTasks = db.taskDao().getPendingTasksListNow()
-        val today = java.time.LocalDate.now()
-        val topTasks = pendingTasks.filter { !com.ancata.prima_focus.utils.TimeUtils.isFutureScheduled(it.date, today) }.take(3)
+        val initialTasks = loadTopTasks(context)
 
         provideContent {
-            TopThreeTasksContent(context = context, tasks = topTasks)
+            val state = currentState<Preferences>()
+            // A running Glance session does not re-run provideGlance, so data is reloaded
+            // inside the composition whenever refresh() bumps the token.
+            var tasks by remember { mutableStateOf(initialTasks) }
+            LaunchedEffect(state[RefreshTokenKey]) { tasks = loadTopTasks(context) }
+            TopThreeTasksContent(context = context, tasks = tasks, completingTaskId = state[CompletingTaskKey])
+        }
+    }
+
+    companion object {
+        /** Task currently being completed from the widget, rendered as done optimistically. */
+        val CompletingTaskKey = stringPreferencesKey("completing_task_id")
+        private val RefreshTokenKey = longPreferencesKey("refresh_token")
+
+        suspend fun refresh(context: Context) {
+            GlanceAppWidgetManager(context).getGlanceIds(TopThreeTasksWidget::class.java).forEach { glanceId ->
+                updateAppWidgetState(context, glanceId) { it[RefreshTokenKey] = System.nanoTime() }
+                TopThreeTasksWidget().update(context, glanceId)
+            }
+        }
+
+        private suspend fun loadTopTasks(context: Context): List<TaskEntity> {
+            val today = LocalDate.now()
+            return PrimaFocusDatabase.getDatabase(context).taskDao().getPendingTasksListNow()
+                .filter { !TimeUtils.isFutureScheduled(it.date, today) }
+                .take(3)
         }
     }
 }
@@ -90,11 +128,12 @@ private class RowMetrics(availableHeight: Float, rowCount: Int) {
 }
 
 @Composable
-fun TopThreeTasksContent(context: Context, tasks: List<TaskEntity>) {
+fun TopThreeTasksContent(context: Context, tasks: List<TaskEntity>, completingTaskId: String?) {
     val mainComponent = ComponentName(context, MainActivity::class.java)
     val listHeight = LocalSize.current.height.value -
         (ContentPadding.value * 2) - 26f - (RowGap.value * (tasks.size - 1).coerceAtLeast(0))
     val metrics = RowMetrics(listHeight, tasks.size)
+    val preferences = UserPreferences.getInstance(context)
 
     Column(
         modifier = GlanceModifier
@@ -135,6 +174,8 @@ fun TopThreeTasksContent(context: Context, tasks: List<TaskEntity>) {
             tasks.forEachIndexed { index, task ->
                 TaskGlanceRow(
                     task = task,
+                    emoji = preferences.categoryEmoji(task.category),
+                    isCompleting = task.taskId == completingTaskId,
                     mainComponent = mainComponent,
                     metrics = metrics,
                     modifier = GlanceModifier.defaultWeight()
@@ -150,6 +191,8 @@ fun TopThreeTasksContent(context: Context, tasks: List<TaskEntity>) {
 @Composable
 private fun TaskGlanceRow(
     task: TaskEntity,
+    emoji: String,
+    isCompleting: Boolean,
     mainComponent: ComponentName,
     metrics: RowMetrics,
     modifier: GlanceModifier = GlanceModifier
@@ -161,13 +204,9 @@ private fun TaskGlanceRow(
         else -> PriorityLow
     }
 
-    val categoryText = buildString {
-        val catCap = task.category.replaceFirstChar { it.uppercase() }
-        val subCatCap = task.subcategory?.replaceFirstChar { it.uppercase() }
-        val baseCat = if (catCap.isNotBlank()) catCap else "General"
-        append(if (!subCatCap.isNullOrBlank()) "$baseCat • $subCatCap" else baseCat)
-        task.date?.let { append(" • $it") }
-    }
+    val categoryText = formatCategoryLine(
+        emoji, task.category, task.subcategory, task.date, separator = " • ", fallbackCategory = "General"
+    )
 
     Row(
         modifier = modifier
@@ -194,12 +233,13 @@ private fun TaskGlanceRow(
                 .clickable(actionStartActivity(mainComponent))
         ) {
             Text(
-                text = task.title,
+                text = if (isCompleting) "✓ ${task.title}" else task.title,
                 maxLines = 1,
                 style = TextStyle(
-                    color = ColorProvider(TextPrimary),
+                    color = ColorProvider(if (isCompleting) TextMuted else TextPrimary),
                     fontSize = metrics.title.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    textDecoration = if (isCompleting) TextDecoration.LineThrough else TextDecoration.None
                 )
             )
             Text(

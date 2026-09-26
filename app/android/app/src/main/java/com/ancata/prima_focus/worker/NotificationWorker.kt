@@ -1,11 +1,9 @@
 package com.ancata.prima_focus.worker
 
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -16,6 +14,7 @@ import com.ancata.prima_focus.domain.PriorityEngine
 import com.ancata.prima_focus.core.model.PriorityBand
 import kotlinx.coroutines.flow.first
 import com.ancata.prima_focus.utils.Constants
+import com.ancata.prima_focus.utils.ensureNotificationChannel
 import com.ancata.prima_focus.utils.TimeUtils
 
 class NotificationWorker(
@@ -62,7 +61,7 @@ class NotificationWorker(
             topTask?.let {
                 val score = it.priorityScore ?: 0.0
                 
-                createNotificationChannel()
+                ensureNotificationChannel(context)
                 
                 val title = "Prima-Focus: ${it.title}"
                 val band = PriorityBand.fromScore(score)
@@ -102,19 +101,6 @@ class NotificationWorker(
         } catch (e: Exception) {
             e.printStackTrace()
             Result.retry()
-        }
-    }
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = "Prima-Focus Tasks"
-            val descriptionText = "Notificaciones de la tarea más importante"
-            val importance = NotificationManager.IMPORTANCE_HIGH
-            val channel = NotificationChannel(Constants.NOTIFICATION_CHANNEL_ID, name, importance).apply {
-                description = descriptionText
-            }
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
         }
     }
 }
