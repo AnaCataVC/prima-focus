@@ -14,8 +14,8 @@ Every element on screen must earn its place. No decorative buttons, no visual no
 **Goal**: Optimize screen real estate for larger form factors without compromising the minimal aesthetic.
 
 ### Layout Modalities
-- **Compact (Phones)**: Standard vertical flow.
-- **Expanded (Tablets)**: Implements a Split View architecture.
+- **Compact (Phones)**: Standard vertical flow, bottom `NavigationBar`.
+- **Medium / Expanded (Tablets)**: Implements a Split View architecture, with a `NavigationRail` replacing the bottom bar. Task List and Settings content is centered with `widthIn(max = 720.dp)` instead of stretching full-width.
   - **Left Pane (Navigation & Filters)**: Features a custom Interactive Calendar to visually filter tasks by date.
   - **Right Pane (Content)**: Displays the focused task card or the Inbox modal content directly without obscuring the calendar context.
 
@@ -42,6 +42,9 @@ Every element on screen must earn its place. No decorative buttons, no visual no
 | `textPrimary` | `#FFFFFF` | Titles and body text |
 | `textSecondary` | `#FFFFFF` at 60% alpha | Metadata, hints, labels |
 | `textDisabled` | `#FFFFFF` at 30% alpha | Disabled states |
+
+### Theming
+Theme is a per-device setting (Settings > Apariencia): **System** (follows `isSystemInDarkTheme()`), **Light**, or **Dark** (table above), plus a **Material You** dynamic-color switch (Android 12+ only) that derives the scheme and glow accents from the wallpaper palette. The choice applies live, is never synced between paired devices, and the status bar icon style follows it.
 
 ### Typography
 - **Font**: Roboto (Android system default).
@@ -136,8 +139,8 @@ A subtle visual hint (e.g., a brief shimmer or bounce animation on first launch)
   - **Meta Row**: `category - subcategory • Date` in `textSecondary`.
   - **Expandable Notes**: clean button ("Ver notas" / "Ocultar notas") revealing multiline context without cluttering the initial card view.
   - **Complete FAB**: 80dp circle, `primaryAccent` bg, Checkmark icon 40dp with "COMPLETAR" label below (bold, spaced) and instant Undo Snackbar support.
-  - **Action Row**: Three-group `SpaceBetween` layout — Left: `Edit | Snooze`; Center: `Boost (+10) | Anti-Boost (-10)`; Right: `Delete` (triggers `AlertDialog` confirmation before permanent deletion).
-- **Secondary Cards (#2 & #3)**: Compact glass cards with `#2` and `#3` rank badges, direct checkmark completion, expandable notes, and action buttons.
+  - **Action Row**: shared `TaskActionRow` component, 48dp touch targets — Edit, Snooze, a divider, Boost (+10) / Demote (-10), then Delete isolated at the far end. Delete shows an Undo Snackbar (same as secondary cards); there is no confirmation dialog for single-item delete.
+- **Secondary Cards (#2 & #3)**: Compact glass cards with `#2` and `#3` rank badges, direct checkmark completion, expandable notes, and the same `TaskActionRow`.
 - **Expandable Tied Priority Cluster**: When subsequent tasks share priority with the 3rd card, a `+N tareas con igual prioridad` banner expands inline.
 
 ---
@@ -151,7 +154,8 @@ A subtle visual hint (e.g., a brief shimmer or bounce animation on first launch)
 - **Timer ring**: large `Canvas`-drawn circular arc (220dp+), progress in `primaryAccent`/`primaryGlow`, rail in glass white.
 - **Time display**: `headlineLarge` centered. White.
 - **Task name**: `bodyLarge` above the ring, white 80% alpha.
-- **Controls**: two buttons below ring — Pausa (outline style) and Terminé (`accentGreen`).
+- **Controls**: Pausa (outline style) and Terminé, now a `FilledTonalButton` (`primaryAccent` at 20% alpha) with a `heightIn(min = 48.dp)` touch target.
+- **Abandonar**: separated by a `HorizontalDivider`, styled in `errorRed`, and gated by an `AlertDialog` ("¿Abandonar sesión?" / "El temporizador se detendrá y la tarea seguirá pendiente.") since stopping a running session is irreversible.
 - **Completion Flow**:
   - If `isHistoryTrackingEnabled == true`: 600ms celebration + open `QuickReviewModal`.
   - If `isHistoryTrackingEnabled == false`: Direct task completion with instant return to Home (zero friction).
@@ -180,12 +184,12 @@ A subtle visual hint (e.g., a brief shimmer or bounce animation on first launch)
 
 ### Layout
 - **Segmented Glassmorphic Tabs (Visible when History is enabled)**:
-  - `[ Pendientes (N) ]` | `[ Historial (M) ]`
+  - `[ Pendientes (N) ]` | `[ Historial (M) ]`, both with a `heightIn(min = 48.dp)` touch target.
 - **Pending Tasks Tab**:
-  - Multi-line titles (up to 3 lines), category badges, expandable notes, Boost (+10), Demote (-10), Edit, Snooze, Delete with 4-second Undo Snackbar.
+  - Multi-line titles (up to 3 lines), category emoji + badges, expandable notes, shared `TaskActionRow` (Edit, Snooze, Boost (+10), Demote (-10), Delete with Undo Snackbar).
 - **Completed History Tab**:
-  - Header with total count and "Vaciar Historial" button (opens confirmation dialog).
-  - List of completed task cards displaying completion timestamp (`Hoy, 14:30`), minutes dedicated, sentiment emoji badge (`• 😁`), "Reabrir Tarea" (↩) and Delete actions.
+  - Header with total count and "Vaciar Historial" button (opens confirmation dialog — the only destructive action here that stays a dialog, since it is irreversible and bulk).
+  - List of completed task cards displaying completion timestamp (`Hoy, 14:30`), minutes dedicated, sentiment emoji badge (`• 😁`), "Reabrir Tarea" (↩) and Delete, now with an Undo Snackbar instead of a permanent removal.
 
 ---
 
@@ -194,13 +198,16 @@ A subtle visual hint (e.g., a brief shimmer or bounce animation on first launch)
 **Goal**: configure priority rules, notification schedules, local backups, and history modes.
 
 ### Sections
-1. **Frecuencia de Notificaciones**: Dropdown selector (Apagadas, 1h 30m, 3h, 5h).
-2. **Modo Desconexión**: Time range picker for quiet hours.
-3. **Categorías Activas**: Switches to show/hide specific categories in Inbox.
-4. **Historial y Revisión de Tareas**: Switch to toggle between Zero-Friction mode and Reflective History mode.
-5. **Copia de Seguridad Local (SAF)**: Exportar JSON and Restaurar JSON buttons (with Merge vs Overwrite dialog).
-6. **Sincronización P2P (Local)**: Local device-to-device sync without internet.
-- **Save Button**: full-width 56dp, `primaryAccent`, `RoundedCornerShape(16dp)`.
+1. **Apariencia**: segmented control for Theme (Sistema / Claro / Oscuro) + a Material You dynamic-color switch (hidden below Android 12).
+2. **Frecuencia de Notificaciones**: Dropdown selector (Apagadas, 1h 30m, 3h, 5h).
+3. **Modo Desconexión**: Time range picker for quiet hours.
+4. **Tareas Recurrentes**: switch "Saltar ocurrencias vencidas" — the global default used when a recurring task's own override is unset.
+5. **Categorías**: each row has a tappable 48dp emoji button opening `EmojiPickerDialog` (curated grid + free-text fallback) plus the existing show/hide switch.
+6. **Historial y Revisión de Tareas**: Switch to toggle between Zero-Friction mode and Reflective History mode.
+7. **Copia de Seguridad Local (SAF)**: Exportar JSON and Restaurar JSON buttons (with Merge vs Overwrite dialog — Overwrite still requires confirmation, it is irreversible).
+8. **Sincronización P2P (Local)**: Local device-to-device sync without internet; both devices must confirm the same Nearby authentication digits before any data is exchanged.
+
+Every control applies its change immediately — there is no "Guardar Cambios" button or save step.
 
 ---
 
@@ -213,7 +220,7 @@ A subtle visual hint (e.g., a brief shimmer or bounce animation on first launch)
 3. **Semantic Actions**: add `Modifier.semantics { customActions = listOf(...) }` to swipeable cards so screen readers (TalkBack) can announce "Boost" and "Delete" as accessible actions.
 4. **Font weights**: no Thin or Light weights on dark backgrounds. Minimum Regular (400).
 5. **Haptic Feedback**: required on gesture threshold crossing — provides sensory confirmation critical for users with attention difficulties.
-6. **Error Recovery**: every destructive action (delete) must be reversible via Snackbar Undo within 4 seconds.
+6. **Error Recovery**: every single-item delete (hero, secondary cards, list, history) is reversible via Snackbar Undo within 4 seconds. A confirmation `AlertDialog` is reserved for mass or otherwise irreversible actions (Vaciar historial, Sobrescribir en restore, Abandonar timer).
 7. **Onboarding**: a one-time visual hint (shimmer or tooltip) must signal swipe affordance on first launch. Gestures must be discoverable, not assumed.
 
 ---

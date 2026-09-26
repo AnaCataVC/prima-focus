@@ -78,6 +78,9 @@ flowchart TD
 **Android**: Kotlin, Room, WorkManager, ForegroundService, NotificationManager.
 
 ## Configurable WorkManager Frequency
-The app uses a `PeriodicWorkRequest` (`NotificationWorker`) mapped directly to the user's settings (via `SharedPreferences` `notification_frequency`).
+The app uses a `PeriodicWorkRequest` (`NotificationWorker`) mapped directly to the user's settings, read through `UserPreferences.notificationFrequency` (the single access point over the underlying `SharedPreferences`, also used by the ViewModel, workers and widgets).
 - **Dynamic Rescheduling**: When the user updates the frequency from the `SettingsScreen` (e.g. 15m, 30m, 1h, 2h), the `TaskViewModel` uses `ExistingPeriodicWorkPolicy.REPLACE` to update the worker instantly.
 - **Off State**: If the frequency is set to `0` or `< 0` (Apagadas), the system executes `workManager.cancelUniqueWork("NotificationWorker")`, stopping background jobs completely to respect user boundaries and battery life.
+
+## Widget Completion Undo
+Completing a task from a widget posts a transient notification with a "Deshacer" action (auto-cancels after 5s), on the same channel `ensureNotificationChannel()` creates for priority reminders. Tapping it reopens the task (`TaskCompletionUseCase.uncomplete`) and refreshes both widgets.
