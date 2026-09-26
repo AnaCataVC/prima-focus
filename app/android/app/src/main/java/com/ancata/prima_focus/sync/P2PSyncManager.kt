@@ -3,6 +3,7 @@ package com.ancata.prima_focus.sync
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import com.ancata.prima_focus.core.sync.SyncSettings
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.*
 import com.google.gson.Gson
@@ -16,18 +17,39 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+/**
+ * Wire format exchanged between devices. Version 2 adds the sender's [deviceId] and the synced
+ * [settings]; both are optional so version 1 payloads (and the legacy bare task array) still parse.
+ */
 data class SyncDataPayload(
-    val version: Int = 1,
+    val version: Int = CURRENT_PAYLOAD_VERSION,
     val tasks: List<TaskEntity> = emptyList(),
-    val sessions: List<SessionEntity> = emptyList()
+    val sessions: List<SessionEntity> = emptyList(),
+    val deviceId: String? = null,
+    val settings: SyncSettings? = null
+) {
+    companion object {
+        const val CURRENT_PAYLOAD_VERSION = 2
+    }
+}
+
+/** A connection waiting for the user to compare the authentication digits and accept or reject it. */
+data class PendingConnection(
+    val endpointId: String,
+    val endpointName: String,
+    val authDigits: String
 )
 
 class P2PSyncManager(
     private val context: Context,
-    private val onDataReceived: (List<TaskEntity>, List<SessionEntity>) -> Unit,
-    private val suspendGetLocalData: suspend () -> Pair<List<TaskEntity>, List<SessionEntity>>,
+    private val buildLocalPayload: suspend () -> SyncDataPayload,
+    /** Merges a received payload and returns the summary shown to the user. */
+    private val onPayloadReceived: suspend (SyncDataPayload) -> String,
     private val onStatusUpdate: (String) -> Unit
 ) {
     companion object {
@@ -43,6 +65,14 @@ class P2PSyncManager(
     private val syncScope = CoroutineScope(Dispatchers.IO)
     private var timeoutJob: Job? = null
 
+    private val _pendingConnection = MutableStateFlow<PendingConnection?>(null)
+    val pendingConnection: StateFlow<PendingConnection?> = _pendingConnection.asStateFlow()
+
+    // Outgoing payload bookkeeping for the single automatic retry.
+    private var outgoingPayloadId: Long? = null
+    private var outgoingBytes: ByteArray? = null
+    private var outgoingRetried = false
+
     val deviceDisplayName: String = run {
         val model = Build.MODEL ?: "Android Device"
         if (model.length > 25) model.substring(0, 25) else model
@@ -50,53 +80,67 @@ class P2PSyncManager(
 
     private val payloadCallback = object : PayloadCallback() {
         override fun onPayloadReceived(endpointId: String, payload: Payload) {
-            if (payload.type == Payload.Type.BYTES) {
-                val bytes = payload.asBytes()
-                if (bytes != null) {
-                    if (bytes.size > MAX_PAYLOAD_BYTES) {
-                        Log.e(TAG, "Payload rejected: size (${bytes.size} bytes) exceeds limit ($MAX_PAYLOAD_BYTES bytes)")
-                        onStatusUpdate("Error: Datos recibidos exceden el límite de seguridad (5MB)")
-                        return
-                    }
+            if (payload.type != Payload.Type.BYTES) return
+            val bytes = payload.asBytes() ?: return
+            if (bytes.size > MAX_PAYLOAD_BYTES) {
+                Log.e(TAG, "Payload rejected: size (${bytes.size} bytes) exceeds limit ($MAX_PAYLOAD_BYTES bytes)")
+                onStatusUpdate("Error: Datos recibidos exceden el límite de seguridad (5MB)")
+                return
+            }
 
-                    val json = String(bytes, StandardCharsets.UTF_8)
-                    try {
-                        val trimmed = json.trim()
-                        val (receivedTasks, receivedSessions) = if (trimmed.startsWith("[")) {
-                            // Legacy format: raw List<TaskEntity>
-                            val listType = object : TypeToken<List<TaskEntity>>() {}.type
-                            val tasks: List<TaskEntity> = gson.fromJson(json, listType)
-                            Pair(tasks, emptyList<SessionEntity>())
-                        } else {
-                            // Modern format: SyncDataPayload
-                            val dataPayload: SyncDataPayload = gson.fromJson(json, SyncDataPayload::class.java)
-                            Pair(dataPayload.tasks ?: emptyList(), dataPayload.sessions ?: emptyList())
-                        }
-                        
-                        Log.d(TAG, "Received ${receivedTasks.size} tasks and ${receivedSessions.size} sessions from $endpointId")
-                        onDataReceived(receivedTasks, receivedSessions)
-                        onStatusUpdate("Sincronización exitosa (${receivedTasks.size} tareas, ${receivedSessions.size} sesiones)")
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error parsing sync JSON payload", e)
-                        onStatusUpdate("Error al leer datos recibidos")
-                    }
+            val dataPayload = try {
+                parsePayload(String(bytes, StandardCharsets.UTF_8))
+            } catch (e: Exception) {
+                Log.e(TAG, "Error parsing sync JSON payload", e)
+                onStatusUpdate("Error al leer datos recibidos")
+                return
+            }
+
+            Log.d(TAG, "Received ${dataPayload.tasks.size} tasks and ${dataPayload.sessions.size} sessions from $endpointId")
+            syncScope.launch {
+                try {
+                    onStatusUpdate(onPayloadReceived(dataPayload))
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error merging received data", e)
+                    onStatusUpdate("Error al combinar los datos recibidos")
                 }
             }
         }
 
-        override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) {}
+        override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) {
+            val failed = update.status == PayloadTransferUpdate.Status.FAILURE ||
+                update.status == PayloadTransferUpdate.Status.CANCELED
+            if (!failed) return
+
+            if (update.payloadId != outgoingPayloadId) {
+                Log.e(TAG, "Incoming payload ${update.payloadId} failed from $endpointId")
+                onStatusUpdate("Error al recibir datos del otro dispositivo")
+                return
+            }
+            val bytes = outgoingBytes
+            if (!outgoingRetried && bytes != null) {
+                Log.w(TAG, "Outgoing payload failed, retrying once")
+                outgoingRetried = true
+                onStatusUpdate("Reintentando envío...")
+                sendBytes(endpointId, bytes)
+            } else {
+                Log.e(TAG, "Outgoing payload failed after retry")
+                onStatusUpdate("Error al enviar datos. Intenta sincronizar de nuevo")
+            }
+        }
     }
 
     private val connectionLifecycleCallback = object : ConnectionLifecycleCallback() {
         override fun onConnectionInitiated(endpointId: String, info: ConnectionInfo) {
             Log.d(TAG, "Connection initiated with ${info.endpointName}")
             cancelTimeout()
-            // Automatically accept connection for smooth local pairing
-            connectionsClient.acceptConnection(endpointId, payloadCallback)
-            onStatusUpdate("Conectando con ${info.endpointName}...")
+            // Both devices must confirm the same digits before any data is exchanged.
+            _pendingConnection.value = PendingConnection(endpointId, info.endpointName, info.authenticationDigits)
+            onStatusUpdate("Confirma el código ${info.authenticationDigits} con ${info.endpointName}")
         }
 
         override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
+            _pendingConnection.value = null
             when (result.status.statusCode) {
                 ConnectionsStatusCodes.STATUS_OK -> {
                     Log.d(TAG, "Connected to $endpointId")
@@ -105,7 +149,7 @@ class P2PSyncManager(
                     onStatusUpdate("Conectado. Intercambiando datos...")
                     // Stop discovery/advertising once connected to conserve radio
                     stopAdvertisingAndDiscovery()
-                    
+
                     // Send local data to the other device
                     sendLocalData()
                 }
@@ -141,6 +185,24 @@ class P2PSyncManager(
         override fun onEndpointLost(endpointId: String) {
             Log.d(TAG, "Endpoint lost: $endpointId")
         }
+    }
+
+    fun acceptPendingConnection() {
+        val pending = _pendingConnection.value ?: return
+        _pendingConnection.value = null
+        connectionsClient.acceptConnection(pending.endpointId, payloadCallback)
+            .addOnFailureListener { e ->
+                Log.e(TAG, "Failed to accept connection", e)
+                onStatusUpdate("Fallo al aceptar la conexión")
+            }
+        onStatusUpdate("Conectando con ${pending.endpointName}...")
+    }
+
+    fun rejectPendingConnection() {
+        val pending = _pendingConnection.value ?: return
+        _pendingConnection.value = null
+        connectionsClient.rejectConnection(pending.endpointId)
+        onStatusUpdate("Conexión rechazada")
     }
 
     fun startAdvertising() {
@@ -208,33 +270,54 @@ class P2PSyncManager(
         stopAdvertisingAndDiscovery()
         connectionsClient.stopAllEndpoints()
         connectedEndpointId = null
+        _pendingConnection.value = null
+        outgoingPayloadId = null
+        outgoingBytes = null
         syncScope.coroutineContext.cancelChildren()
+    }
+
+    /** Parses the current payload, a version 1 payload, or the legacy bare task array. */
+    private fun parsePayload(json: String): SyncDataPayload {
+        if (json.trim().startsWith("[")) {
+            val listType = object : TypeToken<List<TaskEntity>>() {}.type
+            val tasks: List<TaskEntity> = gson.fromJson(json, listType)
+            return SyncDataPayload(version = 0, tasks = tasks)
+        }
+        val parsed: SyncDataPayload = gson.fromJson(json, SyncDataPayload::class.java)
+        // Gson bypasses Kotlin defaults, so absent lists arrive as null.
+        @Suppress("SENSELESS_COMPARISON", "USELESS_ELVIS")
+        return parsed.copy(tasks = parsed.tasks ?: emptyList(), sessions = parsed.sessions ?: emptyList())
     }
 
     private fun sendLocalData() {
         val endpoint = connectedEndpointId ?: return
         syncScope.launch {
             try {
-                val (localTasks, localSessions) = suspendGetLocalData()
-                val payloadData = SyncDataPayload(
-                    version = 1,
-                    tasks = localTasks,
-                    sessions = localSessions
-                )
-                val json = gson.toJson(payloadData)
-                val payloadBytes = json.toByteArray(StandardCharsets.UTF_8)
+                val payloadData = buildLocalPayload()
+                val payloadBytes = gson.toJson(payloadData).toByteArray(StandardCharsets.UTF_8)
                 if (payloadBytes.size > MAX_PAYLOAD_BYTES) {
                     Log.e(TAG, "Cannot send: payload exceeds limit (${payloadBytes.size} bytes)")
                     onStatusUpdate("Error: Payload local excede el límite (5MB)")
                     return@launch
                 }
-
-                val payload = Payload.fromBytes(payloadBytes)
-                connectionsClient.sendPayload(endpoint, payload)
-                Log.d(TAG, "Sent ${localTasks.size} local tasks and ${localSessions.size} sessions to $endpoint")
+                outgoingRetried = false
+                sendBytes(endpoint, payloadBytes)
+                Log.d(TAG, "Sent ${payloadData.tasks.size} local tasks and ${payloadData.sessions.size} sessions to $endpoint")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send local data", e)
+                onStatusUpdate("Error al preparar los datos para enviar")
             }
         }
+    }
+
+    private fun sendBytes(endpointId: String, bytes: ByteArray) {
+        val payload = Payload.fromBytes(bytes)
+        outgoingPayloadId = payload.id
+        outgoingBytes = bytes
+        connectionsClient.sendPayload(endpointId, payload)
+            .addOnFailureListener { e ->
+                Log.e(TAG, "sendPayload failed", e)
+                onStatusUpdate("Error al enviar datos")
+            }
     }
 }

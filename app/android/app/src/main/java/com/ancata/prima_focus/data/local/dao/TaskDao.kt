@@ -125,40 +125,50 @@ interface TaskDao {
     }
 
     /**
-     * Atomically merges incoming sync tasks using syncVersion and updatedAt LWW conflict resolution.
+     * Atomically merges incoming sync tasks using syncVersion and updatedAt LWW conflict resolution,
+     * then tombstones pending duplicates of the same recurring occurrence (same series and date)
+     * so copies spawned independently on two devices collapse into one.
      */
     @Transaction
     fun syncMergeTasksAtomic(
         receivedTasks: List<TaskEntity>,
         priorityCalculator: (TaskEntity) -> TaskEntity
-    ): Int {
+    ): SyncMergeResult {
         val localTasks = getAllTasks().associateBy { it.taskId }
+        val mergedById = localTasks.toMutableMap()
         val tasksToUpsert = mutableListOf<TaskEntity>()
+        var inserted = 0
+        var updated = 0
 
         receivedTasks.forEach { received ->
-            val local = localTasks[received.taskId]
-            val localDomain = local?.toDomain()
-            val receivedDomain = received.toDomain()
+            val action = SyncMergeEngine.resolveTaskConflict(localTasks[received.taskId]?.toDomain(), received.toDomain())
+            val winner = when (action) {
+                is MergeAction.Insert -> action.item.also { inserted++ }
+                is MergeAction.Update -> action.item.also { updated++ }
+                is MergeAction.KeepLocal -> null
+            } ?: return@forEach
+            val entity = winner.toEntity()
+            val processed = if (entity.status == "pending" && !entity.isDeleted) priorityCalculator(entity) else entity
+            tasksToUpsert.add(processed)
+            mergedById[processed.taskId] = processed
+        }
 
-            when (val action = SyncMergeEngine.resolveTaskConflict(localDomain, receivedDomain)) {
-                is MergeAction.Insert -> {
-                    val entity = action.item.toEntity()
-                    val processed = if (entity.status == "pending" && !entity.isDeleted) priorityCalculator(entity) else entity
-                    tasksToUpsert.add(processed)
-                }
-                is MergeAction.Update -> {
-                    val entity = action.item.toEntity()
-                    val processed = if (entity.status == "pending" && !entity.isDeleted) priorityCalculator(entity) else entity
-                    tasksToUpsert.add(processed)
-                }
-                is MergeAction.KeepLocal -> {}
-            }
+        val now = System.currentTimeMillis()
+        SyncMergeEngine.findRecurringDuplicates(mergedById.values.map { it.toDomain() }).forEach { duplicate ->
+            tasksToUpsert.add(
+                duplicate.toEntity().copy(
+                    isDeleted = true,
+                    deletedAt = now,
+                    updatedAt = now,
+                    syncVersion = duplicate.syncVersion + 1
+                )
+            )
         }
 
         if (tasksToUpsert.isNotEmpty()) {
             insertTasks(tasksToUpsert)
         }
-        return tasksToUpsert.size
+        return SyncMergeResult(received = receivedTasks.size, inserted = inserted, updated = updated)
     }
 
     /**
@@ -178,3 +188,5 @@ interface TaskDao {
     fun hasPendingInGroup(groupId: String): Boolean
 }
 
+/** Outcome of a sync merge, used for the post-sync summary shown to the user. */
+data class SyncMergeResult(val received: Int, val inserted: Int, val updated: Int)

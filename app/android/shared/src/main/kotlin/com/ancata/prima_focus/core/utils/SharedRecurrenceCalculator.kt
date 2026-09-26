@@ -2,6 +2,7 @@ package com.ancata.prima_focus.core.utils
 
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.util.UUID
 
 object SharedRecurrenceCalculator {
 
@@ -36,6 +37,27 @@ object SharedRecurrenceCalculator {
             else -> null
         }
     }
+
+    /**
+     * Next occurrence after [fromDate]. With [skipMissed], occurrences that already fell before
+     * [today] are skipped, so the result is never overdue (for weekly rules it is the next
+     * matching weekday on or after today).
+     */
+    fun computeNextDate(rule: String, fromDate: LocalDate, today: LocalDate, skipMissed: Boolean): LocalDate? {
+        var next = computeNextDate(rule, fromDate) ?: return null
+        if (!skipMissed) return next
+        while (next.isBefore(today)) {
+            next = computeNextDate(rule, next) ?: return null
+        }
+        return next
+    }
+
+    /**
+     * Deterministic id for the occurrence of a series on a given date, so two devices that
+     * spawn the same occurrence independently produce the same row instead of a duplicate.
+     */
+    fun instanceId(groupId: String, date: LocalDate): String =
+        UUID.nameUUIDFromBytes("$groupId|$date".toByteArray(Charsets.UTF_8)).toString()
 
     private fun computeNextWeeklyDate(rule: String, fromDate: LocalDate): LocalDate? {
         val dayCodes = rule.removePrefix("WEEKLY:").split(",").map { it.trim() }

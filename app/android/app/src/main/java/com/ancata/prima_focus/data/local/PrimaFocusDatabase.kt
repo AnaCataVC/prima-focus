@@ -16,7 +16,7 @@ import com.ancata.prima_focus.data.local.entity.TaskEntity
         TaskEntity::class,
         SessionEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class PrimaFocusDatabase : RoomDatabase() {
@@ -135,6 +135,15 @@ abstract class PrimaFocusDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Adds the nullable per-task missedPolicy for recurring tasks (null = use global default).
+         */
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE tasks ADD COLUMN missedPolicy TEXT DEFAULT NULL")
+            }
+        }
+
         fun getDatabase(context: Context): PrimaFocusDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -142,7 +151,7 @@ abstract class PrimaFocusDatabase : RoomDatabase() {
                     PrimaFocusDatabase::class.java,
                     "primafocus_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                     .build()
                 INSTANCE = instance
                 instance

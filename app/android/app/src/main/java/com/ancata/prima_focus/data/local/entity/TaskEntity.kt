@@ -30,5 +30,6 @@ data class TaskEntity(
     val meta: String? = null,
     val isDeleted: Boolean = false,
     val deletedAt: Long? = null,
-    val syncVersion: Long = 1L
+    val syncVersion: Long = 1L,
+    val missedPolicy: String? = null   // SKIP | ACCUMULATE | null (use global default)
 )

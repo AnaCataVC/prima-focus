@@ -30,7 +30,8 @@ fun TaskEntity.toDomain(): Task = Task(
     meta = meta,
     isDeleted = isDeleted,
     deletedAt = deletedAt,
-    syncVersion = syncVersion
+    syncVersion = syncVersion,
+    missedPolicy = missedPolicy
 )
 
 fun Task.toEntity(): TaskEntity = TaskEntity(
@@ -58,7 +59,8 @@ fun Task.toEntity(): TaskEntity = TaskEntity(
     meta = meta,
     isDeleted = isDeleted,
     deletedAt = deletedAt,
-    syncVersion = syncVersion
+    syncVersion = syncVersion,
+    missedPolicy = missedPolicy
 )
 
 fun SessionEntity.toDomain(): Session = Session(

@@ -25,8 +25,23 @@ data class Task(
     val meta: String? = null,
     val isDeleted: Boolean = false,
     val deletedAt: Long? = null,
-    val syncVersion: Long = 1L
+    val syncVersion: Long = 1L,
+    val missedPolicy: String? = null          // MissedPolicy.SKIP | MissedPolicy.ACCUMULATE | null (use global default)
 )
+
+/** Per-task override for what happens to missed occurrences of a recurring task. */
+object MissedPolicy {
+    /** Move the next occurrence forward to today or later. */
+    const val SKIP = "SKIP"
+    /** Keep the strict cadence, even if the next occurrence is already overdue. */
+    const val ACCUMULATE = "ACCUMULATE"
+
+    fun shouldSkip(policy: String?, globalDefault: Boolean): Boolean = when (policy) {
+        SKIP -> true
+        ACCUMULATE -> false
+        else -> globalDefault
+    }
+}
 
 data class Session(
     val sessionId: String,

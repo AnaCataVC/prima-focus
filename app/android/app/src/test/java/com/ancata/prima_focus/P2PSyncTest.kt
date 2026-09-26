@@ -2,6 +2,10 @@ package com.ancata.prima_focus
 
 import com.ancata.prima_focus.data.local.entity.SessionEntity
 import com.ancata.prima_focus.data.local.entity.TaskEntity
+import com.ancata.prima_focus.core.sync.MergeAction
+import com.ancata.prima_focus.core.sync.SyncMergeEngine
+import com.ancata.prima_focus.core.sync.SyncSettings
+import com.ancata.prima_focus.data.mapper.toDomain
 import com.ancata.prima_focus.sync.SyncDataPayload
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -110,12 +114,9 @@ class P2PSyncTest {
         )
 
         // Version 2 should beat Version 1 regardless of clock drift
-        val shouldUpdate = when {
-            receivedTask.syncVersion > localTask.syncVersion -> true
-            receivedTask.syncVersion == localTask.syncVersion && receivedTask.updatedAt > localTask.updatedAt -> true
-            else -> false
-        }
-        assertTrue(shouldUpdate)
+        val action = SyncMergeEngine.resolveTaskConflict(localTask.toDomain(), receivedTask.toDomain())
+        assertTrue(action is MergeAction.Update)
+        assertEquals("Remote New Title (Version 2)", (action as MergeAction.Update).item.title)
     }
 
     @Test
@@ -144,13 +145,9 @@ class P2PSyncTest {
             syncVersion = 2L
         )
 
-        val shouldUpdate = when {
-            receivedDeletedTask.syncVersion > localTask.syncVersion -> true
-            receivedDeletedTask.syncVersion == localTask.syncVersion && receivedDeletedTask.updatedAt > localTask.updatedAt -> true
-            else -> false
-        }
-        assertTrue(shouldUpdate)
-        assertTrue(receivedDeletedTask.isDeleted)
+        val action = SyncMergeEngine.resolveTaskConflict(localTask.toDomain(), receivedDeletedTask.toDomain())
+        assertTrue(action is MergeAction.Update)
+        assertTrue((action as MergeAction.Update).item.isDeleted)
     }
 
     @Test
@@ -187,5 +184,30 @@ class P2PSyncTest {
         assertEquals("Legacy Task", parsedTasks[0].title)
         assertFalse(parsedTasks[0].isDeleted) // Default boolean
         assertEquals(1L, parsedTasks[0].syncVersion) // Default syncVersion
+    }
+
+    @Test
+    fun syncPayloadV2_roundTripsDeviceIdAndSettings() {
+        val payload = SyncDataPayload(
+            deviceId = "device-a",
+            settings = SyncSettings(mapOf("casa" to "🧹"), skipMissedOccurrences = false, updatedAt = 42L)
+        )
+
+        val parsed = gson.fromJson(gson.toJson(payload), SyncDataPayload::class.java)
+
+        assertEquals(SyncDataPayload.CURRENT_PAYLOAD_VERSION, parsed.version)
+        assertEquals("device-a", parsed.deviceId)
+        assertEquals(payload.settings, parsed.settings)
+    }
+
+    @Test
+    fun syncPayloadV1_withoutSettingsStillParses() {
+        val v1Json = """{"version":1,"tasks":[],"sessions":[]}"""
+
+        val parsed = gson.fromJson(v1Json, SyncDataPayload::class.java)
+
+        assertEquals(1, parsed.version)
+        assertNull(parsed.deviceId)
+        assertNull(parsed.settings)
     }
 }

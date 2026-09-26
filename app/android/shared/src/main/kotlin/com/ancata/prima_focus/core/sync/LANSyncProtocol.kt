@@ -6,26 +6,14 @@ import java.security.MessageDigest
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
-data class LANSyncPacket(
-    val version: Int = 1,
-    val deviceId: String,
-    val deviceName: String,
-    val timestamp: Long = System.currentTimeMillis(),
-    val tasks: List<Task> = emptyList(),
-    val sessions: List<Session> = emptyList(),
-    val authSignature: String? = null
-)
-
-data class PairingRequest(
-    val deviceId: String,
-    val deviceName: String,
-    val pinHash: String
-)
-
-data class PairingResponse(
-    val success: Boolean,
-    val sessionToken: String? = null,
-    val message: String? = null
+/**
+ * Settings shared between paired devices, resolved Last-Write-Wins by [updatedAt].
+ * Per-device preferences (theme) are intentionally not part of it.
+ */
+data class SyncSettings(
+    val categoryEmojis: Map<String, String> = emptyMap(),
+    val skipMissedOccurrences: Boolean = true,
+    val updatedAt: Long = 0L
 )
 
 object SyncMergeEngine {
@@ -33,6 +21,8 @@ object SyncMergeEngine {
     /**
      * Executes deterministic, version-aware Last-Write-Wins (LWW) conflict resolution.
      * Incorporates Red-Team mitigation: State COMPLETED is non-regressive against PENDING.
+     * Full ties (same syncVersion and updatedAt, different content) are broken by a content
+     * hash, so both devices pick the same winner without exchanging anything else.
      */
     fun resolveTaskConflict(local: Task?, remote: Task): MergeAction<Task> {
         if (local == null) {
@@ -49,11 +39,11 @@ object SyncMergeEngine {
             return MergeAction.Update(merged)
         }
 
-        // Rule 2: Version-aware hierarchy: syncVersion -> updatedAt
+        // Rule 2: Version-aware hierarchy: syncVersion -> updatedAt -> content hash
         val shouldRemoteWin = when {
-            remote.syncVersion > local.syncVersion -> true
-            remote.syncVersion == local.syncVersion && remote.updatedAt > local.updatedAt -> true
-            else -> false
+            remote.syncVersion != local.syncVersion -> remote.syncVersion > local.syncVersion
+            remote.updatedAt != local.updatedAt -> remote.updatedAt > local.updatedAt
+            else -> contentHash(remote) > contentHash(local)
         }
 
         return if (shouldRemoteWin) {
@@ -79,6 +69,58 @@ object SyncMergeEngine {
         } else {
             MergeAction.KeepLocal
         }
+    }
+
+    /**
+     * Returns the remote settings when they should replace the local ones, or null to keep local.
+     * Equal timestamps fall back to comparing device ids so both sides agree on the winner.
+     */
+    fun resolveSettings(
+        local: SyncSettings,
+        localDeviceId: String,
+        remote: SyncSettings?,
+        remoteDeviceId: String?
+    ): SyncSettings? {
+        if (remote == null) return null
+        val remoteWins = when {
+            remote.updatedAt != local.updatedAt -> remote.updatedAt > local.updatedAt
+            remote == local -> false
+            else -> (remoteDeviceId ?: "") > localDeviceId
+        }
+        return if (remoteWins) remote else null
+    }
+
+    /**
+     * Finds pending occurrences that duplicate another pending occurrence of the same recurring
+     * series on the same date. For each group the copy with the highest syncVersion (then
+     * updatedAt, then taskId) survives; the returned tasks are the ones to tombstone.
+     */
+    fun findRecurringDuplicates(tasks: List<Task>): List<Task> =
+        tasks.asSequence()
+            .filter { it.status == "pending" && !it.isDeleted && it.recurrenceGroupId != null && it.date != null }
+            .groupBy { it.recurrenceGroupId to it.date }
+            .values
+            .filter { it.size > 1 }
+            .flatMap { group ->
+                val keeper = group.maxWith(
+                    compareBy<Task>({ it.syncVersion }, { it.updatedAt }, { it.taskId })
+                )
+                group.filter { it.taskId != keeper.taskId }
+            }
+
+    /**
+     * Hash of the user-visible fields. Device-local derived values (priorityScore, timeUrgency)
+     * are excluded because each device recalculates them.
+     */
+    private fun contentHash(task: Task): String {
+        val content = listOf(
+            task.title, task.description, task.category, task.subcategory, task.categoryWeight,
+            task.date, task.time, task.estimatedMinutes, task.isProject, task.recurrence,
+            task.recurrenceGroupId, task.manualBoost, task.nonPostponable, task.status,
+            task.postponedReason, task.meta, task.isDeleted, task.missedPolicy
+        ).joinToString("|")
+        val digest = MessageDigest.getInstance("SHA-256").digest(content.toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { "%02x".format(it) }
     }
 }
 
