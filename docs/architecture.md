@@ -7,13 +7,13 @@ It is designed to provide a robust, private, and highly responsive experience by
 ## Core Stack
 - **Language**: Kotlin Multiplatform (Kotlin 2.2.10)
 - **UI Toolkit**: Jetpack Compose (Material Design 3 with Adaptive Layouts) for Android
-- **Local Persistence**: Room Database v6 (Android) with deterministic relational schemas and soft delete tombstones
+- **Local Persistence**: Room Database v7 (Android) with deterministic relational schemas and soft delete tombstones
 - **Background Processing & Scheduling**: Android `WorkManager` & Foreground Services for mobile timers/notifications
 - **P2P Networking/Sync**: Google Nearby Connections API (Android-to-Android P2P Star Topology)
 
 ## Module Structure
 - **`:shared` (`com.ancata.prima_focus.core`)**: Common domain logic, `SharedPriorityEngine`, data models (`Task`, `Session`, `PriorityBand`), recurrence calculations (`SharedRecurrenceCalculator`), quiet hours scheduling (`SharedTimeUtils`), and the version-aware Last-Write-Wins (LWW) conflict resolution engine (`SyncMergeEngine`).
-- **`:app` (`com.ancata.prima_focus`)**: Native Android client featuring Room v6 persistence, Material 3 Glassmorphism UI, Jetpack Glance Home Screen Widgets, and WorkManager background reminders.
+- **`:app` (`com.ancata.prima_focus`)**: Native Android client featuring Room v7 persistence, Material 3 Glassmorphism UI (System/Light/Dark + Material You theming), Jetpack Glance Home Screen Widgets with instant feedback, and WorkManager background reminders.
 
 ## System Architecture Diagram
 
@@ -33,8 +33,8 @@ It is designed to provide a robust, private, and highly responsive experience by
 |                                                                       |
 |  - Compose UI (Phone/Tablet Adaptive Layouts)                         |
 |  - Split View & Calendar Widget                                       |
-|  - Room Database v6 (Tombstones & syncVersion)                        |
-|  - Google Nearby P2P Sync (Host / Client Modes)                       |
+|  - Room Database v7 (Tombstones & syncVersion)                        |
+|  - Google Nearby P2P Sync (Host / Client Modes, digit pairing)        |
 |  - WorkManager Reminders & Jetpack Glance Widgets                     |
 |  - JSON Backup Export/Import with Atomic LWW Merge Fallback           |
 +-----------------------------------------------------------------------+

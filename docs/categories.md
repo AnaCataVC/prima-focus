@@ -4,6 +4,26 @@ This table defines the standard categories, subcategories, and their respective 
 
 > **Note:** Users can selectively disable entire categories from the Settings screen to reduce visual clutter in the Inbox. Disabled categories are dynamically filtered out of the selection menus.
 
+## Default Emojis
+
+Each category shows an emoji in the app screens, the Inbox and both widgets. These are the defaults; users can change them from Settings > Categorías, and the choice syncs between paired devices.
+
+| Category | Default emoji |
+| :--- | :---: |
+| trabajo | 💼 |
+| salud | 💊 |
+| amigos | 🤝 |
+| pareja | ❤️ |
+| familia | 🏡 |
+| crecimiento personal | 🌱 |
+| casa | 🧹 |
+| trámites | 📄 |
+| finanzas | 💰 |
+
+Any other category falls back to 📌.
+
+## Weights
+
 | Category | Subcategory | Weight | nonPostponable Default |
 | :--- | :--- | :--- | :--- |
 | **trabajo** | comunicación | 2.0 | false |

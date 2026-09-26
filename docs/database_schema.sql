@@ -1,5 +1,5 @@
 -- ============================================================================
--- Prima-Focus Database Schema (Room v6 / SQLite Production Schema)
+-- Prima-Focus Database Schema (Room v7 / SQLite Production Schema)
 -- Local-First Architecture with Soft Deletes, Version-Aware LWW & Clock Drift Resilience
 -- ============================================================================
 
@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   meta TEXT,
   isDeleted INTEGER NOT NULL DEFAULT 0,   -- Soft delete tombstone for Android P2P sync (0 = active, 1 = deleted)
   deletedAt INTEGER DEFAULT NULL,         -- Epoch ms when soft-deleted (used for 30-day GC purge)
-  syncVersion INTEGER NOT NULL DEFAULT 1  -- Incremental version counter for clock-drift resilience
+  syncVersion INTEGER NOT NULL DEFAULT 1, -- Incremental version counter for clock-drift resilience
+  missedPolicy TEXT DEFAULT NULL          -- Recurring tasks only: 'SKIP' | 'ACCUMULATE' | NULL (use global setting)
 );
 
 CREATE INDEX IF NOT EXISTS idx_tasks_today_candidate ON tasks(date, status, priorityScore DESC);
@@ -72,4 +73,5 @@ CREATE INDEX IF NOT EXISTS idx_sessions_taskId ON sessions(taskId);
 -- - MIGRATION_3_4: Recreated sessions table to drop durationMinutes column.
 -- - MIGRATION_4_5: Added isDeleted, deletedAt, and syncVersion to tasks & sessions for P2P sync.
 -- - MIGRATION_5_6: Dropped unused legacy events table (DROP TABLE IF EXISTS events).
+-- - MIGRATION_6_7: Added nullable missedPolicy to tasks (per-task override for missed recurring occurrences).
 -- ============================================================================

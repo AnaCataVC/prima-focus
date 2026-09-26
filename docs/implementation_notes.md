@@ -13,7 +13,7 @@ The core tenet of Prima-Focus is privacy, speed, and device independence.
   - `AUTO_TIMEOUT_MS = 45000L`: Discovery and Advertising automatically abort after 45 seconds of inactivity to protect battery life.
   - `MAX_PAYLOAD_BYTES = 5MB`: Payloads exceeding 5 MB are rejected immediately to prevent heap exhaustion.
 
-## Migrations (v1 -> v6)
+## Migrations (v1 -> v7)
 - Strictly version the database schema.
 - Provide migrations in Room using `Migration` classes to handle schema updates without data loss:
   - `MIGRATION_1_2`: Added `recurrenceGroupId` to tasks.
@@ -21,6 +21,7 @@ The core tenet of Prima-Focus is privacy, speed, and device independence.
   - `MIGRATION_3_4`: Removed `durationMinutes` from sessions table via table recreate.
   - `MIGRATION_4_5`: Added `isDeleted`, `deletedAt`, and `syncVersion` to both `tasks` and `sessions` tables for distributed sync.
   - `MIGRATION_5_6`: Dropped the unused `events` dead table (`DROP TABLE IF EXISTS events`).
+  - `MIGRATION_6_7`: Added nullable `missedPolicy` to `tasks` (per-task override for skipped/accumulated missed recurring occurrences; `NULL` defers to the global setting).
 
 ## UI Implementation & Adaptive Layouts
 - The visual interface is natively built with **Jetpack Compose** following Material 3 guidelines and enforcing a Dark Mode aesthetic.

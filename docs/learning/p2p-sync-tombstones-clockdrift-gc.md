@@ -74,6 +74,20 @@ flowchart TD
     G -- Sí --> H[Sobrescribir Registro Local]
     G -- No --> I{¿syncVersion igual AND received.updatedAt > local.updatedAt?}
     I -- Sí --> H
-    I -- No --> J[Ignorar Cambio Entrante - Conservar Local]
+    I -- No --> T{¿updatedAt igual y contenido distinto?}
+    T -- Sí --> U{¿hash remoto > hash local?}
+    U -- Sí --> H
+    U -- No --> J
+    T -- No --> J[Ignorar Cambio Entrante - Conservar Local]
     H --> K[Actualizar Recalculo de Prioridad si status=pending]
 ```
+
+---
+
+## 4. Desempate determinista, duplicados de recurrencias y ajustes sincronizados
+
+- **Desempate total:** si `syncVersion` y `updatedAt` coinciden pero el contenido difiere, `SyncMergeEngine` compara un hash SHA-256 de los campos visibles (excluye `priorityScore` y `timeUrgency`, que cada dispositivo recalcula). Ambos lados eligen el mismo ganador sin columnas nuevas.
+- **IDs deterministas para ocurrencias:** la siguiente ocurrencia de una serie usa `UUID.nameUUIDFromBytes("$groupId|$date")` (`SharedRecurrenceCalculator.instanceId`), tanto al completar como en `RecurrenceReconciliationWorker`. Si teléfono y tablet generan la misma ocurrencia, producen la misma fila.
+- **Limpieza de duplicados previos:** tras el merge, `syncMergeTasksAtomic` busca ocurrencias pendientes con el mismo `recurrenceGroupId` + fecha (`findRecurringDuplicates`), conserva la de mayor `syncVersion` (luego `updatedAt`, luego `taskId`) y convierte las demás en lápidas.
+- **Payload v2:** agrega `deviceId` y `settings` opcionales (emojis de categoría y `skipMissedOccurrences`, resueltos LWW por `updatedAt`, con `deviceId` como desempate). El tema no se sincroniza porque es una preferencia por dispositivo. Los payloads v1 y el arreglo legacy se siguen aceptando.
+- **Autenticación y feedback:** la conexión ya no se acepta sola; ambos dispositivos muestran `authenticationDigits` y el usuario acepta o rechaza. Un envío fallido se reintenta una vez y al terminar se muestra "Recibidas N · actualizadas M · nuevas K".
