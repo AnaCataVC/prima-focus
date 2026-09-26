@@ -50,12 +50,19 @@ It is designed to provide a robust, private, and highly responsive experience by
 - **Battery & Safety Protections**:
   - Discovery and Advertising automatically abort after 45 seconds of inactivity (`AUTO_TIMEOUT_MS = 45000L`).
   - Payloads exceeding 5 MB (`MAX_PAYLOAD_BYTES`) are rejected immediately.
+  - `onConnectionInitiated` shows the Nearby authentication digits on both devices; the connection is accepted or rejected manually instead of auto-accepting.
+- **Conflict-Free Merge Guarantees**:
+  - Recurring-instance IDs are derived deterministically (`UUID.nameUUIDFromBytes("$groupId|$date")`), and `syncMergeTasksAtomic` dedupes any pre-existing duplicate by `recurrenceGroupId` + date, keeping the highest `syncVersion`.
+  - A stable per-device `deviceId` tiebreaks conflicts that land on the same `syncVersion`/`updatedAt`, so both peers converge on the same winner.
+  - The sync payload also carries category emojis, `skipMissedOccurrences`, and their `settingsUpdatedAt`, merged by LWW (theme is device-local and never synced). Older v1 payloads are still accepted.
+  - After a merge, the UI reports a summary (received / updated / new counts).
 
 ### 2. Offline JSON Backup Fallback
 - For devices separated across network topologies or without direct Bluetooth/Wi-Fi Direct connectivity, users can export and import complete JSON backups with atomic Last-Write-Wins merging.
 
-### 3. Room Database v6 Schema & Data Guarantees
-- **Removal of Legacy Tables**: Room v6 (`MIGRATION_5_6`) drops the unused dead table `events`, leaving a streamlined relational schema comprised solely of `tasks` and `sessions`.
+### 3. Room Database v7 Schema & Data Guarantees
+- **Removal of Legacy Tables**: `MIGRATION_5_6` drops the unused dead table `events`, leaving a streamlined relational schema comprised solely of `tasks` and `sessions`.
+- **Skip-Missed Recurrences**: `MIGRATION_6_7` adds a nullable `missedPolicy` (`SKIP` | `ACCUMULATE` | `NULL` for the global default) so a recurring task can opt out of the global `skipMissedOccurrences` setting; `TaskCompletionUseCase` and `RecurrenceReconciliationWorker` advance an overdue series straight to the next due occurrence instead of spawning every missed instance.
 - **Clock-Drift Immunity**: Two-tier conflict resolution checks `syncVersion` before `updatedAt`, ensuring offline edits on out-of-sync clocks are never discarded.
 - **Non-Regressive Completed State**: Completed tasks remain completed during sync merges even if an older pending state has a slightly drifted timestamp.
 - **Automatic 30-Day Tombstone Purge**: Hard deletions are converted to soft-deletions (`isDeleted = 1`), and entries older than 30 days are purged automatically at application startup to keep SQLite storage fast and compact.
