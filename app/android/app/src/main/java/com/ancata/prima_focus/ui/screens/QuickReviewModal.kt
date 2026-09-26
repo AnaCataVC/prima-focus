@@ -40,7 +40,7 @@ fun QuickReviewModal(
         sheetState = sheetState,
         containerColor = glows.backgroundCenter.copy(alpha = 0.95f),
         scrimColor = Color.Black.copy(alpha = 0.7f),
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.White.copy(alpha = 0.3f)) },
+        dragHandle = { BottomSheetDefaults.DragHandle(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)) },
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
     ) {
         Column(
@@ -54,14 +54,14 @@ fun QuickReviewModal(
                 text = "Revisión Rápida",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(bottom = 24.dp)
             )
 
             Text(
                 text = "¿Completaste la tarea?",
                 style = MaterialTheme.typography.bodyLarge,
-                color = Color.White.copy(alpha = 0.8f),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                 modifier = Modifier.padding(bottom = 12.dp)
             )
             Row(
@@ -93,7 +93,7 @@ fun QuickReviewModal(
             Text(
                 text = "¿Cómo te sentiste?",
                 style = MaterialTheme.typography.bodyLarge,
-                color = Color.White.copy(alpha = 0.8f),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                 modifier = Modifier.padding(bottom = 12.dp)
             )
             Row(
@@ -137,7 +137,7 @@ fun QuickReviewModal(
                         Text(
                             text = "¿Quieres posponer esta tarea?",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White.copy(alpha = 0.8f),
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                             modifier = Modifier.padding(bottom = 12.dp)
                         )
                         Row(
@@ -155,7 +155,7 @@ fun QuickReviewModal(
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onBackground),
                                 border = null
                             ) {
                                 Text("Posponer")
@@ -187,16 +187,16 @@ fun QuickReviewModal(
                 colors = ButtonDefaults.buttonColors(
                     containerColor = glows.primaryAccent,
                     disabledContainerColor = glows.primaryAccent.copy(alpha = 0.3f),
-                    disabledContentColor = Color.White.copy(alpha = 0.3f)
+                    disabledContentColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)
                 ),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Guardar", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text("Guardar", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
             }
             Text(
                 text = "Se guardará en Historial",
                 style = MaterialTheme.typography.labelSmall,
-                color = Color.White.copy(alpha = 0.4f),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                 modifier = Modifier.padding(top = 12.dp)
             )
         }
@@ -212,7 +212,7 @@ fun StatusButton(
 ) {
     val glows = LocalPremiumGlows.current
     val backgroundColor = if (selected) selectedColor else glows.glassSurface
-    val textColor = if (selected) Color.White else Color.White.copy(alpha = 0.6f)
+    val textColor = if (selected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
     val borderColor = if (selected) Color.Transparent else glows.glassBorderStart
 
     Box(

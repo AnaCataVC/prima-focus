@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,6 +20,7 @@ import androidx.compose.ui.platform.LocalContext
 import android.widget.Toast
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ancata.prima_focus.core.model.MissedPolicy
 import com.ancata.prima_focus.ui.theme.LocalPremiumGlows
 import com.ancata.prima_focus.ui.viewmodel.TaskViewModel
 import com.ancata.prima_focus.utils.RecurrenceCalculator
@@ -40,7 +42,11 @@ fun InboxModal(
     val glows = LocalPremiumGlows.current
     val context = LocalContext.current
 
-    val disabledCats = viewModel.getDisabledCategories()
+    val disabledCats = viewModel.preferences.getDisabledCategories()
+    val categoryEmojis by viewModel.preferences.categoryEmojis.collectAsState()
+    val categoryLabel: (String) -> String = { cat ->
+        "${categoryEmojis[cat.lowercase()] ?: viewModel.preferences.categoryEmoji(cat)} ${cat.replaceFirstChar { it.uppercase() }}"
+    }
     val categoriesData = viewModel.categoriesData.filterKeys { !disabledCats.contains(it) }
 
     var categoryExpanded by remember { mutableStateOf(false) }
@@ -68,6 +74,7 @@ fun InboxModal(
 
     // Recurrence state
     var recurrenceRule by remember { mutableStateOf(taskToEdit?.recurrence) }
+    var missedPolicy by remember { mutableStateOf(taskToEdit?.missedPolicy) }
     var showRecurrenceSheet by remember { mutableStateOf(false) }
 
     var showDatePicker by remember { mutableStateOf(false) }
@@ -77,7 +84,7 @@ fun InboxModal(
         sheetState = sheetState,
         containerColor = Color.Transparent, 
         scrimColor = Color.Black.copy(alpha = 0.7f),
-        dragHandle = null
+        dragHandle = { BottomSheetDefaults.DragHandle(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)) }
     ) {
         Box(
             modifier = Modifier
@@ -97,27 +104,34 @@ fun InboxModal(
                     .padding(24.dp)
                     .padding(bottom = 32.dp)
             ) {
-                // Drag handle placeholder
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(bottom = 24.dp)
-                        .size(width = 32.dp, height = 4.dp)
-                        .background(Color.White.copy(alpha = 0.4f), CircleShape)
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (taskToEdit != null) "Editar tarea" else "Nueva tarea",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
+                        Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f))
+                    }
+                }
 
                 // Main Input Area: Title
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
-                    placeholder = { Text("¿Qué tienes en mente?", color = Color.White.copy(alpha = 0.5f)) },
+                    placeholder = { Text("¿Qué tienes en mente?", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = glows.primaryAccent,
                         unfocusedBorderColor = glows.glassBorderStart,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
+                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                         cursorColor = glows.primaryAccent,
                         focusedContainerColor = glows.glassSurface.copy(alpha = 0.5f),
                         unfocusedContainerColor = glows.glassSurface.copy(alpha = 0.3f)
@@ -131,15 +145,15 @@ fun InboxModal(
                 OutlinedTextField(
                     value = description,
                     onValueChange = { if (it.length <= 2000) description = it },
-                    placeholder = { Text("Notas adicionales o contexto (opcional)...", color = Color.White.copy(alpha = 0.4f)) },
+                    placeholder = { Text("Notas adicionales o contexto (opcional)...", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)) },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2,
                     maxLines = 4,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = glows.primaryAccent,
                         unfocusedBorderColor = glows.glassBorderStart,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
+                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                         cursorColor = glows.primaryAccent,
                         focusedContainerColor = glows.glassSurface.copy(alpha = 0.5f),
                         unfocusedContainerColor = glows.glassSurface.copy(alpha = 0.3f)
@@ -156,15 +170,15 @@ fun InboxModal(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         OutlinedTextField(
-                            value = selectedCategory.replaceFirstChar { it.uppercase() },
+                            value = categoryLabel(selectedCategory),
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Categoría", color = Color.White.copy(alpha = 0.6f)) },
+                        label = { Text("Categoría", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
                         modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                         colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
+                            focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                             focusedBorderColor = glows.primaryGlow,
                             unfocusedBorderColor = glows.glassBorderStart
                         ),
@@ -177,7 +191,7 @@ fun InboxModal(
                     ) {
                         categoryNames.forEach { cat ->
                             DropdownMenuItem(
-                                text = { Text(cat.replaceFirstChar { it.uppercase() }, color = Color.White) },
+                                text = { Text(categoryLabel(cat), color = MaterialTheme.colorScheme.onBackground) },
                                 onClick = {
                                     selectedCategory = cat
                                     categoryExpanded = false
@@ -198,12 +212,12 @@ fun InboxModal(
                         value = selectedSubcategory?.first?.replaceFirstChar { it.uppercase() } ?: "",
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Subcategoría", color = Color.White.copy(alpha = 0.6f)) },
+                        label = { Text("Subcategoría", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subcategoryExpanded) },
                         modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                         colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
+                            focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                             focusedBorderColor = glows.primaryGlow,
                             unfocusedBorderColor = glows.glassBorderStart
                         ),
@@ -216,7 +230,7 @@ fun InboxModal(
                     ) {
                         currentSubcategories.forEach { subcat ->
                             DropdownMenuItem(
-                                text = { Text(subcat.first.replaceFirstChar { it.uppercase() }, color = Color.White) },
+                                text = { Text(subcat.first.replaceFirstChar { it.uppercase() }, color = MaterialTheme.colorScheme.onBackground) },
                                 onClick = {
                                     selectedSubcategory = subcat
                                     subcategoryExpanded = false
@@ -231,7 +245,7 @@ fun InboxModal(
             Text(
                 text = "Sin fecha: la tarea se guardará en tu lista general para más tarde.",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.5f),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
             )
 
             FlowRow(
@@ -243,21 +257,21 @@ fun InboxModal(
                     selected = selectedDate == "Hoy",
                     onClick = { selectedDate = if (selectedDate == "Hoy") null else "Hoy" },
                     label = { Text("Hoy") },
-                    colors = FilterChipDefaults.filterChipColors(containerColor = Color.Transparent, labelColor = Color.White),
+                    colors = FilterChipDefaults.filterChipColors(containerColor = Color.Transparent, labelColor = MaterialTheme.colorScheme.onBackground),
                     border = FilterChipDefaults.filterChipBorder(borderColor = glows.glassBorderStart, enabled = true, selected = selectedDate == "Hoy")
                 )
                 FilterChip(
                     selected = selectedDate == "Mañana",
                     onClick = { selectedDate = if (selectedDate == "Mañana") null else "Mañana" },
                     label = { Text("Mañana") },
-                    colors = FilterChipDefaults.filterChipColors(containerColor = Color.Transparent, labelColor = Color.White),
+                    colors = FilterChipDefaults.filterChipColors(containerColor = Color.Transparent, labelColor = MaterialTheme.colorScheme.onBackground),
                     border = FilterChipDefaults.filterChipBorder(borderColor = glows.glassBorderStart, enabled = true, selected = selectedDate == "Mañana")
                 )
                 FilterChip(
                     selected = selectedDate == "El siguiente lunes",
                     onClick = { selectedDate = if (selectedDate == "El siguiente lunes") null else "El siguiente lunes" },
                     label = { Text("Siguiente Lunes") },
-                    colors = FilterChipDefaults.filterChipColors(containerColor = Color.Transparent, labelColor = Color.White),
+                    colors = FilterChipDefaults.filterChipColors(containerColor = Color.Transparent, labelColor = MaterialTheme.colorScheme.onBackground),
                     border = FilterChipDefaults.filterChipBorder(borderColor = glows.glassBorderStart, enabled = true, selected = selectedDate == "El siguiente lunes")
                 )
                 
@@ -268,7 +282,7 @@ fun InboxModal(
                         if (isCustomDate) selectedDate = null else showDatePicker = true 
                     },
                     label = { Text(if (isCustomDate) selectedDate!! else "Elegir fecha") },
-                    colors = FilterChipDefaults.filterChipColors(containerColor = Color.Transparent, labelColor = Color.White),
+                    colors = FilterChipDefaults.filterChipColors(containerColor = Color.Transparent, labelColor = MaterialTheme.colorScheme.onBackground),
                     border = FilterChipDefaults.filterChipBorder(borderColor = glows.glassBorderStart, enabled = true, selected = isCustomDate)
                 )
 
@@ -287,18 +301,18 @@ fun InboxModal(
                                 imageVector = Icons.Default.Repeat,
                                 contentDescription = "Recurrencia",
                                 modifier = Modifier.size(14.dp),
-                                tint = if (recurrenceActive) glows.primaryAccent else Color.White.copy(alpha = 0.7f)
+                                tint = if (recurrenceActive) glows.primaryAccent else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
                             )
                             Text(
                                 text = recurrenceLabel ?: "Repetir",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (recurrenceActive) glows.primaryAccent else Color.White.copy(alpha = 0.8f)
+                                color = if (recurrenceActive) glows.primaryAccent else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
                             )
                         }
                     },
                     colors = FilterChipDefaults.filterChipColors(
                         containerColor = Color.Transparent,
-                        labelColor = Color.White,
+                        labelColor = MaterialTheme.colorScheme.onBackground,
                         selectedContainerColor = glows.primaryAccent.copy(alpha = 0.15f)
                     ),
                     border = FilterChipDefaults.filterChipBorder(
@@ -336,6 +350,44 @@ fun InboxModal(
                 }
             }
 
+            if (recurrenceRule != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Si se me pasa:",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                )
+                val policyOptions = listOf(
+                    null to "Usar ajuste global",
+                    MissedPolicy.SKIP to "Saltar",
+                    MissedPolicy.ACCUMULATE to "Acumular"
+                )
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    policyOptions.forEach { (policy, label) ->
+                        FilterChip(
+                            selected = missedPolicy == policy,
+                            onClick = { missedPolicy = policy },
+                            label = { Text(label) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                containerColor = Color.Transparent,
+                                labelColor = MaterialTheme.colorScheme.onBackground,
+                                selectedContainerColor = glows.primaryAccent.copy(alpha = 0.15f)
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                borderColor = glows.glassBorderStart,
+                                selectedBorderColor = glows.primaryAccent,
+                                enabled = true,
+                                selected = missedPolicy == policy
+                            )
+                        )
+                    }
+                }
+            }
+
             // Recurrence Sheet
             if (showRecurrenceSheet) {
                 RecurrenceSheet(
@@ -365,7 +417,8 @@ fun InboxModal(
                                     categoryWeight = weight,
                                     date = selectedDate,
                                     estimatedMinutes = null,
-                                    recurrence = recurrenceRule
+                                    recurrence = recurrenceRule,
+                                    missedPolicy = missedPolicy
                                 )
                             )
                             Toast.makeText(context, "Tarea actualizada", Toast.LENGTH_SHORT).show()
@@ -378,7 +431,8 @@ fun InboxModal(
                                 weight = weight,
                                 date = selectedDate,
                                 estimatedMinutes = null,
-                                recurrence = recurrenceRule
+                                recurrence = recurrenceRule,
+                                missedPolicy = missedPolicy
                             )
                             Toast.makeText(context, "Tarea guardada", Toast.LENGTH_SHORT).show()
                         }
@@ -391,7 +445,7 @@ fun InboxModal(
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = glows.primaryAccent,
-                    contentColor = Color.White
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             ) {
                 Text(

@@ -47,7 +47,9 @@ import com.ancata.prima_focus.worker.NotificationWorker
 import android.content.Intent
 import kotlinx.coroutines.flow.MutableStateFlow
 
-import android.content.Context
+import android.widget.Toast
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.ancata.prima_focus.data.prefs.UserPreferences
 class MainActivity : ComponentActivity() {
 
     private val pendingIntentAction = MutableStateFlow<Intent?>(null)
@@ -56,7 +58,17 @@ class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        // Handle if needed
+        // Notifications are optional; Nearby sync is the feature that cannot work without the rest.
+        val syncPermissionDenied = permissions.any { (permission, granted) ->
+            !granted && permission != Manifest.permission.POST_NOTIFICATIONS
+        }
+        if (syncPermissionDenied) {
+            Toast.makeText(
+                this,
+                "Sin permisos de Bluetooth, Wi-Fi cercano y ubicación la sincronización entre dispositivos no funcionará. Puedes otorgarlos en los ajustes del sistema.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
     }
 
     private fun askPermissions() {
@@ -83,8 +95,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun setupWorkManager() {
-        val sharedPrefs = getSharedPreferences(com.ancata.prima_focus.utils.Constants.PREF_FILE, android.content.Context.MODE_PRIVATE)
-        val frequency = sharedPrefs.getInt(com.ancata.prima_focus.utils.Constants.PREF_NOTIFICATION_FREQUENCY, com.ancata.prima_focus.utils.Constants.DEFAULT_NOTIFICATION_FREQUENCY)
+        val frequency = UserPreferences.getInstance(this).notificationFrequency
         val workManager = WorkManager.getInstance(this)
         if (frequency <= 0) {
             workManager.cancelUniqueWork("NotificationWorker")
@@ -106,8 +117,10 @@ class MainActivity : ComponentActivity() {
         
         intent?.let { pendingIntentAction.value = it }
         
+        val preferences = UserPreferences.getInstance(this)
         setContent {
-            PrimaFocusTheme {
+            val themeSettings by preferences.themeSettings.collectAsState()
+            PrimaFocusTheme(themeSettings = themeSettings) {
                 val windowSizeClass = calculateWindowSizeClass(this).widthSizeClass
                 MainApp(pendingIntentAction, windowSizeClass)
             }
@@ -152,6 +165,15 @@ fun MainApp(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+    val navigateTopLevel: (String) -> Unit = { route ->
+        navController.navigate(route) {
+            popUpTo(navController.graph.startDestinationId)
+            launchSingleTop = true
+        }
+    }
+    val pendingConnection by viewModel.p2pSyncManager.pendingConnection.collectAsState()
 
     LaunchedEffect(navigateToTimer) {
         navigateToTimer?.let { intent ->
@@ -173,57 +195,21 @@ fun MainApp(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            val navBackStackEntry by navController.currentBackStackEntryAsState()
-            val currentRoute = navBackStackEntry?.destination?.route
-
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface
-            ) {
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Home, contentDescription = "Inicio") },
-                    label = { Text("Inicio") },
-                    selected = currentRoute == "home",
-                    onClick = {
-                        navController.navigate("home") {
-                            popUpTo(navController.graph.startDestinationId)
-                            launchSingleTop = true
-                        }
-                    },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                        unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Tareas") },
-                    label = { Text("Tareas") },
-                    selected = currentRoute == "list",
-                    onClick = {
-                        navController.navigate("list") {
-                            popUpTo(navController.graph.startDestinationId)
-                            launchSingleTop = true
-                        }
-                    },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                        unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Settings, contentDescription = "Ajustes") },
-                    label = { Text("Ajustes") },
-                    selected = currentRoute == "settings",
-                    onClick = {
-                        navController.navigate("settings") {
-                            popUpTo(navController.graph.startDestinationId)
-                            launchSingleTop = true
-                        }
-                    },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                        unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                )
+            if (windowSizeClass == WindowWidthSizeClass.Compact) {
+                NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+                    TopLevelDestinations.forEach { destination ->
+                        NavigationBarItem(
+                            icon = { Icon(destination.icon, contentDescription = destination.label) },
+                            label = { Text(destination.label) },
+                            selected = currentRoute == destination.route,
+                            onClick = { navigateTopLevel(destination.route) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        )
+                    }
+                }
             }
         },
         floatingActionButton = {
@@ -236,6 +222,22 @@ fun MainApp(
         }
     ) { innerPadding ->
         Row(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+            if (windowSizeClass != WindowWidthSizeClass.Compact) {
+                NavigationRail(containerColor = MaterialTheme.colorScheme.surface) {
+                    TopLevelDestinations.forEach { destination ->
+                        NavigationRailItem(
+                            icon = { Icon(destination.icon, contentDescription = destination.label) },
+                            label = { Text(destination.label) },
+                            selected = currentRoute == destination.route,
+                            onClick = { navigateTopLevel(destination.route) },
+                            colors = NavigationRailItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        )
+                    }
+                }
+            }
 
             NavHost(
                 navController = navController,
@@ -313,7 +315,7 @@ fun MainApp(
                     onMinimize = { navController.popBackStack() },
                     onComplete = {
                         navController.popBackStack()
-                        if (viewModel.isHistoryTrackingEnabled.value) {
+                        if (viewModel.preferences.isHistoryTrackingEnabled.value) {
                             taskForReview = taskId
                         } else {
                             viewModel.completeTask(taskId, feeling = 3, result = "completed")
@@ -340,6 +342,28 @@ fun MainApp(
             )
         }
 
+        pendingConnection?.let { connection ->
+            AlertDialog(
+                onDismissRequest = { viewModel.p2pSyncManager.rejectPendingConnection() },
+                title = { Text("Confirmar sincronización") },
+                text = {
+                    Text(
+                        "Conectar con ${connection.endpointName}.\n\nVerifica que el otro dispositivo muestre el mismo código:\n\n${connection.authDigits}"
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.p2pSyncManager.acceptPendingConnection() }) {
+                        Text("Aceptar")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.p2pSyncManager.rejectPendingConnection() }) {
+                        Text("Rechazar", color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            )
+        }
+
         taskForReview?.let { taskId ->
             QuickReviewModal(
                 viewModel = viewModel,
@@ -349,3 +373,11 @@ fun MainApp(
         }
     }
 }
+
+private data class TopLevelDestination(val route: String, val label: String, val icon: ImageVector)
+
+private val TopLevelDestinations = listOf(
+    TopLevelDestination("home", "Inicio", Icons.Default.Home),
+    TopLevelDestination("list", "Tareas", Icons.AutoMirrored.Filled.List),
+    TopLevelDestination("settings", "Ajustes", Icons.Default.Settings)
+)

@@ -21,8 +21,14 @@ val GlassBorderEnd = Color(0x00FFFFFF) // transparent
 val RoseShadow = Color(0x4DFBC5DB) // 30% rose glow
 val BottomNavBackground = Color(0x99180D1C) // Translucent dark plum surface
 
-// Preserved for future light theme support
+// Light theme
 val LightBackground = Color(0xFFFFF7F9)
 val LightSurface = Color(0xFFFDF2F4)
 val LightTextPrimary = Color(0xFF1F121E)
 val LightTextMuted = Color(0xFF7C6E79)
+val LightGlassSurface = Color(0xB3FFFFFF) // 70% white cards over the blush background
+val LightGlassBorderStart = Color(0x33EC4899) // 20% rose border
+val LightRoseShadow = Color(0x33EC4899)
+val LightBottomNavBackground = Color(0xCCFFF7F9)
+val AccentSageDeep = Color(0xFF15803D) // AccentSage darkened for contrast on light surfaces
+val ErrorRoseDeep = Color(0xFFE11D48) // ErrorRose darkened for contrast on light surfaces

@@ -35,6 +35,10 @@ interface SessionDao {
     @Query("UPDATE sessions SET isDeleted = 1, deletedAt = :deletedAt, updatedAt = :updatedAt, syncVersion = syncVersion + 1 WHERE taskId = :taskId")
     fun softDeleteSessionsForTask(taskId: String, deletedAt: Long = System.currentTimeMillis(), updatedAt: Long = System.currentTimeMillis())
 
+    /** Reverses softDeleteSessionsForTask, used by the undo of a history deletion. */
+    @Query("UPDATE sessions SET isDeleted = 0, deletedAt = NULL, updatedAt = :updatedAt, syncVersion = syncVersion + 1 WHERE taskId = :taskId AND isDeleted = 1")
+    fun restoreSessionsForTask(taskId: String, updatedAt: Long = System.currentTimeMillis())
+
     @Query("DELETE FROM sessions WHERE isDeleted = 1 AND deletedAt IS NOT NULL AND deletedAt < :cutoffTimestamp")
     fun purgeOldTombstones(cutoffTimestamp: Long)
 

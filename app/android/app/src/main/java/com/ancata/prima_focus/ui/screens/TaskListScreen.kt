@@ -10,14 +10,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Replay
@@ -38,7 +34,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ancata.prima_focus.data.local.entity.TaskEntity
+import com.ancata.prima_focus.ui.components.TaskActionRow
 import com.ancata.prima_focus.ui.theme.LocalPremiumGlows
+import com.ancata.prima_focus.utils.formatCategoryLine
 import com.ancata.prima_focus.ui.viewmodel.TaskViewModel
 import kotlinx.coroutines.launch
 
@@ -58,7 +56,7 @@ fun TaskListScreen(
     var isFutureExpanded by remember { mutableStateOf(false) }
 
     val handleCompleteTask: (TaskEntity) -> Unit = { task ->
-        if (viewModel.isHistoryTrackingEnabled.value) {
+        if (viewModel.preferences.isHistoryTrackingEnabled.value) {
             onRequestReview(task.taskId)
         } else {
             viewModel.completeTask(task.taskId, feeling = 3, result = "Quick complete")
@@ -72,6 +70,42 @@ fun TaskListScreen(
                 }
             }
         }
+    }
+
+    val categoryEmojis by viewModel.preferences.categoryEmojis.collectAsState()
+    val emojiFor: (String) -> String = { category ->
+        categoryEmojis[category.lowercase()] ?: viewModel.preferences.categoryEmoji(category)
+    }
+
+    @Composable
+    fun PendingTaskItem(task: TaskEntity) {
+        TaskListItem(
+            task = task,
+            emoji = emojiFor(task.category),
+            onComplete = { handleCompleteTask(task) },
+            onBoost = {
+                viewModel.boostTask(task.taskId)
+                coroutineScope.launch { snackbarHostState.showSnackbar("¡Prioridad aumentada!") }
+            },
+            onDemote = {
+                viewModel.demoteTask(task.taskId)
+                coroutineScope.launch { snackbarHostState.showSnackbar("Prioridad reducida") }
+            },
+            onEdit = { onEditTask(task) },
+            onSnooze = {
+                viewModel.snoozeTask(task.taskId)
+                coroutineScope.launch { snackbarHostState.showSnackbar("Tarea pospuesta para mañana") }
+            },
+            onDelete = {
+                viewModel.deleteTask(task.taskId)
+                coroutineScope.launch {
+                    val result = snackbarHostState.showSnackbar(message = "Tarea eliminada", actionLabel = "Deshacer")
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.restoreTask(task)
+                    }
+                }
+            }
+        )
     }
 
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -88,17 +122,19 @@ fun TaskListScreen(
                         radius = size.height * 0.8f
                     )
                 )
-            }
+            },
+        contentAlignment = Alignment.TopCenter
     ) {
         Column(
             modifier = Modifier
+                .widthIn(max = 720.dp)
                 .fillMaxSize()
                 .padding(horizontal = 16.dp)
         ) {
             Text(
                 text = "Lista de Tareas",
                 style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(top = 24.dp, bottom = 12.dp)
             )
 
@@ -142,7 +178,7 @@ fun TaskListScreen(
                         Text(
                             text = "No hay tareas pendientes",
                             style = MaterialTheme.typography.bodyLarge,
-                            color = Color.White.copy(alpha = 0.5f)
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                         )
                     }
                 } else {
@@ -152,41 +188,7 @@ fun TaskListScreen(
                     ) {
                         // Section: Today & Backlog tasks
                         items(pendingTasks, key = { it.taskId }) { task ->
-                            TaskListItem(
-                                task = task,
-                                onComplete = { handleCompleteTask(task) },
-                                onBoost = {
-                                    viewModel.boostTask(task.taskId)
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("¡Prioridad aumentada (+10)!")
-                                    }
-                                },
-                                onDemote = {
-                                    viewModel.demoteTask(task.taskId)
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("Prioridad reducida (-10)")
-                                    }
-                                },
-                                onEdit = { onEditTask(task) },
-                                onSnooze = {
-                                    viewModel.snoozeTask(task.taskId)
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("Tarea pospuesta para mañana")
-                                    }
-                                },
-                                onDelete = {
-                                    viewModel.deleteTask(task.taskId)
-                                    coroutineScope.launch {
-                                        val result = snackbarHostState.showSnackbar(
-                                            message = "Tarea eliminada",
-                                            actionLabel = "Deshacer"
-                                        )
-                                        if (result == SnackbarResult.ActionPerformed) {
-                                            viewModel.restoreTask(task)
-                                        }
-                                    }
-                                }
-                            )
+                            PendingTaskItem(task)
                         }
 
                         // Section: Collapsible Future Scheduled Tasks Accordion
@@ -234,19 +236,19 @@ fun TaskListScreen(
                                             Text(
                                                 text = "Programadas a futuro",
                                                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                                                color = Color.White
+                                                color = MaterialTheme.colorScheme.onBackground
                                             )
                                             Text(
                                                 text = "${futureTasks.size} ${if (futureTasks.size == 1) "tarea agendada" else "tareas agendadas"}",
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = Color.White.copy(alpha = 0.5f)
+                                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                                             )
                                         }
                                     }
                                     Icon(
                                         imageVector = if (isFutureExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                                         contentDescription = if (isFutureExpanded) "Ocultar tareas futuras" else "Ver tareas futuras",
-                                        tint = Color.White.copy(alpha = 0.7f),
+                                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                                         modifier = Modifier.size(22.dp)
                                     )
                                 }
@@ -254,41 +256,7 @@ fun TaskListScreen(
 
                             if (isFutureExpanded) {
                                 items(futureTasks, key = { "future_${it.taskId}" }) { task ->
-                                    TaskListItem(
-                                        task = task,
-                                        onComplete = { handleCompleteTask(task) },
-                                        onBoost = {
-                                            viewModel.boostTask(task.taskId)
-                                            coroutineScope.launch {
-                                                snackbarHostState.showSnackbar("¡Prioridad aumentada (+10)!")
-                                            }
-                                        },
-                                        onDemote = {
-                                            viewModel.demoteTask(task.taskId)
-                                            coroutineScope.launch {
-                                                snackbarHostState.showSnackbar("Prioridad reducida (-10)")
-                                            }
-                                        },
-                                        onEdit = { onEditTask(task) },
-                                        onSnooze = {
-                                            viewModel.snoozeTask(task.taskId)
-                                            coroutineScope.launch {
-                                                snackbarHostState.showSnackbar("Tarea pospuesta para mañana")
-                                            }
-                                        },
-                                        onDelete = {
-                                            viewModel.deleteTask(task.taskId)
-                                            coroutineScope.launch {
-                                                val result = snackbarHostState.showSnackbar(
-                                                    message = "Tarea eliminada",
-                                                    actionLabel = "Deshacer"
-                                                )
-                                                if (result == SnackbarResult.ActionPerformed) {
-                                                    viewModel.restoreTask(task)
-                                                }
-                                            }
-                                        }
-                                    )
+                                    PendingTaskItem(task)
                                 }
                             }
                         }
@@ -306,7 +274,7 @@ fun TaskListScreen(
                     Text(
                         text = "${completedTasks.size} tareas completadas",
                         style = MaterialTheme.typography.labelMedium,
-                        color = Color.White.copy(alpha = 0.6f)
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                     )
                     if (completedTasks.isNotEmpty()) {
                         TextButton(
@@ -328,7 +296,7 @@ fun TaskListScreen(
                         Text(
                             text = "Aún no tienes tareas en el historial",
                             style = MaterialTheme.typography.bodyLarge,
-                            color = Color.White.copy(alpha = 0.5f)
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                         )
                     }
                 } else {
@@ -348,7 +316,13 @@ fun TaskListScreen(
                                 onDelete = {
                                     viewModel.deleteCompletedTask(completedTask.taskId)
                                     coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("Registro eliminado del historial")
+                                        val result = snackbarHostState.showSnackbar(
+                                            message = "Registro eliminado del historial",
+                                            actionLabel = "Deshacer"
+                                        )
+                                        if (result == SnackbarResult.ActionPerformed) {
+                                            viewModel.restoreCompletedTask(completedTask.rawTask)
+                                        }
                                     }
                                 }
                             )
@@ -361,11 +335,11 @@ fun TaskListScreen(
         if (showClearHistoryDialog) {
             AlertDialog(
                 onDismissRequest = { showClearHistoryDialog = false },
-                title = { Text("Vaciar Historial", color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text("Vaciar Historial", color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold) },
                 text = {
                     Text(
                         "¿Estás seguro de que deseas eliminar todas las tareas completadas y registros de sesión del historial? Esta acción no se puede deshacer.",
-                        color = Color.White.copy(alpha = 0.85f),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.85f),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 },
@@ -382,7 +356,7 @@ fun TaskListScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { showClearHistoryDialog = false }) {
-                        Text("Cancelar", color = Color.White.copy(alpha = 0.7f))
+                        Text("Cancelar", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f))
                     }
                 },
                 containerColor = glows.backgroundCenter
@@ -394,6 +368,7 @@ fun TaskListScreen(
 @Composable
 fun TaskListItem(
     task: TaskEntity,
+    emoji: String,
     onComplete: () -> Unit,
     onBoost: () -> Unit,
     onDemote: () -> Unit,
@@ -410,8 +385,8 @@ fun TaskListItem(
     val priorityColor = when (band) {
         PriorityBand.URGENT -> MaterialTheme.colorScheme.error.copy(alpha = 0.9f)
         PriorityBand.HIGH -> glows.primaryAccent.copy(alpha = 0.9f)
-        PriorityBand.LOW -> Color.White.copy(alpha = 0.4f)
-        PriorityBand.NORMAL -> Color.White.copy(alpha = 0.7f)
+        PriorityBand.LOW -> MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
+        PriorityBand.NORMAL -> MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
     }
 
     Box(
@@ -442,19 +417,15 @@ fun TaskListItem(
                     Text(
                         text = task.title,
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onBackground,
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    val catCap = task.category.replaceFirstChar { it.uppercase() }
-                    val subCatCap = task.subcategory?.replaceFirstChar { it.uppercase() }
-                    val catStr = if (!subCatCap.isNullOrBlank()) "$catCap - $subCatCap" else catCap
-                    val dateStr = task.date?.let { " • $it" } ?: ""
                     Text(
-                        text = "$catStr$dateStr",
+                        text = formatCategoryLine(emoji, task.category, task.subcategory, task.date),
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.6f)
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                     )
                     
                     Row(
@@ -486,7 +457,7 @@ fun TaskListItem(
                 IconButton(
                     onClick = onComplete,
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(48.dp)
                         .background(glows.primaryAccent.copy(alpha = 0.2f), CircleShape)
                 ) {
                     Icon(
@@ -504,7 +475,7 @@ fun TaskListItem(
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color.White.copy(alpha = 0.05f))
+                        .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.05f))
                         .clickable { notesExpanded = !notesExpanded }
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -519,12 +490,12 @@ fun TaskListItem(
                     Text(
                         text = if (notesExpanded) "Ocultar notas" else "Ver notas",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.8f)
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
                     )
                     Icon(
                         imageVector = if (notesExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                         contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.6f),
+                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                         modifier = Modifier.size(14.dp)
                     )
                 }
@@ -533,7 +504,7 @@ fun TaskListItem(
                     Text(
                         text = task.description,
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.85f),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.85f),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 6.dp)
@@ -549,73 +520,13 @@ fun TaskListItem(
                 modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
             )
 
-            // Action Row: Boost, Anti-Boost, Edit, Snooze, Delete
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    IconButton(
-                        onClick = onBoost,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowUpward,
-                            contentDescription = "Boost (Subir prioridad)",
-                            tint = glows.primaryAccent,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    IconButton(
-                        onClick = onDemote,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowDownward,
-                            contentDescription = "Anti-Boost (Bajar prioridad)",
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    IconButton(
-                        onClick = onEdit,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Editar",
-                            tint = Color.White.copy(alpha = 0.7f),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    IconButton(
-                        onClick = onSnooze,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = "Posponer a mañana",
-                            tint = Color.White.copy(alpha = 0.7f),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    IconButton(
-                        onClick = onDelete,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Eliminar",
-                            tint = Color.White.copy(alpha = 0.4f),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-            }
+            TaskActionRow(
+                onEdit = onEdit,
+                onSnooze = onSnooze,
+                onBoost = onBoost,
+                onDemote = onDemote,
+                onDelete = onDelete
+            )
         }
     }
 }
@@ -633,6 +544,7 @@ fun TabButton(
             .clip(RoundedCornerShape(12.dp))
             .background(if (selected) glows.primaryAccent else Color.Transparent)
             .clickable(onClick = onClick)
+            .heightIn(min = 48.dp)
             .padding(vertical = 10.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -640,7 +552,7 @@ fun TabButton(
             text = text,
             style = MaterialTheme.typography.labelMedium,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            color = if (selected) Color.White else Color.White.copy(alpha = 0.6f)
+            color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
         )
     }
 }
@@ -684,7 +596,7 @@ fun CompletedTaskListItem(
                     Text(
                         text = catText,
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.6f)
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                     )
 
                     Text(
@@ -708,7 +620,7 @@ fun CompletedTaskListItem(
                 text = item.title,
                 style = MaterialTheme.typography.bodyLarge.copy(
                     fontWeight = FontWeight.SemiBold,
-                    color = Color.White.copy(alpha = 0.85f)
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.85f)
                 ),
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis
@@ -720,7 +632,7 @@ fun CompletedTaskListItem(
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
-                        .background(Color.White.copy(alpha = 0.05f))
+                        .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.05f))
                         .clickable { notesExpanded = !notesExpanded }
                         .padding(horizontal = 8.dp, vertical = 3.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -735,13 +647,13 @@ fun CompletedTaskListItem(
                     Text(
                         text = if (notesExpanded) "Ocultar notas" else "Ver notas",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.8f),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
                         fontSize = 11.sp
                     )
                     Icon(
                         imageVector = if (notesExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                         contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.5f),
+                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                         modifier = Modifier.size(12.dp)
                     )
                 }
@@ -750,7 +662,7 @@ fun CompletedTaskListItem(
                     Text(
                         text = item.description,
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.85f),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.85f),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 4.dp)
@@ -787,12 +699,12 @@ fun CompletedTaskListItem(
 
                 IconButton(
                     onClick = onDelete,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
                         contentDescription = "Eliminar del historial",
-                        tint = Color.White.copy(alpha = 0.4f),
+                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                         modifier = Modifier.size(16.dp)
                     )
                 }

@@ -119,7 +119,7 @@ fun RecurrenceSheet(
                 Text(
                     text = "Repeticion",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 TextButton(
                     onClick = { onRuleSelected(buildRule()); onDismiss() }
@@ -148,7 +148,7 @@ fun RecurrenceSheet(
                         label = { Text(label, style = MaterialTheme.typography.labelMedium) },
                         colors = FilterChipDefaults.filterChipColors(
                             containerColor = Color.Transparent,
-                            labelColor = Color.White.copy(alpha = 0.7f),
+                            labelColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                             selectedContainerColor = glows.primaryAccent.copy(alpha = 0.25f),
                             selectedLabelColor = glows.primaryAccent
                         ),
@@ -187,9 +187,9 @@ fun RecurrenceSheet(
                             label = { Text(label, style = MaterialTheme.typography.labelSmall) },
                             colors = FilterChipDefaults.filterChipColors(
                                 containerColor = Color.Transparent,
-                                labelColor = Color.White.copy(alpha = 0.6f),
+                                labelColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                                 selectedContainerColor = glows.primaryAccent.copy(alpha = 0.3f),
-                                selectedLabelColor = Color.White
+                                selectedLabelColor = MaterialTheme.colorScheme.onBackground
                             ),
                             border = FilterChipDefaults.filterChipBorder(
                                 borderColor = glows.glassBorderStart,
@@ -211,14 +211,14 @@ fun RecurrenceSheet(
                 Text(
                     text = "Proxima: $previewDate",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                 )
             }
 
             // Destructive option: only shown when editing an existing recurring task
             if (isEditing && currentRule != null) {
                 Spacer(modifier = Modifier.height(32.dp))
-                HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f))
                 Spacer(modifier = Modifier.height(16.dp))
                 TextButton(
                     onClick = { onRuleSelected(null); onDismiss() },

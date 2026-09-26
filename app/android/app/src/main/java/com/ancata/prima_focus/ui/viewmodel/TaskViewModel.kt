@@ -7,7 +7,6 @@ import com.ancata.prima_focus.data.local.PrimaFocusDatabase
 import com.ancata.prima_focus.data.local.entity.TaskEntity
 import com.ancata.prima_focus.domain.PriorityEngine
 import kotlinx.coroutines.Dispatchers
-import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +26,12 @@ import com.ancata.prima_focus.utils.Constants
 import com.ancata.prima_focus.utils.RecurrenceCalculator
 import com.ancata.prima_focus.utils.TimeUtils
 import com.ancata.prima_focus.sync.P2PSyncManager
+import com.ancata.prima_focus.sync.SyncDataPayload
+import com.ancata.prima_focus.core.sync.SyncMergeEngine
+import com.ancata.prima_focus.data.prefs.UserPreferences
+import com.ancata.prima_focus.domain.TaskCompletionUseCase
+import com.ancata.prima_focus.widget.WidgetUpdater
+import kotlinx.coroutines.withContext
 
 import android.net.Uri
 import com.google.gson.Gson
@@ -79,36 +84,33 @@ data class BackupDataPayload(
 
 class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val sharedPrefs = application.getSharedPreferences(Constants.PREF_FILE, Context.MODE_PRIVATE)
+    val preferences = UserPreferences.getInstance(application)
 
     var notificationFrequency: Int
-        get() {
-            val freq = sharedPrefs.getInt(Constants.PREF_NOTIFICATION_FREQUENCY, 90)
-            return if (freq !in listOf(-1, 90, 180, 300)) 90 else freq
-        }
+        get() = preferences.notificationFrequency
         set(value) {
-            sharedPrefs.edit().putInt(Constants.PREF_NOTIFICATION_FREQUENCY, value).apply()
+            preferences.notificationFrequency = value
             updateNotificationWorker(value)
         }
 
     var isDisconnectModeEnabled: Boolean
-        get() = sharedPrefs.getBoolean(Constants.PREF_DISCONNECT_MODE_ENABLED, false)
+        get() = preferences.isDisconnectModeEnabled
         set(value) {
-            sharedPrefs.edit().putBoolean(Constants.PREF_DISCONNECT_MODE_ENABLED, value).apply()
+            preferences.isDisconnectModeEnabled = value
             updateNotificationWorker(notificationFrequency)
         }
 
     var disconnectStartTime: String
-        get() = sharedPrefs.getString(Constants.PREF_DISCONNECT_START_TIME, "22:00") ?: "22:00"
+        get() = preferences.disconnectStartTime
         set(value) {
-            sharedPrefs.edit().putString(Constants.PREF_DISCONNECT_START_TIME, value).apply()
+            preferences.disconnectStartTime = value
             updateNotificationWorker(notificationFrequency)
         }
 
     var disconnectEndTime: String
-        get() = sharedPrefs.getString(Constants.PREF_DISCONNECT_END_TIME, "08:00") ?: "08:00"
+        get() = preferences.disconnectEndTime
         set(value) {
-            sharedPrefs.edit().putString(Constants.PREF_DISCONNECT_END_TIME, value).apply()
+            preferences.disconnectEndTime = value
             updateNotificationWorker(notificationFrequency)
         }
 
@@ -118,7 +120,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             workManager.cancelUniqueWork(Constants.WORKER_NOTIFICATION)
             return
         }
-        
+
         var initialDelayMinutes = 0L
         if (isDisconnectModeEnabled) {
             initialDelayMinutes = TimeUtils.getMinutesUntilQuietHoursEnd(disconnectStartTime, disconnectEndTime)
@@ -127,37 +129,13 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         val workRequest = PeriodicWorkRequestBuilder<NotificationWorker>(frequencyMinutes.toLong(), TimeUnit.MINUTES)
             .setInitialDelay(initialDelayMinutes, TimeUnit.MINUTES)
             .build()
-            
+
         workManager.enqueueUniquePeriodicWork(
             Constants.WORKER_NOTIFICATION,
             ExistingPeriodicWorkPolicy.REPLACE,
             workRequest
         )
     }
-
-    var manualBoostAmount: Double
-        get() = sharedPrefs.getFloat(Constants.PREF_MANUAL_BOOST_AMOUNT, 10.0f).toDouble()
-        set(value) = sharedPrefs.edit().putFloat(Constants.PREF_MANUAL_BOOST_AMOUNT, value.toFloat()).apply()
-
-    var nonPostponableHealth: Boolean
-        get() = sharedPrefs.getBoolean(Constants.PREF_NON_POSTPONABLE_HEALTH, true)
-        set(value) = sharedPrefs.edit().putBoolean(Constants.PREF_NON_POSTPONABLE_HEALTH, value).apply()
-
-    var nonPostponableUrgent: Boolean
-        get() = sharedPrefs.getBoolean(Constants.PREF_NON_POSTPONABLE_URGENT, true)
-        set(value) = sharedPrefs.edit().putBoolean(Constants.PREF_NON_POSTPONABLE_URGENT, value).apply()
-
-    private val _isHistoryTrackingEnabled = MutableStateFlow(
-        sharedPrefs.getBoolean(Constants.PREF_HISTORY_TRACKING_ENABLED, true)
-    )
-    val isHistoryTrackingEnabled: StateFlow<Boolean> = _isHistoryTrackingEnabled.asStateFlow()
-
-    var isHistoryTrackingEnabledPref: Boolean
-        get() = sharedPrefs.getBoolean(Constants.PREF_HISTORY_TRACKING_ENABLED, true)
-        set(value) {
-            sharedPrefs.edit().putBoolean(Constants.PREF_HISTORY_TRACKING_ENABLED, value).apply()
-            _isHistoryTrackingEnabled.value = value
-        }
 
     val categoriesData = mapOf(
         "trabajo" to listOf("comunicación" to 2.0, "entrega" to 3.5, "tarea adicional" to 2.0, "administrativo" to 1.0, "revisión" to 1.0, "documentación" to 2.0),
@@ -170,16 +148,6 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         "trámites" to listOf("urgente" to 4.0, "normal" to 2.0),
         "finanzas" to listOf("pago de cuentas" to 4.0, "revisión de inversiones" to 1.0)
     )
-
-    fun getDisabledCategories(): Set<String> {
-        return sharedPrefs.getStringSet(Constants.PREF_DISABLED_CATEGORIES, emptySet()) ?: emptySet()
-    }
-
-    fun setCategoryDisabled(category: String, disabled: Boolean) {
-        val current = getDisabledCategories().toMutableSet()
-        if (disabled) current.add(category) else current.remove(category)
-        sharedPrefs.edit().putStringSet(Constants.PREF_DISABLED_CATEGORIES, current).apply()
-    }
 
     private val db = PrimaFocusDatabase.getDatabase(application)
     private val taskDao = db.taskDao()
@@ -201,8 +169,15 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
     val p2pSyncManager = P2PSyncManager(
         context = application,
-        onDataReceived = { receivedTasks, receivedSessions -> syncMergeData(receivedTasks, receivedSessions) },
-        suspendGetLocalData = { Pair(taskDao.getAllTasks(), sessionDao.getAllSessions()) },
+        buildLocalPayload = {
+            SyncDataPayload(
+                tasks = taskDao.getAllTasks(),
+                sessions = sessionDao.getAllSessions(),
+                deviceId = preferences.deviceId,
+                settings = preferences.syncableSettings()
+            )
+        },
+        onPayloadReceived = { payload -> syncMergeData(payload) },
         onStatusUpdate = { status -> _syncStatus.value = status }
     )
 
@@ -280,12 +255,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
     fun uncompleteTask(task: TaskEntity) {
         viewModelScope.launch(Dispatchers.IO) {
-            val restoredTask = task.copy(
-                status = "pending",
-                updatedAt = System.currentTimeMillis()
-            )
-            val prioritized = priorityEngine.calculatePriority(restoredTask)
-            taskDao.updateTask(prioritized)
+            completionUseCase().uncomplete(task.taskId)
             updateWidgets()
         }
     }
@@ -295,6 +265,14 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             taskDao.softDeleteTask(taskId)
             sessionDao.softDeleteSessionsForTask(taskId)
             updateWidgets()
+        }
+    }
+
+    /** Undo for [deleteCompletedTask]: brings back the history entry together with its sessions. */
+    fun restoreCompletedTask(task: TaskEntity) {
+        restoreTask(task)
+        viewModelScope.launch(Dispatchers.IO) {
+            sessionDao.restoreSessionsForTask(task.taskId)
         }
     }
 
@@ -335,39 +313,8 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    private fun updateWidgets() {
-        val appContext = getApplication<Application>().applicationContext
-        
-        // Update AddTaskWidget
-        val addWidgetIntent = android.content.Intent(appContext, com.ancata.prima_focus.widget.AddTaskWidgetProvider::class.java).apply {
-            action = android.appwidget.AppWidgetManager.ACTION_APPWIDGET_UPDATE
-        }
-        val addWidgetIds = android.appwidget.AppWidgetManager.getInstance(appContext)
-            .getAppWidgetIds(android.content.ComponentName(appContext, com.ancata.prima_focus.widget.AddTaskWidgetProvider::class.java))
-        addWidgetIntent.putExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_IDS, addWidgetIds)
-        appContext.sendBroadcast(addWidgetIntent)
-
-        // Update TopTaskWidget
-        val topWidgetIntent = android.content.Intent(appContext, com.ancata.prima_focus.widget.TopTaskWidgetProvider::class.java).apply {
-            action = android.appwidget.AppWidgetManager.ACTION_APPWIDGET_UPDATE
-        }
-        val topWidgetIds = android.appwidget.AppWidgetManager.getInstance(appContext)
-            .getAppWidgetIds(android.content.ComponentName(appContext, com.ancata.prima_focus.widget.TopTaskWidgetProvider::class.java))
-        topWidgetIntent.putExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_IDS, topWidgetIds)
-        appContext.sendBroadcast(topWidgetIntent)
-
-        // Update TopThreeTasksWidget (Glance)
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val manager = androidx.glance.appwidget.GlanceAppWidgetManager(appContext)
-                val glanceIds = manager.getGlanceIds(com.ancata.prima_focus.widget.TopThreeTasksWidget::class.java)
-                glanceIds.forEach { id ->
-                    com.ancata.prima_focus.widget.TopThreeTasksWidget().update(appContext, id)
-                }
-            } catch (e: Throwable) {
-                // Ignore if widget is not placed
-            }
-        }
+    private suspend fun updateWidgets() {
+        WidgetUpdater.refreshAll(getApplication())
     }
 
     fun quickAdd(
@@ -378,7 +325,8 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         estimatedMinutes: Int? = null,
         date: String? = null,
         description: String? = null,
-        recurrence: String? = null
+        recurrence: String? = null,
+        missedPolicy: String? = null
     ) {
         val now = System.currentTimeMillis()
         val newTaskId = UUID.randomUUID().toString()
@@ -401,7 +349,8 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             meta = null,
             postponedReason = null,
             recurrence = recurrence,
-            recurrenceGroupId = groupId
+            recurrenceGroupId = groupId,
+            missedPolicy = if (recurrence != null) missedPolicy else null
         )
 
         // Pass through engine
@@ -413,11 +362,13 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private val taskCompletionUseCase = com.ancata.prima_focus.domain.TaskCompletionUseCase(taskDao, sessionDao, priorityEngine)
+    /** Built per call so a change to the global missed-occurrences setting applies immediately. */
+    private fun completionUseCase() =
+        TaskCompletionUseCase(taskDao, sessionDao, priorityEngine, preferences.skipMissedOccurrences)
 
     fun completeTask(taskId: String, feeling: Int, result: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            taskCompletionUseCase.execute(taskId, feeling, result)
+            completionUseCase().execute(taskId, feeling, result)
             updateWidgets()
         }
     }
@@ -437,10 +388,10 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             val isBlockedByTask = task.nonPostponable
             val isBlockedByHealth = task.category == "salud" &&
                 task.subcategory == "medicaci\u00f3n" &&
-                nonPostponableHealth
+                preferences.nonPostponableHealth
             val isBlockedByUrgent = task.category == "tr\u00e1mites" &&
                 task.subcategory == "urgente" &&
-                nonPostponableUrgent
+                preferences.nonPostponableUrgent
 
             if (isBlockedByTask || isBlockedByHealth || isBlockedByUrgent) {
                 kotlinx.coroutines.withContext(Dispatchers.Main) { onResult(false) }
@@ -462,7 +413,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             val task = taskDao.getTaskById(taskId)
             task?.let {
-                val boostAmount = manualBoostAmount
+                val boostAmount = preferences.manualBoostAmount
                 val newBoost = (it.manualBoost + boostAmount).coerceAtMost(50.0)
                 val updatedTask = priorityEngine.calculatePriority(it.copy(
                     manualBoost = newBoost,
@@ -478,7 +429,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             val task = taskDao.getTaskById(taskId)
             task?.let {
-                val boostAmount = manualBoostAmount
+                val boostAmount = preferences.manualBoostAmount
                 val newBoost = (it.manualBoost - boostAmount).coerceAtLeast(-50.0)
                 val updatedTask = priorityEngine.calculatePriority(it.copy(
                     manualBoost = newBoost,
@@ -589,7 +540,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
             val withGroup = if (task.recurrence != null && task.recurrenceGroupId == null) {
                 task.copy(recurrenceGroupId = task.taskId)
             } else if (task.recurrence == null) {
-                task.copy(recurrenceGroupId = null)
+                task.copy(recurrenceGroupId = null, missedPolicy = null)
             } else {
                 task
             }
@@ -621,15 +572,20 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun syncMergeData(receivedTasks: List<TaskEntity>, receivedSessions: List<SessionEntity>) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val updatedTasksCount = taskDao.syncMergeTasksAtomic(receivedTasks) {
-                priorityEngine.calculatePriority(it)
-            }
-            val updatedSessionsCount = sessionDao.syncMergeSessionsAtomic(receivedSessions)
-            updateWidgets()
-            Log.d("TaskViewModel", "P2P Merge completed: $updatedTasksCount tasks, $updatedSessionsCount sessions updated")
+    private suspend fun syncMergeData(payload: SyncDataPayload): String = withContext(Dispatchers.IO) {
+        val taskResult = taskDao.syncMergeTasksAtomic(payload.tasks) {
+            priorityEngine.calculatePriority(it)
         }
+        val updatedSessionsCount = sessionDao.syncMergeSessionsAtomic(payload.sessions)
+        SyncMergeEngine.resolveSettings(
+            local = preferences.syncableSettings(),
+            localDeviceId = preferences.deviceId,
+            remote = payload.settings,
+            remoteDeviceId = payload.deviceId
+        )?.let { preferences.applySyncedSettings(it) }
+        updateWidgets()
+        Log.d("TaskViewModel", "P2P Merge completed: $taskResult, $updatedSessionsCount sessions updated")
+        "Sincronización exitosa · Recibidas ${taskResult.received} · actualizadas ${taskResult.updated} · nuevas ${taskResult.inserted}"
     }
 
     override fun onCleared() {

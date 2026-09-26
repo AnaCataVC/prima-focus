@@ -42,6 +42,7 @@ fun TimerScreen(
     var isRunning by remember { mutableStateOf(true) }
     var showMenu by remember { mutableStateOf(false) }
     var showConfetti by remember { mutableStateOf(false) }
+    var showAbandonDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val glows = LocalPremiumGlows.current
 
@@ -98,18 +99,18 @@ fun TimerScreen(
                         Text(
                             text = taskTitle, 
                             style = MaterialTheme.typography.titleMedium,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onBackground,
                             maxLines = 1
                         ) 
                     },
                     navigationIcon = {
                         IconButton(onClick = onMinimize) {
-                            Icon(Icons.Default.Close, contentDescription = "Minimize", tint = Color.White)
+                            Icon(Icons.Default.Close, contentDescription = "Minimize", tint = MaterialTheme.colorScheme.onBackground)
                         }
                     },
                     actions = {
                         IconButton(onClick = { showMenu = !showMenu }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "Options", tint = Color.White)
+                            Icon(Icons.Default.MoreVert, contentDescription = "Options", tint = MaterialTheme.colorScheme.onBackground)
                         }
                         DropdownMenu(
                             expanded = showMenu,
@@ -123,11 +124,12 @@ fun TimerScreen(
                                     showMenu = false
                                 }
                             )
+                            HorizontalDivider()
                             DropdownMenuItem(
-                                text = { Text("Abandonar") },
-                                onClick = { 
+                                text = { Text("Abandonar", color = MaterialTheme.colorScheme.error) },
+                                onClick = {
                                     showMenu = false
-                                    onMinimize()
+                                    showAbandonDialog = true
                                 }
                             )
                         }
@@ -155,7 +157,7 @@ fun TimerScreen(
                     Text(
                         text = "Modo Focus",
                         style = MaterialTheme.typography.labelMedium,
-                        color = Color.White.copy(alpha = 0.9f)
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f)
                     )
                 }
 
@@ -198,7 +200,7 @@ fun TimerScreen(
                                 fontWeight = FontWeight.Light,
                                 fontSize = 72.sp
                             ),
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                     }
                 }
@@ -240,21 +242,40 @@ fun TimerScreen(
                 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Done button
-                OutlinedButton(
+                FilledTonalButton(
                     onClick = {
                         isRunning = false
                         showConfetti = true
                     },
-                    modifier = Modifier.height(48.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color.White
-                    ),
-                    border = null // No hard border, rely on text
+                    modifier = Modifier.heightIn(min = 48.dp),
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = glows.primaryAccent.copy(alpha = 0.2f),
+                        contentColor = MaterialTheme.colorScheme.onBackground
+                    )
                 ) {
-                    Text("Terminé", color = Color.White.copy(alpha = 0.7f), fontSize = 16.sp)
+                    Text("Terminé", fontSize = 16.sp)
                 }
             }
+        }
+
+        if (showAbandonDialog) {
+            AlertDialog(
+                onDismissRequest = { showAbandonDialog = false },
+                title = { Text("¿Abandonar sesión?") },
+                text = { Text("El temporizador se detendrá y la tarea seguirá pendiente.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showAbandonDialog = false
+                        isRunning = false
+                        onMinimize()
+                    }) {
+                        Text("Abandonar", color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showAbandonDialog = false }) { Text("Seguir") }
+                }
+            )
         }
     }
 }

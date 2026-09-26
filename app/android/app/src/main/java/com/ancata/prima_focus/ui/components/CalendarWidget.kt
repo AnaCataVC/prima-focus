@@ -60,14 +60,14 @@ fun CalendarWidget(
                 Text(
                     text = "${currentMonth.month.getDisplayName(TextStyle.FULL, Locale.forLanguageTag("es-ES")).replaceFirstChar { it.uppercase() }} ${currentMonth.year}",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Row {
                     IconButton(onClick = { currentMonth = currentMonth.minusMonths(1) }) {
-                        Icon(Icons.Default.ChevronLeft, contentDescription = "Mes anterior", tint = Color.White.copy(alpha = 0.7f))
+                        Icon(Icons.Default.ChevronLeft, contentDescription = "Mes anterior", tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f))
                     }
                     IconButton(onClick = { currentMonth = currentMonth.plusMonths(1) }) {
-                        Icon(Icons.Default.ChevronRight, contentDescription = "Mes siguiente", tint = Color.White.copy(alpha = 0.7f))
+                        Icon(Icons.Default.ChevronRight, contentDescription = "Mes siguiente", tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f))
                     }
                 }
             }
@@ -77,7 +77,7 @@ fun CalendarWidget(
             val daysOfWeek = listOf("L", "M", "X", "J", "V", "S", "D")
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
                 daysOfWeek.forEach { day ->
-                    Text(text = day, color = Color.White.copy(alpha = 0.5f), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text(text = day, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
             
@@ -133,7 +133,7 @@ fun CalendarWidget(
                                 ) {
                                     Text(
                                         text = dayCounter.toString(),
-                                        color = if (isSelected || isToday || workload > 0) Color.White else Color.White.copy(alpha = 0.75f),
+                                        color = if (isSelected || isToday || workload > 0) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f),
                                         fontSize = 14.sp,
                                         fontWeight = if (isSelected || isToday || workload > 0) FontWeight.Bold else FontWeight.Normal
                                     )
@@ -146,7 +146,7 @@ fun CalendarWidget(
                                                     modifier = Modifier
                                                         .size(4.dp)
                                                         .clip(CircleShape)
-                                                        .background(if (isSelected) Color.White else glows.primaryAccent)
+                                                        .background(if (isSelected) MaterialTheme.colorScheme.onBackground else glows.primaryAccent)
                                                 )
                                                 if (i < dots) Spacer(modifier = Modifier.width(2.dp))
                                             }
