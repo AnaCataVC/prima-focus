@@ -1,13 +1,14 @@
-﻿package com.ancata.prima_focus.worker
+package com.ancata.prima_focus.worker
 
 import android.content.Context
+import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.ancata.prima_focus.data.local.PrimaFocusDatabase
+import com.ancata.prima_focus.data.prefs.UserPreferences
 import com.ancata.prima_focus.domain.PriorityEngine
-import com.ancata.prima_focus.utils.RecurrenceCalculator
-import java.time.LocalDate
-import java.util.UUID
+import com.ancata.prima_focus.domain.buildNextOccurrence
+import com.ancata.prima_focus.widget.WidgetUpdater
 
 /**
  * Daily safety-net worker that ensures recurring tasks are never permanently orphaned.
@@ -16,11 +17,11 @@ import java.util.UUID
  * For each one, it checks whether an active instance of the same series already exists
  * (using recurrenceGroupId). If not, it generates the next occurrence.
  *
- * The on-complete trigger in TaskViewModel handles the common case instantly.
+ * The on-complete trigger in TaskCompletionUseCase handles the common case instantly.
  * This worker covers the edge case where the app was never opened for several days.
  *
- * Idempotency guarantee: hasPendingInGroup() prevents duplicate insertions even if
- * the worker is scheduled multiple times (e.g., after a device reboot).
+ * Idempotency guarantee: hasPendingInGroup() plus deterministic occurrence ids prevent
+ * duplicate insertions even if the worker is scheduled multiple times.
  */
 class RecurrenceReconciliationWorker(
     private val context: Context,
@@ -29,47 +30,25 @@ class RecurrenceReconciliationWorker(
 
     override suspend fun doWork(): Result {
         return try {
-            val db = PrimaFocusDatabase.getDatabase(context)
-            val taskDao = db.taskDao()
+            val taskDao = PrimaFocusDatabase.getDatabase(context).taskDao()
             val priorityEngine = PriorityEngine()
-            val now = System.currentTimeMillis()
+            val skipMissedByDefault = UserPreferences.getInstance(context).skipMissedOccurrences
+            var spawned = 0
 
-            val completedRecurringTasks = taskDao.getCompletedRecurringTasks()
-
-            for (task in completedRecurringTasks) {
-                val rule = task.recurrence ?: continue
+            for (task in taskDao.getCompletedRecurringTasks()) {
                 val groupId = task.recurrenceGroupId ?: task.taskId
-
-                // Skip if an active instance already exists for this series
                 if (taskDao.hasPendingInGroup(groupId)) continue
 
-                // Calculate the next occurrence date from the task's scheduled date
-                val baseDate = try {
-                    if (task.date != null) LocalDate.parse(task.date) else LocalDate.now()
-                } catch (e: Exception) {
-                    LocalDate.now()
-                }
-
-                val nextDate = RecurrenceCalculator.computeNextDate(rule, baseDate) ?: continue
-
-                val nextTask = priorityEngine.calculatePriority(
-                    task.copy(
-                        taskId = UUID.randomUUID().toString(),
-                        date = nextDate.toString(),
-                        status = "pending",
-                        manualBoost = 0.0,
-                        postponedReason = null,
-                        recurrenceGroupId = groupId,
-                        createdAt = now,
-                        updatedAt = now
-                    )
-                )
+                val nextTask = buildNextOccurrence(task, skipMissedByDefault, priorityEngine) ?: continue
+                if (taskDao.getTaskById(nextTask.taskId) != null) continue
                 taskDao.insertTask(nextTask)
+                spawned++
             }
 
+            if (spawned > 0) WidgetUpdater.refreshAll(context)
             Result.success()
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("RecurrenceWorker", "Recurrence reconciliation failed", e)
             Result.retry()
         }
     }

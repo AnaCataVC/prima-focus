@@ -3,19 +3,20 @@ package com.ancata.prima_focus.domain
 import com.ancata.prima_focus.data.local.dao.SessionDao
 import com.ancata.prima_focus.data.local.dao.TaskDao
 import com.ancata.prima_focus.data.local.entity.SessionEntity
-import com.ancata.prima_focus.utils.RecurrenceCalculator
 import java.time.LocalDate
 import java.util.UUID
 
 class TaskCompletionUseCase(
     private val taskDao: TaskDao,
     private val sessionDao: SessionDao,
-    private val priorityEngine: PriorityEngine = PriorityEngine()
+    private val priorityEngine: PriorityEngine = PriorityEngine(),
+    private val skipMissedByDefault: Boolean = true
 ) {
     suspend fun execute(
         taskId: String,
         feeling: Int = 3,
-        result: String = "direct_complete"
+        result: String = "direct_complete",
+        today: LocalDate = LocalDate.now()
     ): Boolean {
         val now = System.currentTimeMillis()
         val task = taskDao.getTaskById(taskId) ?: return false
@@ -25,33 +26,11 @@ class TaskCompletionUseCase(
         }
 
         val completedTask = task.copy(status = "completed", updatedAt = now, syncVersion = task.syncVersion + 1)
+        val nextTask = buildNextOccurrence(task, skipMissedByDefault, priorityEngine, today, now)
 
-        if (task.recurrence != null) {
-            val baseDate = try {
-                if (task.date != null) LocalDate.parse(task.date) else LocalDate.now()
-            } catch (e: Exception) {
-                LocalDate.now()
-            }
-            val nextDate = RecurrenceCalculator.computeNextDate(task.recurrence, baseDate)
-
-            if (nextDate != null) {
-                val groupId = task.recurrenceGroupId ?: task.taskId
-                val nextTask = priorityEngine.calculatePriority(
-                    task.copy(
-                        taskId = UUID.randomUUID().toString(),
-                        date = nextDate.toString(),
-                        status = "pending",
-                        manualBoost = 0.0,
-                        postponedReason = null,
-                        recurrenceGroupId = groupId,
-                        createdAt = now,
-                        updatedAt = now
-                    )
-                )
-                taskDao.completeAndSpawnNext(completedTask, nextTask)
-            } else {
-                taskDao.updateTask(completedTask)
-            }
+        // A deterministic id can already exist (e.g. the occurrence arrived via sync); never overwrite it.
+        if (nextTask != null && taskDao.getTaskById(nextTask.taskId) == null) {
+            taskDao.completeAndSpawnNext(completedTask, nextTask)
         } else {
             taskDao.updateTask(completedTask)
         }
@@ -68,6 +47,19 @@ class TaskCompletionUseCase(
             updatedAt = now
         )
         sessionDao.insertSession(session)
+        return true
+    }
+
+    /** Reopens a completed task. Returns false if it does not exist or is not completed. */
+    suspend fun uncomplete(taskId: String): Boolean {
+        val task = taskDao.getTaskById(taskId) ?: return false
+        if (task.status != "completed") return false
+        val restored = task.copy(
+            status = "pending",
+            updatedAt = System.currentTimeMillis(),
+            syncVersion = task.syncVersion + 1
+        )
+        taskDao.updateTask(priorityEngine.calculatePriority(restored))
         return true
     }
 }

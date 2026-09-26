@@ -22,7 +22,8 @@ class TaskCompletionUseCaseTest {
         var spawnedNextTask: TaskEntity? = null
 
         override fun getPendingTasksOrderedByPriority() = throw UnsupportedOperationException()
-        override suspend fun getPendingTasksListNow(): List<TaskEntity> = tasks.values.filter { it.status == "pending" && !it.isDeleted }
+        override suspend fun getPendingTasksListNow(): List<TaskEntity> = getPendingTasksListNowBlocking()
+        fun getPendingTasksListNowBlocking(): List<TaskEntity> = tasks.values.filter { it.status == "pending" && !it.isDeleted }
         override fun getAllTasks(): List<TaskEntity> = tasks.values.toList()
         override fun getActiveTasks(): List<TaskEntity> = tasks.values.filter { !it.isDeleted }
         override fun getCompletedTasksWithSessions() = throw UnsupportedOperationException()
@@ -81,6 +82,11 @@ class TaskCompletionUseCaseTest {
         }
         override fun purgeOldTombstones(cutoffTimestamp: Long) {
             sessions.removeIf { it.isDeleted && (it.deletedAt ?: 0L) < cutoffTimestamp }
+        }
+        override fun restoreSessionsForTask(taskId: String, updatedAt: Long) {
+            sessions.indices.filter { sessions[it].taskId == taskId }.forEach {
+                sessions[it] = sessions[it].copy(isDeleted = false, deletedAt = null, updatedAt = updatedAt)
+            }
         }
         override fun deleteSessionsForTask(taskId: String) {}
         override fun deleteOrphanedSessions() {}
@@ -150,7 +156,7 @@ class TaskCompletionUseCaseTest {
         )
         taskDao.insertTask(task)
 
-        val result = useCase.execute("rec_task_1", feeling = 3, result = "Completada desde widget")
+        val result = useCase.execute("rec_task_1", feeling = 3, result = "Completada desde widget", today = java.time.LocalDate.of(2026, 8, 20))
 
         assertTrue(result)
         assertEquals("completed", taskDao.getTaskById("rec_task_1")?.status)
@@ -287,5 +293,106 @@ class TaskCompletionUseCaseTest {
         assertEquals("completed", completed!!.status)
         assertEquals(4L, completed.syncVersion)
     }
-}
 
+    private fun medicationTask(date: String, missedPolicy: String? = null) = TaskEntity(
+        taskId = "med_1",
+        title = "Tomar medicamento",
+        category = "salud",
+        subcategory = "medicación",
+        categoryWeight = 4.0,
+        date = date,
+        createdAt = 1000L,
+        updatedAt = 1000L,
+        recurrence = "DAILY",
+        recurrenceGroupId = "med_1",
+        missedPolicy = missedPolicy
+    )
+
+    @Test
+    fun `completing a daily task missed for 3 days spawns today, not another overdue occurrence`() = runBlocking {
+        val taskDao = FakeTaskDao()
+        val today = java.time.LocalDate.of(2026, 9, 25)
+        taskDao.insertTask(medicationTask(date = "2026-09-22"))
+
+        TaskCompletionUseCase(taskDao, FakeSessionDao(), skipMissedByDefault = true)
+            .execute("med_1", today = today)
+
+        assertEquals("2026-09-25", taskDao.spawnedNextTask?.date)
+    }
+
+    @Test
+    fun `completing today's daily occurrence with skip enabled spawns tomorrow`() = runBlocking {
+        val taskDao = FakeTaskDao()
+        val today = java.time.LocalDate.of(2026, 9, 25)
+        taskDao.insertTask(medicationTask(date = "2026-09-25"))
+
+        TaskCompletionUseCase(taskDao, FakeSessionDao(), skipMissedByDefault = true)
+            .execute("med_1", today = today)
+
+        assertEquals("2026-09-26", taskDao.spawnedNextTask?.date)
+    }
+
+    @Test
+    fun `per-task ACCUMULATE policy overrides the global skip default`() = runBlocking {
+        val taskDao = FakeTaskDao()
+        val today = java.time.LocalDate.of(2026, 9, 25)
+        taskDao.insertTask(medicationTask(date = "2026-09-22", missedPolicy = "ACCUMULATE"))
+
+        TaskCompletionUseCase(taskDao, FakeSessionDao(), skipMissedByDefault = true)
+            .execute("med_1", today = today)
+
+        assertEquals("2026-09-23", taskDao.spawnedNextTask?.date)
+    }
+
+    @Test
+    fun `per-task SKIP policy overrides a global accumulate default`() = runBlocking {
+        val taskDao = FakeTaskDao()
+        val today = java.time.LocalDate.of(2026, 9, 25)
+        taskDao.insertTask(medicationTask(date = "2026-09-22", missedPolicy = "SKIP"))
+
+        TaskCompletionUseCase(taskDao, FakeSessionDao(), skipMissedByDefault = false)
+            .execute("med_1", today = today)
+
+        assertEquals("2026-09-25", taskDao.spawnedNextTask?.date)
+    }
+
+    @Test
+    fun `next occurrence id is deterministic for the same series and date`() = runBlocking {
+        val today = java.time.LocalDate.of(2026, 9, 25)
+        val phoneDao = FakeTaskDao().apply { insertTask(medicationTask(date = "2026-09-25")) }
+        val tabletDao = FakeTaskDao().apply { insertTask(medicationTask(date = "2026-09-25")) }
+
+        TaskCompletionUseCase(phoneDao, FakeSessionDao()).execute("med_1", today = today)
+        TaskCompletionUseCase(tabletDao, FakeSessionDao()).execute("med_1", today = today)
+
+        assertNotNull(phoneDao.spawnedNextTask)
+        assertEquals(phoneDao.spawnedNextTask?.taskId, tabletDao.spawnedNextTask?.taskId)
+    }
+
+    @Test
+    fun `uncomplete reopens a completed task and bumps syncVersion`() = runBlocking {
+        val taskDao = FakeTaskDao()
+        val useCase = TaskCompletionUseCase(taskDao, FakeSessionDao())
+        taskDao.insertTask(medicationTask(date = "2026-09-25").copy(recurrence = null, status = "completed", syncVersion = 2L))
+
+        assertTrue(useCase.uncomplete("med_1"))
+        assertEquals("pending", taskDao.getTaskById("med_1")?.status)
+        assertEquals(3L, taskDao.getTaskById("med_1")?.syncVersion)
+        assertFalse(useCase.uncomplete("med_1"))
+    }
+
+    @Test
+    fun `sync merge tombstones a pending duplicate of the same recurring occurrence`() {
+        val taskDao = FakeTaskDao()
+        val local = medicationTask(date = "2026-09-26").copy(taskId = "local-random-id", syncVersion = 1L, updatedAt = 1000L)
+        taskDao.insertTask(local)
+        val remote = local.copy(taskId = "remote-random-id", syncVersion = 2L, updatedAt = 2000L)
+
+        val result = taskDao.syncMergeTasksAtomic(listOf(remote)) { it }
+
+        assertEquals(1, result.inserted)
+        assertTrue(taskDao.getTaskById("local-random-id")!!.isDeleted)
+        assertFalse(taskDao.getTaskById("remote-random-id")!!.isDeleted)
+        assertEquals(1, taskDao.getPendingTasksListNowBlocking().size)
+    }
+}
