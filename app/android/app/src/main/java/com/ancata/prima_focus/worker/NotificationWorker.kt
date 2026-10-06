@@ -86,7 +86,7 @@ class NotificationWorker(
                 )
 
                 val builder = NotificationCompat.Builder(context, Constants.NOTIFICATION_CHANNEL_ID)
-                    .setSmallIcon(android.R.drawable.ic_dialog_info) // Placeholder
+                    .setSmallIcon(R.drawable.ic_stat_notification)
                     .setContentTitle(title)
                     .setContentText(text)
                     .setPriority(priority)

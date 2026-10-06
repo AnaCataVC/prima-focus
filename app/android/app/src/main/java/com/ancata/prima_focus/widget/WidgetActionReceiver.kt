@@ -7,6 +7,7 @@ import android.content.Intent
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import com.ancata.prima_focus.R
 import com.ancata.prima_focus.data.local.PrimaFocusDatabase
 import com.ancata.prima_focus.data.prefs.UserPreferences
 import com.ancata.prima_focus.domain.TaskCompletionUseCase
@@ -86,7 +87,7 @@ class WidgetActionReceiver : BroadcastReceiver() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             val notification = NotificationCompat.Builder(context, Constants.NOTIFICATION_CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.checkbox_on_background)
+                .setSmallIcon(R.drawable.ic_stat_task_completed)
                 .setContentTitle("✓ $title")
                 .setContentText("Tarea completada")
                 .setPriority(NotificationCompat.PRIORITY_LOW)
