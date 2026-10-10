@@ -42,3 +42,6 @@ Para lograr el efecto de "cristal esmerilado con volumen y destellos" sin compro
 - **Ambigüedad de Scope (`size`):** Al usar `drawBehind`, si el modificador se usa en un contexto donde ya existe una variable o función `size` (por ejemplo, al importar `Modifier.size()`), el compilador de Kotlin puede confundirse y fallar la compilación con `Unresolved reference`. 
   - **Solución:** Siempre usar explícitamente `this.size.width` o `this.size.height` para asegurar que referenciamos el `DrawScope`.
 - **Rendimiento:** Al basarse en dibujo nativo (Canvas via `drawBehind`) en lugar de apilar múltiples vistas `Box`, mantenemos el árbol de composición ligero y evitamos sobrecarga de renderizado.
+- **Orden de Modificadores en Tarjetas (`background` -> `border` -> `clip`):** Aplicar `clip(shape)` antes de `border(...)` recorta la mitad exterior del trazo del borde en las esquinas redondeadas. Además, un gradiente que termina en `Color(0x00FFFFFF)` causa que las esquinas inferiores derechas parezcan invisibles.
+  - **Solución:** Aplicar siempre el orden canónico `Modifier.background(surface, shape).border(1.dp, brush, shape).clip(shape)`, y mantener un piso de opacidad mínimo (8%-10%) en el color final del gradiente del borde (`glassBorderEnd`).
+

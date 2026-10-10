@@ -33,6 +33,8 @@ Prima-Focus es una aplicación de gestión de tareas y enfoque profundo "local-f
 - **Recurrencias Salteadas**: Un ajuste global y una anulación por tarea deciden si una tarea recurrente vencida (ej. medicación diaria) salta directo a la próxima ocurrencia en vez de acumular instancias atrasadas.
 - **Sincronización Reforzada**: IDs deterministas para instancias recurrentes y deduplicación evitan spawns duplicados entre dispositivos, un ID de dispositivo estable desempata conflictos con igual versión, las categorías/tema/recurrencias salteadas se sincronizan junto a las tareas, y un resumen post-merge informa cuántas se recibieron/actualizaron/crearon.
 - **Feedback Instantáneo en Widgets**: Completar una tarea desde un widget muestra un check optimista de inmediato y publica una notificación "Deshacer", sin esperar el refresco completo del widget.
+- **Celebración de Tareas Añejadas y Motor de Partículas**: Reconocimiento al completar tareas postergadas por mucho tiempo con animación de confeti nativo (`Canvas` + `withFrameNanos`) y umbral configurable de antigüedad (14, 30, 60, 90 días).
+- **Recorte de Bordes Glassmorphism de Precisión**: Orden canónico de modificadores (`background` -> `border` -> `clip`) y pisos de gradiente con opacidad mínima no nula para evitar esquinas redondeadas cortadas.
 
 ### Tecnologías Utilizadas
 - **Lenguajes y Frameworks**: Kotlin Multiplatform, Java 17 Toolchain
@@ -58,6 +60,7 @@ Explora nuestra documentación técnica completa para entender cómo funciona Pr
 - [Stress-Test Desktop y Sync LAN](docs/external-references/desktop-kmp-sync-stress-test.md)
 - [Flujo de Notificaciones](docs/notification_flow.md)
 - [Especificaciones de UI](docs/ui_spec.md)
+- [Lecciones: Confeti en Canvas y Bordes en Tarjetas](docs/learning/compose-card-borders-and-confetti.md)
 - [Lecciones: P2P Sync, Tombstones y Clock Drift](docs/learning/p2p-sync-tombstones-clockdrift-gc.md)
 - [Todos los Aprendizajes y Decisiones](docs/learning/)
 

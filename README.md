@@ -32,6 +32,8 @@ Prima-Focus is a local-first task management and deep work application designed 
 - **Skip-Missed Recurrences**: A global default and a per-task override decide whether an overdue recurring task (e.g. daily medication) jumps straight to the next due occurrence instead of piling up overdue instances.
 - **Sync Hardening**: Deterministic recurring-instance IDs and dedup prevent cross-device duplicate spawns, a stable per-device ID tiebreaks equal-version conflicts, categories/theme/skip-missed settings sync alongside tasks, and a post-merge summary reports received/updated/new counts.
 - **Instant Widget Feedback**: Completing a task from a widget shows an optimistic checkmark immediately and posts an "Undo" notification, instead of waiting on a full widget refresh.
+- **Long-Pending Task Celebrations & Particle Engine**: Rewarding the completion of long-overdue tasks with custom in-engine confetti physics (`Canvas` + `withFrameNanos`) and configurable aging thresholds (14, 30, 60, 90 days).
+- **Precision Glassmorphism Clipping**: Canonical Modifier chaining (`background` -> `border` -> `clip`) and subtle non-zero gradient floors preventing cut-off card corners.
 
 ### Technologies Used
 - **Languages & Frameworks**: Kotlin Multiplatform, Java 17 Toolchain
@@ -57,6 +59,7 @@ Explore our comprehensive technical documentation to understand how Prima-Focus 
 - [Desktop & LAN Sync Stress-Test](docs/external-references/desktop-kmp-sync-stress-test.md)
 - [Notification Flow](docs/notification_flow.md)
 - [UI Specifications](docs/ui_spec.md)
+- [Learnings: Confetti Canvas & Card Borders](docs/learning/compose-card-borders-and-confetti.md)
 - [Learnings: P2P Sync, Tombstones & Clock Drift](docs/learning/p2p-sync-tombstones-clockdrift-gc.md)
 - [All Architecture Learnings](docs/learning/)
 
