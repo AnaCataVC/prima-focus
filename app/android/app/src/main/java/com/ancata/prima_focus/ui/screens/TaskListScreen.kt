@@ -145,13 +145,14 @@ fun TaskListScreen(
                 "Pendientes (${pendingTasks.size})"
             }
 
+            val tabShape = RoundedCornerShape(16.dp)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(glows.glassSurface)
-                    .border(1.dp, glows.glassBorderStart, RoundedCornerShape(16.dp))
+                    .background(glows.glassSurface, tabShape)
+                    .border(1.dp, glows.glassBorderStart, tabShape)
+                    .clip(tabShape)
                     .padding(4.dp)
             ) {
                 TabButton(
@@ -195,11 +196,11 @@ fun TaskListScreen(
                         if (futureTasks.isNotEmpty()) {
                             item(key = "future_tasks_accordion_header") {
                                 Spacer(modifier = Modifier.height(4.dp))
+                                val accordionShape = RoundedCornerShape(16.dp)
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .background(glows.glassSurface.copy(alpha = 0.45f))
+                                        .background(glows.glassSurface.copy(alpha = 0.45f), accordionShape)
                                         .border(
                                             width = 1.dp,
                                             brush = Brush.linearGradient(
@@ -208,8 +209,9 @@ fun TaskListScreen(
                                                     glows.glassBorderEnd.copy(alpha = 0.2f)
                                                 )
                                             ),
-                                            shape = RoundedCornerShape(16.dp)
+                                            shape = accordionShape
                                         )
+                                        .clip(accordionShape)
                                         .clickable { isFutureExpanded = !isFutureExpanded }
                                         .padding(horizontal = 16.dp, vertical = 14.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -389,18 +391,19 @@ fun TaskListItem(
         PriorityBand.NORMAL -> MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
     }
 
+    val itemShape = RoundedCornerShape(16.dp)
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(glows.glassSurface)
+            .background(glows.glassSurface, itemShape)
             .border(
                 width = 1.dp,
                 brush = Brush.linearGradient(
                     colors = listOf(glows.glassBorderStart, glows.glassBorderEnd)
                 ),
-                shape = RoundedCornerShape(16.dp)
+                shape = itemShape
             )
+            .clip(itemShape)
     ) {
         Column(
             modifier = Modifier
@@ -566,16 +569,17 @@ fun CompletedTaskListItem(
     val glows = LocalPremiumGlows.current
     var notesExpanded by remember { mutableStateOf(false) }
 
+    val completedShape = RoundedCornerShape(16.dp)
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(glows.glassSurface.copy(alpha = 0.5f))
+            .background(glows.glassSurface.copy(alpha = 0.5f), completedShape)
             .border(
                 1.dp,
                 glows.glassBorderStart.copy(alpha = 0.4f),
-                RoundedCornerShape(16.dp)
+                completedShape
             )
+            .clip(completedShape)
             .padding(16.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {

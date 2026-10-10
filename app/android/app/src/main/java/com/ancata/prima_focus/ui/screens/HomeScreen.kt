@@ -169,19 +169,19 @@ fun HomeScreen(
                 val heroTask = focusState.heroTask!!
                 var heroNotesExpanded by remember { mutableStateOf(false) }
 
-                // ==================== HERO FOCUS CARD (#1) ====================
+                val heroShape = RoundedCornerShape(24.dp)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(glows.glassSurface)
+                        .background(glows.glassSurface, heroShape)
                         .border(
                             width = 1.dp,
                             brush = Brush.linearGradient(
                                 colors = listOf(glows.glassBorderStart, glows.glassBorderEnd)
                             ),
-                            shape = RoundedCornerShape(24.dp)
+                            shape = heroShape
                         )
+                        .clip(heroShape)
                 ) {
                     Column(
                         modifier = Modifier.padding(24.dp),
@@ -461,18 +461,19 @@ fun SecondaryTaskCard(
     val glows = LocalPremiumGlows.current
     var notesExpanded by remember { mutableStateOf(false) }
 
+    val cardShape = RoundedCornerShape(18.dp)
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(glows.glassSurface)
+            .background(glows.glassSurface, cardShape)
             .border(
                 width = 1.dp,
                 brush = Brush.linearGradient(
                     colors = listOf(glows.glassBorderStart, glows.glassBorderEnd)
                 ),
-                shape = RoundedCornerShape(18.dp)
+                shape = cardShape
             )
+            .clip(cardShape)
     ) {
         Column(
             modifier = Modifier

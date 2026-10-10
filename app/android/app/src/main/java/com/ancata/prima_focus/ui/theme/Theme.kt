@@ -84,7 +84,7 @@ private val LightGlows = PremiumGlowColors(
     coloredShadow = LightRoseShadow,
     glassSurface = LightGlassSurface,
     glassBorderStart = LightGlassBorderStart,
-    glassBorderEnd = GlassBorderEnd,
+    glassBorderEnd = LightGlassBorderEnd,
     bottomNavBg = LightBottomNavBackground,
     backgroundCenter = LightSurface,
     backgroundEdge = LightBackground
@@ -95,6 +95,7 @@ private fun PremiumGlowColors.withDynamicScheme(scheme: ColorScheme) = copy(
     primaryGlow = scheme.primary,
     primaryAccent = scheme.primary,
     glassBorderStart = scheme.primary.copy(alpha = 0.2f),
+    glassBorderEnd = scheme.primary.copy(alpha = 0.08f),
     backgroundCenter = scheme.surface,
     backgroundEdge = scheme.background
 )
