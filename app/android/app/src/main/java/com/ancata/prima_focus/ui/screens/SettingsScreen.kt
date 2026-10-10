@@ -47,21 +47,24 @@ fun SettingsScreen(viewModel: TaskViewModel) {
     var disconnectEndTime by remember { mutableStateOf(viewModel.disconnectEndTime) }
     var skipMissedOccurrences by remember { mutableStateOf(preferences.skipMissedOccurrences) }
     val isHistoryTrackingEnabled by preferences.isHistoryTrackingEnabled.collectAsState()
+    val isLongPendingCelebrationEnabled by preferences.isLongPendingCelebrationEnabled.collectAsState()
+    val longPendingThresholdDays by preferences.longPendingThresholdDays.collectAsState()
     val themeSettings by preferences.themeSettings.collectAsState()
     val categoryEmojis by preferences.categoryEmojis.collectAsState()
 
     var notifExpanded by remember { mutableStateOf(false) }
     var emojiPickerCategory by remember { mutableStateOf<String?>(null) }
 
+    val glassShape = RoundedCornerShape(24.dp)
     val glassModifier = Modifier
         .fillMaxWidth()
-        .clip(RoundedCornerShape(24.dp))
-        .background(glows.glassSurface)
+        .background(glows.glassSurface, glassShape)
         .border(
             1.dp,
             Brush.linearGradient(listOf(glows.glassBorderStart, glows.glassBorderEnd)),
-            RoundedCornerShape(24.dp)
+            glassShape
         )
+        .clip(glassShape)
         .padding(24.dp)
 
     val switchColors = SwitchDefaults.colors(
@@ -365,6 +368,47 @@ fun SettingsScreen(viewModel: TaskViewModel) {
                     onCheckedChange = { preferences.historyTrackingEnabled = it },
                     switchColors = switchColors
                 )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // ==================== CELEBRATION OF LONG-PENDING TASKS ====================
+            Column(modifier = glassModifier) {
+                SectionTitle("Celebración de Tareas Añejadas")
+                SectionHint("Lanza una lluvia de confeti y muestra un mensaje especial cuando logres completar una tarea que llevaba mucho tiempo pendiente.")
+
+                SettingSwitchRow(
+                    title = "Celebrar tareas pendientes antiguas",
+                    subtitle = if (isLongPendingCelebrationEnabled)
+                        "Muestra confeti y felicitación al completar tareas de larga data."
+                    else
+                        "Desactivado: no muestra celebraciones especiales al completar tareas antiguas.",
+                    checked = isLongPendingCelebrationEnabled,
+                    onCheckedChange = { preferences.longPendingCelebrationEnabled = it },
+                    switchColors = switchColors
+                )
+
+                if (isLongPendingCelebrationEnabled) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Antigüedad mínima para celebrar:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = textColor
+                    )
+                    val thresholdOptions = listOf(14 to "2 sem", 30 to "1 mes", 60 to "2 meses", 90 to "3 meses")
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                        thresholdOptions.forEachIndexed { index, (days, label) ->
+                            SegmentedButton(
+                                selected = longPendingThresholdDays == days,
+                                onClick = { preferences.longPendingThresholdDaysValue = days },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = thresholdOptions.size)
+                            ) {
+                                Text(label)
+                            }
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))

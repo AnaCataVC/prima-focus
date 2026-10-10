@@ -22,6 +22,7 @@ import com.ancata.prima_focus.ui.screens.HomeScreen
 import com.ancata.prima_focus.ui.screens.InboxModal
 import com.ancata.prima_focus.ui.screens.TimerScreen
 import com.ancata.prima_focus.ui.screens.QuickReviewModal
+import com.ancata.prima_focus.ui.screens.LongPendingCelebrationModal
 import com.ancata.prima_focus.ui.screens.SettingsScreen
 import com.ancata.prima_focus.ui.screens.TaskListScreen
 import com.ancata.prima_focus.ui.theme.PrimaFocusTheme
@@ -174,6 +175,7 @@ fun MainApp(
         }
     }
     val pendingConnection by viewModel.p2pSyncManager.pendingConnection.collectAsState()
+    val celebrationEvent by viewModel.celebrationEvent.collectAsState()
 
     LaunchedEffect(navigateToTimer) {
         navigateToTimer?.let { intent ->
@@ -369,6 +371,13 @@ fun MainApp(
                 viewModel = viewModel,
                 taskId = taskId,
                 onDismiss = { taskForReview = null }
+            )
+        }
+
+        celebrationEvent?.let { event ->
+            LongPendingCelebrationModal(
+                event = event,
+                onDismiss = { viewModel.dismissCelebration() }
             )
         }
     }

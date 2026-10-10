@@ -30,6 +30,7 @@ import com.ancata.prima_focus.sync.SyncDataPayload
 import com.ancata.prima_focus.core.sync.SyncMergeEngine
 import com.ancata.prima_focus.data.prefs.UserPreferences
 import com.ancata.prima_focus.domain.TaskCompletionUseCase
+import com.ancata.prima_focus.core.utils.LongPendingCelebrationCalculator
 import com.ancata.prima_focus.widget.WidgetUpdater
 import kotlinx.coroutines.withContext
 
@@ -80,6 +81,13 @@ data class BackupDataPayload(
     val exportedAt: Long = System.currentTimeMillis(),
     val tasks: List<TaskEntity>,
     val sessions: List<SessionEntity>
+)
+
+data class CelebrationEvent(
+    val taskId: String,
+    val taskTitle: String,
+    val pendingDays: Int,
+    val formattedDuration: String
 )
 
 class TaskViewModel(application: Application) : AndroidViewModel(application) {
@@ -253,8 +261,18 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    private val _celebrationEvent = MutableStateFlow<CelebrationEvent?>(null)
+    val celebrationEvent: StateFlow<CelebrationEvent?> = _celebrationEvent.asStateFlow()
+
+    fun dismissCelebration() {
+        _celebrationEvent.value = null
+    }
+
     fun uncompleteTask(task: TaskEntity) {
         viewModelScope.launch(Dispatchers.IO) {
+            if (_celebrationEvent.value?.taskId == task.taskId) {
+                _celebrationEvent.value = null
+            }
             completionUseCase().uncomplete(task.taskId)
             updateWidgets()
         }
@@ -368,7 +386,28 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
     fun completeTask(taskId: String, feeling: Int, result: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            completionUseCase().execute(taskId, feeling, result)
+            val task = taskDao.getTaskById(taskId)
+            val success = completionUseCase().execute(taskId, feeling, result)
+            if (success && task != null) {
+                val now = System.currentTimeMillis()
+                val shouldCelebrate = LongPendingCelebrationCalculator.shouldTriggerCelebration(
+                    isRecurring = task.recurrence != null,
+                    createdAtEpochMs = task.createdAt,
+                    nowEpochMs = now,
+                    thresholdDays = preferences.longPendingThresholdDaysValue,
+                    isEnabled = preferences.longPendingCelebrationEnabled
+                )
+                if (shouldCelebrate) {
+                    val days = LongPendingCelebrationCalculator.calculatePendingDays(task.createdAt, now)
+                    val formatted = LongPendingCelebrationCalculator.formatPendingDuration(days)
+                    _celebrationEvent.value = CelebrationEvent(
+                        taskId = task.taskId,
+                        taskTitle = task.title,
+                        pendingDays = days,
+                        formattedDuration = formatted
+                    )
+                }
+            }
             updateWidgets()
         }
     }

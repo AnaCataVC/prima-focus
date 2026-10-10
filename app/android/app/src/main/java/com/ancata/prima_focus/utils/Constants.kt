@@ -21,6 +21,10 @@ object Constants {
     const val PREF_DYNAMIC_COLOR = "dynamic_color"
     const val PREF_SKIP_MISSED_OCCURRENCES = "skip_missed_occurrences"
     const val PREF_DEVICE_ID = "device_id"
+    const val PREF_LONG_PENDING_CELEBRATION_ENABLED = "long_pending_celebration_enabled"
+    const val PREF_LONG_PENDING_THRESHOLD_DAYS = "long_pending_threshold_days"
+    const val DEFAULT_LONG_PENDING_THRESHOLD_DAYS = 30
+    val LONG_PENDING_THRESHOLD_OPTIONS = listOf(14, 30, 60, 90)
 
     const val FALLBACK_CATEGORY_EMOJI = "📌"
 

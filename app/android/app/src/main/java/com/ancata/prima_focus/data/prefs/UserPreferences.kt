@@ -37,6 +37,16 @@ class UserPreferences private constructor(context: Context) {
     )
     val isHistoryTrackingEnabled: StateFlow<Boolean> = _isHistoryTrackingEnabled.asStateFlow()
 
+    private val _isLongPendingCelebrationEnabled = MutableStateFlow(
+        prefs.getBoolean(Constants.PREF_LONG_PENDING_CELEBRATION_ENABLED, true)
+    )
+    val isLongPendingCelebrationEnabled: StateFlow<Boolean> = _isLongPendingCelebrationEnabled.asStateFlow()
+
+    private val _longPendingThresholdDays = MutableStateFlow(
+        prefs.getInt(Constants.PREF_LONG_PENDING_THRESHOLD_DAYS, Constants.DEFAULT_LONG_PENDING_THRESHOLD_DAYS)
+    )
+    val longPendingThresholdDays: StateFlow<Int> = _longPendingThresholdDays.asStateFlow()
+
     var notificationFrequency: Int
         get() {
             val freq = prefs.getInt(Constants.PREF_NOTIFICATION_FREQUENCY, Constants.DEFAULT_NOTIFICATION_FREQUENCY)
@@ -73,6 +83,20 @@ class UserPreferences private constructor(context: Context) {
         set(value) {
             prefs.edit().putBoolean(Constants.PREF_HISTORY_TRACKING_ENABLED, value).apply()
             _isHistoryTrackingEnabled.value = value
+        }
+
+    var longPendingCelebrationEnabled: Boolean
+        get() = _isLongPendingCelebrationEnabled.value
+        set(value) {
+            prefs.edit().putBoolean(Constants.PREF_LONG_PENDING_CELEBRATION_ENABLED, value).apply()
+            _isLongPendingCelebrationEnabled.value = value
+        }
+
+    var longPendingThresholdDaysValue: Int
+        get() = _longPendingThresholdDays.value
+        set(value) {
+            prefs.edit().putInt(Constants.PREF_LONG_PENDING_THRESHOLD_DAYS, value).apply()
+            _longPendingThresholdDays.value = value
         }
 
     /** Global default for recurring tasks whose own missedPolicy is null. */
