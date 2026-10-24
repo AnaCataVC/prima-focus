@@ -42,28 +42,6 @@
         </service>
 
         <receiver
-            android:name=".widget.AddTaskWidgetProvider"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_add_task_info" />
-        </receiver>
-
-        <receiver
-            android:name=".widget.TopTaskWidgetProvider"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_top_task_info" />
-        </receiver>
-
-        <receiver
             android:name=".widget.TopThreeTasksWidgetReceiver"
             android:exported="true">
             <intent-filter>
@@ -83,6 +61,17 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_quick_add_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.OldestDeferredTaskWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_oldest_deferred_info" />
         </receiver>
 
         <receiver

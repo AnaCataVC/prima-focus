@@ -8,28 +8,31 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.longPreferencesKey
-import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.LocalSize
+import androidx.glance.action.Action
+import androidx.glance.action.ActionParameters
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
-import androidx.glance.appwidget.state.updateAppWidgetState
-import androidx.glance.currentState
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
+import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
+import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.background
+import androidx.glance.currentState
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
@@ -42,8 +45,8 @@ import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
-import androidx.glance.text.TextDecoration
 import androidx.glance.text.Text
+import androidx.glance.text.TextDecoration
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.ancata.prima_focus.MainActivity
@@ -70,27 +73,40 @@ private val PriorityLow = Color(0xFF4ADE80)    // AccentSage
 private val ContentPadding = 12.dp
 private val RowGap = 6.dp
 
+const val FILTER_ALL = "ALL"
+const val FILTER_SINGLE = "SINGLE"
+const val FILTER_RECURRING = "RECURRING"
+
 class TopThreeTasksWidget : GlanceAppWidget() {
 
     // Exact so LocalSize reports the real cell size and the layout can scale to it.
     override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val initialTasks = loadTopTasks(context)
+        val initialTasks = loadTopTasks(context, FILTER_ALL)
 
         provideContent {
             val state = currentState<Preferences>()
+            val filterMode = state[FilterModeKey] ?: FILTER_ALL
             // A running Glance session does not re-run provideGlance, so data is reloaded
-            // inside the composition whenever refresh() bumps the token.
+            // inside the composition whenever refresh() bumps the token or filterMode changes.
             var tasks by remember { mutableStateOf(initialTasks) }
-            LaunchedEffect(state[RefreshTokenKey]) { tasks = loadTopTasks(context) }
-            TopThreeTasksContent(context = context, tasks = tasks, completingTaskId = state[CompletingTaskKey])
+            LaunchedEffect(state[RefreshTokenKey], filterMode) {
+                tasks = loadTopTasks(context, filterMode)
+            }
+            TopThreeTasksContent(
+                context = context,
+                tasks = tasks,
+                filterMode = filterMode,
+                completingTaskId = state[CompletingTaskKey]
+            )
         }
     }
 
     companion object {
         /** Task currently being completed from the widget, rendered as done optimistically. */
         val CompletingTaskKey = stringPreferencesKey("completing_task_id")
+        val FilterModeKey = stringPreferencesKey("filter_mode")
         private val RefreshTokenKey = longPreferencesKey("refresh_token")
 
         suspend fun refresh(context: Context) {
@@ -100,17 +116,41 @@ class TopThreeTasksWidget : GlanceAppWidget() {
             }
         }
 
-        private suspend fun loadTopTasks(context: Context): List<TaskEntity> {
+        fun filterTasksByMode(tasks: List<TaskEntity>, filterMode: String): List<TaskEntity> {
+            val filtered = when (filterMode) {
+                FILTER_SINGLE -> tasks.filter { it.recurrence.isNullOrBlank() }
+                FILTER_RECURRING -> tasks.filter { !it.recurrence.isNullOrBlank() }
+                else -> tasks
+            }
+            return filtered.take(3)
+        }
+
+        suspend fun loadTopTasks(context: Context, filterMode: String = FILTER_ALL): List<TaskEntity> {
             val today = LocalDate.now()
-            return PrimaFocusDatabase.getDatabase(context).taskDao().getPendingTasksListNow()
+            val pending = PrimaFocusDatabase.getDatabase(context).taskDao().getPendingTasksListNow()
                 .filter { !TimeUtils.isFutureScheduled(it.date, today) }
-                .take(3)
+
+            return filterTasksByMode(pending, filterMode)
         }
     }
 }
 
 class TopThreeTasksWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = TopThreeTasksWidget()
+}
+
+class SetFilterGlanceAction : ActionCallback {
+    companion object {
+        val TargetFilterKey = ActionParameters.Key<String>("target_filter_key")
+    }
+
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        val target = parameters[TargetFilterKey] ?: FILTER_ALL
+        updateAppWidgetState(context, glanceId) { prefs ->
+            prefs[TopThreeTasksWidget.FilterModeKey] = target
+        }
+        TopThreeTasksWidget().update(context, glanceId)
+    }
 }
 
 /**
@@ -128,8 +168,14 @@ private class RowMetrics(availableHeight: Float, rowCount: Int) {
 }
 
 @Composable
-fun TopThreeTasksContent(context: Context, tasks: List<TaskEntity>, completingTaskId: String?) {
+fun TopThreeTasksContent(
+    context: Context,
+    tasks: List<TaskEntity>,
+    filterMode: String,
+    completingTaskId: String?
+) {
     val mainComponent = ComponentName(context, MainActivity::class.java)
+    val availableWidth = LocalSize.current.width.value
     val listHeight = LocalSize.current.height.value -
         (ContentPadding.value * 2) - 26f - (RowGap.value * (tasks.size - 1).coerceAtLeast(0))
     val metrics = RowMetrics(listHeight, tasks.size)
@@ -142,19 +188,94 @@ fun TopThreeTasksContent(context: Context, tasks: List<TaskEntity>, completingTa
             .cornerRadius(16.dp)
             .padding(ContentPadding)
     ) {
-        // Header — same style as widget_top_task_header
-        Text(
-            text = "Top 3 Tareas",
-            style = TextStyle(
-                color = ColorProvider(TextMuted),
-                fontSize = metrics.header.sp,
-                fontWeight = FontWeight.Bold
+        // Header with filter controls
+        Row(
+            modifier = GlanceModifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Top 3 Tareas",
+                style = TextStyle(
+                    color = ColorProvider(TextMuted),
+                    fontSize = metrics.header.sp,
+                    fontWeight = FontWeight.Bold
+                ),
+                modifier = GlanceModifier.defaultWeight()
             )
-        )
+
+            if (availableWidth >= 280f) {
+                // Expanded width: segmented chips
+                FilterPill(
+                    label = "Todas",
+                    isSelected = filterMode == FILTER_ALL,
+                    metrics = metrics,
+                    onClick = actionRunCallback<SetFilterGlanceAction>(
+                        actionParametersOf(SetFilterGlanceAction.TargetFilterKey to FILTER_ALL)
+                    )
+                )
+                Spacer(modifier = GlanceModifier.width(4.dp))
+                FilterPill(
+                    label = "Únicas",
+                    isSelected = filterMode == FILTER_SINGLE,
+                    metrics = metrics,
+                    onClick = actionRunCallback<SetFilterGlanceAction>(
+                        actionParametersOf(SetFilterGlanceAction.TargetFilterKey to FILTER_SINGLE)
+                    )
+                )
+                Spacer(modifier = GlanceModifier.width(4.dp))
+                FilterPill(
+                    label = "Rutinas",
+                    isSelected = filterMode == FILTER_RECURRING,
+                    metrics = metrics,
+                    onClick = actionRunCallback<SetFilterGlanceAction>(
+                        actionParametersOf(SetFilterGlanceAction.TargetFilterKey to FILTER_RECURRING)
+                    )
+                )
+            } else {
+                // Compact width: cycling filter button
+                val currentLabel = when (filterMode) {
+                    FILTER_SINGLE -> "Únicas"
+                    FILTER_RECURRING -> "Rutinas"
+                    else -> "Todas"
+                }
+                val nextFilter = when (filterMode) {
+                    FILTER_ALL -> FILTER_SINGLE
+                    FILTER_SINGLE -> FILTER_RECURRING
+                    else -> FILTER_ALL
+                }
+
+                Box(
+                    modifier = GlanceModifier
+                        .background(ColorProvider(if (filterMode == FILTER_ALL) WidgetItemBackground else AccentRose))
+                        .cornerRadius(10.dp)
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                        .clickable(
+                            actionRunCallback<SetFilterGlanceAction>(
+                                actionParametersOf(SetFilterGlanceAction.TargetFilterKey to nextFilter)
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "$currentLabel ▾",
+                        style = TextStyle(
+                            color = ColorProvider(if (filterMode == FILTER_ALL) TextMuted else Color.White),
+                            fontSize = (metrics.header * 0.85f).coerceIn(10f, 13f).sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                }
+            }
+        }
 
         Spacer(modifier = GlanceModifier.height(6.dp))
 
         if (tasks.isEmpty()) {
+            val emptyMessage = when (filterMode) {
+                FILTER_SINGLE -> "Sin tareas únicas"
+                FILTER_RECURRING -> "Sin rutinas pendientes"
+                else -> "Todo al día"
+            }
             Box(
                 modifier = GlanceModifier
                     .fillMaxSize()
@@ -162,7 +283,7 @@ fun TopThreeTasksContent(context: Context, tasks: List<TaskEntity>, completingTa
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Todo al día",
+                    text = emptyMessage,
                     style = TextStyle(
                         color = ColorProvider(TextMuted),
                         fontSize = metrics.title.sp,
@@ -185,6 +306,34 @@ fun TopThreeTasksContent(context: Context, tasks: List<TaskEntity>, completingTa
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun FilterPill(
+    label: String,
+    isSelected: Boolean,
+    metrics: RowMetrics,
+    onClick: Action
+) {
+    val bgColor = if (isSelected) AccentRose else WidgetItemBackground
+    val textColor = if (isSelected) Color.White else TextMuted
+    Box(
+        modifier = GlanceModifier
+            .background(ColorProvider(bgColor))
+            .cornerRadius(10.dp)
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+            .clickable(onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            style = TextStyle(
+                color = ColorProvider(textColor),
+                fontSize = (metrics.header * 0.78f).coerceIn(10f, 13f).sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+            )
+        )
     }
 }
 
@@ -262,7 +411,10 @@ private fun TaskGlanceRow(
                 .cornerRadius((metrics.button / 2).dp)
                 .clickable(
                     actionRunCallback<CompleteTaskGlanceAction>(
-                        actionParametersOf(CompleteTaskGlanceAction.TaskIdKey to task.taskId)
+                        actionParametersOf(
+                            CompleteTaskGlanceAction.TaskIdKey to task.taskId,
+                            CompleteTaskGlanceAction.SourceWidgetKey to "top_three"
+                        )
                     )
                 ),
             contentAlignment = Alignment.Center

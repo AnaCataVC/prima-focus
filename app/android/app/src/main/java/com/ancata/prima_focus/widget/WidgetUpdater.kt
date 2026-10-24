@@ -10,14 +10,14 @@ object WidgetUpdater {
     suspend fun refreshAll(context: Context) {
         val appContext = context.applicationContext
         try {
-            TopTaskWidgetProvider.updateAll(appContext)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to refresh TopTaskWidget", e)
-        }
-        try {
             TopThreeTasksWidget.refresh(appContext)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to refresh TopThreeTasksWidget", e)
+        }
+        try {
+            OldestDeferredTaskWidget.refresh(appContext)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to refresh OldestDeferredTaskWidget", e)
         }
     }
 }
