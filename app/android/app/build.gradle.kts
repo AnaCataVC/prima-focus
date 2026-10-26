@@ -16,8 +16,8 @@ android {
         applicationId = "com.ancata.prima_focus"
         minSdk = 26
         targetSdk = 36
-        versionCode = 15
-        versionName = "2.2.0"
+        versionCode = 16
+        versionName = "2.2.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
