@@ -1,68 +1,172 @@
-# Prima-Focus Architecture
+# Prima-Focus System Architecture & Technical Specifications
 
-## Overview
-Prima-Focus is a local-first task management application built with a **modular Kotlin Multiplatform (KMP)** architecture focused on Android (phones and tablets). 
-It is designed to provide a robust, private, and highly responsive experience by keeping all data locally on each device. It synchronizes across Android devices using secure local peer-to-peer (P2P) networking via Google Nearby Connections without requiring any cloud backend.
+## 1. Overview
+Prima-Focus is a local-first task management and deep work application built with a **modular Kotlin Multiplatform (KMP)** architecture focused on Android (smartphones and tablets). It guarantees complete data ownership, low latency, and zero telemetry by keeping all persistent records on the local device. Peer-to-peer (P2P) synchronization operates entirely over local networks via Google Nearby Connections (Wi-Fi Direct and BLE) with deterministic conflict resolution, eliminating the need for cloud databases, user accounts, or external servers.
 
-## Core Stack
-- **Language**: Kotlin Multiplatform (Kotlin 2.2.10)
-- **UI Toolkit**: Jetpack Compose (Material Design 3 with Adaptive Layouts) for Android
-- **Local Persistence**: Room Database v7 (Android) with deterministic relational schemas and soft delete tombstones
-- **Background Processing & Scheduling**: Android `WorkManager` & Foreground Services for mobile timers/notifications
-- **P2P Networking/Sync**: Google Nearby Connections API (Android-to-Android P2P Star Topology)
+---
 
-## Module Structure
-- **`:shared` (`com.ancata.prima_focus.core`)**: Common domain logic, `SharedPriorityEngine`, data models (`Task`, `Session`, `PriorityBand`), recurrence calculations (`SharedRecurrenceCalculator`), quiet hours scheduling (`SharedTimeUtils`), and the version-aware Last-Write-Wins (LWW) conflict resolution engine (`SyncMergeEngine`).
-- **`:app` (`com.ancata.prima_focus`)**: Native Android client featuring Room v7 persistence, Material 3 Glassmorphism UI (System/Light/Dark + Material You theming), Jetpack Glance Home Screen Widgets with instant feedback, and WorkManager background reminders.
+## 2. Core Stack & Module Boundaries
 
-## System Architecture Diagram
+| Layer / Subsystem | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Common Domain (`:shared`)** | Kotlin Multiplatform 2.2.10 | Pure business logic, `SharedPriorityEngine`, `SyncMergeEngine`, `SharedRecurrenceCalculator`, models (`Task`, `Session`, `PriorityBand`). Zero Android dependencies. |
+| **UI Toolkit (`:app`)** | Jetpack Compose (Material 3) | Declarative UI with Adaptive Window Size layouts (Phone, Tablet Split-View, NavigationRail), Material You dynamic color, custom Canvas particle confetti. |
+| **Local Persistence (`:app`)** | Room Database v7 (SQLite) | Relational database with soft-delete tombstones, monotonic `syncVersion`, and safe schema migrations. |
+| **Home Screen Widgets (`:app`)** | Jetpack Glance | Interactive single-task and 3-task widgets with optimistic completion and undo notifications. |
+| **P2P Networking (`:app`)** | Google Nearby Connections API | Wi-Fi Direct and BLE mesh in `P2P_STAR` topology with 6-digit numeric comparison pairing. |
+| **Background Processing (`:app`)** | Android WorkManager & Foreground Services | Recurrence reconciliation, 30-day tombstone garbage collection, and persistent focus session timers. |
 
-```text
-+-------------------------------------------------------------------------+
-|                    :shared (Core Domain Module)                         |
-|                                                                         |
-|  - SharedPriorityEngine (Base Score + Time Urgency + Aging)             |
-|  - Models: Task, Session, PriorityBand                                  |
-|  - SyncMergeEngine (LWW + Clock-Drift Immunity + Non-Regressive State)  |
-|  - SharedRecurrenceCalculator & SharedTimeUtils                         |
-+-------------------------------------------------------------------------+
-                                    ^
-                                    |
-+-----------------------------------+-----------------------------------+
-|                     :app (Android Native Client)                      |
-|                                                                       |
-|  - Compose UI (Phone/Tablet Adaptive Layouts)                         |
-|  - Split View & Calendar Widget                                       |
-|  - Room Database v7 (Tombstones & syncVersion)                        |
-|  - Google Nearby P2P Sync (Host / Client Modes, digit pairing)        |
-|  - WorkManager Reminders & Jetpack Glance Widgets                     |
-|  - JSON Backup Export/Import with Atomic LWW Merge Fallback           |
-+-----------------------------------------------------------------------+
+---
+
+## 3. High-Level Modular Architecture
+
+```mermaid
+flowchart TD
+    subgraph SharedModule [":shared — Pure Kotlin Multiplatform"]
+        SPE["SharedPriorityEngine<br/>• Static Base & Aging Decay<br/>• Critical Tier Floor (>= 70.0)<br/>• Dynamic Calendar Urgency"]
+        SME["SyncMergeEngine (LWW + Clock Drift)<br/>• Monotonic syncVersion Check<br/>• Non-Regressive Completed Guard<br/>• SHA-256 Content Hash Tie-Break"]
+        SRC["SharedRecurrenceCalculator<br/>• Deterministic Instance UUIDs<br/>• Skip-Missed Occurrences"]
+        SEC["LANAuthSecurity<br/>• HMAC-SHA256 Payload Signatures<br/>• SHA-256 PIN Hashing"]
+    end
+
+    subgraph AppUI [":app — Presentation & UI"]
+        Compose["Jetpack Compose UI<br/>(Today Task, Pomodoro, Adaptive Tablets)"]
+        Glance["Jetpack Glance Widgets<br/>(Single-Task & 3-Task List)"]
+        VM["ViewModels<br/>(StateFlow & Unidirectional Data Flow)"]
+    end
+
+    subgraph AppData [":app — Data & Network Infrastructure"]
+        RoomDB[("Room Database v7<br/>SQLite Local Store")]
+        Nearby["P2PSyncManager<br/>(Google Nearby Connections API)"]
+        Workers["WorkManager Workers<br/>(Recurrence Reconciliation & GC)"]
+    end
+
+    Compose --> VM
+    Glance --> VM
+    VM --> SPE
+    VM --> RoomDB
+    Nearby --> SEC
+    Nearby --> SME
+    SME --> RoomDB
+    Workers --> SRC
+    Workers --> RoomDB
 ```
 
-## Synchronization & Backup Architecture
+---
 
-### 1. Mobile-to-Mobile Nearby P2P Sync (Host vs Client Selection)
-- Employs Google Nearby Connections using the `P2P_STAR` topology.
-- In `SettingsScreen`, users explicitly choose their synchronization role:
-  - **Host ("Ser Anfitrión")**: Executes `p2pSyncManager.startAdvertising()`, broadcasting the device model to nearby peers.
-  - **Client ("Ser Cliente")**: Executes `p2pSyncManager.startDiscovery()`, scanning for available advertising peers.
-- **Battery & Safety Protections**:
-  - Discovery and Advertising automatically abort after 45 seconds of inactivity (`AUTO_TIMEOUT_MS = 45000L`).
-  - Payloads exceeding 5 MB (`MAX_PAYLOAD_BYTES`) are rejected immediately.
-  - `onConnectionInitiated` shows the Nearby authentication digits on both devices; the connection is accepted or rejected manually instead of auto-accepting.
-- **Conflict-Free Merge Guarantees**:
-  - Recurring-instance IDs are derived deterministically (`UUID.nameUUIDFromBytes("$groupId|$date")`), and `syncMergeTasksAtomic` dedupes any pre-existing duplicate by `recurrenceGroupId` + date, keeping the highest `syncVersion`.
-  - A stable per-device `deviceId` tiebreaks conflicts that land on the same `syncVersion`/`updatedAt`, so both peers converge on the same winner.
-  - The sync payload also carries category emojis, `skipMissedOccurrences`, and their `settingsUpdatedAt`, merged by LWW (theme is device-local and never synced). Older v1 payloads are still accepted.
-  - After a merge, the UI reports a summary (received / updated / new counts).
+## 4. Peer-to-Peer (P2P) Synchronization Protocol
 
-### 2. Offline JSON Backup Fallback
-- For devices separated across network topologies or without direct Bluetooth/Wi-Fi Direct connectivity, users can export and import complete JSON backups with atomic Last-Write-Wins merging.
+Synchronization between devices uses the Google Nearby Connections `P2P_STAR` topology. One device operates as **Host ("Ser Anfitrión")** and the other as **Client ("Ser Cliente")**, authenticated through mutual out-of-band numeric confirmation.
 
-### 3. Room Database v7 Schema & Data Guarantees
-- **Removal of Legacy Tables**: `MIGRATION_5_6` drops the unused dead table `events`, leaving a streamlined relational schema comprised solely of `tasks` and `sessions`.
-- **Skip-Missed Recurrences**: `MIGRATION_6_7` adds a nullable `missedPolicy` (`SKIP` | `ACCUMULATE` | `NULL` for the global default) so a recurring task can opt out of the global `skipMissedOccurrences` setting; `TaskCompletionUseCase` and `RecurrenceReconciliationWorker` advance an overdue series straight to the next due occurrence instead of spawning every missed instance.
-- **Clock-Drift Immunity**: Two-tier conflict resolution checks `syncVersion` before `updatedAt`, ensuring offline edits on out-of-sync clocks are never discarded.
-- **Non-Regressive Completed State**: Completed tasks remain completed during sync merges even if an older pending state has a slightly drifted timestamp.
-- **Automatic 30-Day Tombstone Purge**: Hard deletions are converted to soft-deletions (`isDeleted = 1`), and entries older than 30 days are purged automatically at application startup to keep SQLite storage fast and compact.
+### 4.1. Network Handshake & Mutual Data Exchange Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Host as Device A (Host / Phone)
+    participant Client as Device B (Client / Tablet)
+    participant Engine as SyncMergeEngine (:shared)
+    participant DB as Room Database v7
+
+    Note over Host: User taps "Ser Anfitrión"
+    Host->>Host: startAdvertising() [45s timeout guard]
+    Note over Client: User taps "Ser Cliente"
+    Client->>Client: startDiscovery() [45s timeout guard]
+
+    Client->>Host: Connection Request (Device Name & Endpoint)
+    Host-->>Client: onConnectionInitiated (Shows 6-Digit SAS Code)
+    
+    Note over Host,Client: Users visually verify matching 6-digit PIN on both screens
+    Host->>Host: acceptConnection()
+    Client->>Client: acceptConnection()
+
+    Note over Host,Client: Session Key established (HMAC-SHA256 authenticated)
+    Host->>Client: Payload: SyncDataPayload (Tasks, Sessions, Settings) + Signature
+    Client->>Host: Payload: SyncDataPayload (Tasks, Sessions, Settings) + Signature
+
+    Note over Host,Engine: Atomic Merge Execution
+    loop For each incoming Task / Session
+        Host->>Engine: resolveTaskConflict(localTask, remoteTask)
+        Engine-->>Host: MergeAction (KeepLocal | Update | Insert)
+    end
+
+    Host->>Engine: findRecurringDuplicates(allTasks)
+    Engine-->>Host: List of redundant recurrence instances
+    Host->>DB: Apply updates, mark duplicates as deleted, commit transaction
+    Host->>DB: purgeOldTombstones(now - 30 days)
+    
+    Note over Host,Client: Connection gracefully terminated. Summary counts displayed.
+```
+
+---
+
+## 5. Distributed Conflict Resolution Engine (`SyncMergeEngine`)
+
+Because devices may work disconnected for days across varying time zones or with drifted system clocks, Prima Focus abandons naive wall-clock Last-Write-Wins in favor of a **version-aware, multi-tier deterministic resolution algorithm**.
+
+### 5.1. Conflict Resolution Flowchart
+
+```mermaid
+flowchart TD
+    Start["resolveTaskConflict(local, remote)"] --> IsNull{"local == null ?"}
+    IsNull -- Yes --> ActionInsert["MergeAction.Insert(remote)"]
+    IsNull -- No --> Rule1{"Rule 1: Non-Regressive Completed?<br/>local == completed AND<br/>remote == pending AND !remote.isDeleted"}
+
+    Rule1 -- Yes --> FixRegress["Preserve completed status<br/>Bump syncVersion = max(vL, vR) + 1<br/>MergeAction.Update(merged)"]
+    
+    Rule1 -- No --> Rule2{"Rule 2: syncVersion check<br/>remote.syncVersion != local.syncVersion ?"}
+    Rule2 -- Yes --> VersionCheck{"remote.syncVersion > local.syncVersion ?"}
+    VersionCheck -- Yes --> ActionUpdate["MergeAction.Update(remote)"]
+    VersionCheck -- No --> ActionKeep["MergeAction.KeepLocal"]
+
+    Rule2 -- No --> Rule3{"Rule 3: updatedAt check<br/>remote.updatedAt != local.updatedAt ?"}
+    Rule3 -- Yes --> TimestampCheck{"remote.updatedAt > local.updatedAt ?"}
+    TimestampCheck -- Yes --> ActionUpdate
+    TimestampCheck -- No --> ActionKeep
+
+    Rule3 -- No --> Rule4{"Rule 4: Deterministic Tie-Break<br/>SHA-256(remoteContent) > SHA-256(localContent)"}
+    Rule4 -- Yes --> ActionUpdate
+    Rule4 -- No --> ActionKeep
+```
+
+---
+
+## 6. Distributed State Guarantees
+
+The following 8 invariants are verified by automated unit tests in `SyncConflictMatrixTest.kt` and `P2PSyncTest.kt`:
+
+| Invariant | Problem Solved | Mechanism & Guarantee |
+| :--- | :--- | :--- |
+| **1. Tombstone Propagation** | Hard deletes on Device A resurrecting on Device B after sync. | Hard deletes are converted to soft-delete tombstones (`isDeleted = true`, `deletedAt`). Higher `syncVersion` ensures the tombstone overwrites older active instances on all peers. |
+| **2. Stale Edit Rejection** | Edits made on an out-of-date offline device overwriting newer edits. | Monotonic version checking (`syncVersion`) strictly rejects any incoming payload with an inferior version number (`MergeAction.KeepLocal`). |
+| **3. Clock-Drift Immunity** | Devices with un-synchronized or manipulated system clocks overwriting valid edits. | `syncVersion` is strictly checked before `updatedAt`. A device whose clock is hours in the past but has incremented its version will cleanly beat a device with a future-skewed clock. |
+| **4. Full-Tie Convergence** | Two devices edit the same task during the exact same millisecond at the same version. | The SHA-256 content hash of all user-visible fields breaks the tie. Both devices compute the hash locally and deterministically converge to the exact same winner without additional network roundtrips. |
+| **5. Non-Regressive Completion** | Completed tasks reopening as "pending" because another device synced an older state. | If local state is `completed` and remote is `pending`, the completed state is strictly preserved, and `syncVersion` is bumped to `max(vL, vR) + 1` to heal the divergence permanently. |
+| **6. Concurrent Recurrence Dedup** | Two offline devices independently generating the next recurrence for the same day. | Deterministic instance IDs (`UUID.nameUUIDFromBytes("$groupId|$date")`) + `findRecurringDuplicates` identifies and tombstones redundant instances, keeping only the highest-version copy. |
+| **7. Settings Convergence** | Synchronized preferences (category emojis, skip-missed policy) diverging across peers. | Last-Write-Wins on `settingsUpdatedAt`, with a stable per-device ID tie-breaker (`remoteDeviceId > localDeviceId`) in case of timestamp equality. |
+| **8. Cryptographic Tamper Rejection** | MITM packet manipulation or corrupted transmissions on local Wi-Fi. | Payloads are signed with HMAC-SHA256 using the session secret key derived during the 6-digit SAS pairing handshake; tampered packets fail validation and are dropped immediately. |
+
+---
+
+## 7. Room Database v7 Relational Schema & Migration Lifecycle
+
+Prima Focus maintains an SQLite database with safe linear migrations:
+
+```mermaid
+flowchart LR
+    V1["Schema v1<br/>Initial Tasks"] --> V2["Schema v2<br/>Sessions Added"]
+    V2 --> V3["Schema v3<br/>Recurrence Groups"]
+    V3 --> V4["Schema v4<br/>Dynamic Urgency"]
+    V4 --> V5["Schema v5 (MIGRATION_4_5)<br/>+ isDeleted<br/>+ deletedAt<br/>+ syncVersion"]
+    V5 --> V6["Schema v6 (MIGRATION_5_6)<br/>DROP TABLE events<br/>(Pruned Dead Legacy Table)"]
+    V6 --> V7["Schema v7 (MIGRATION_6_7)<br/>+ missedPolicy<br/>(Per-Task Override)"]
+```
+
+### Automatic 30-Day Tombstone Garbage Collection
+To prevent soft-deleted tombstones from bloating SQLite storage indefinitely, an automated garbage collection routine runs on application startup:
+
+```sql
+DELETE FROM tasks WHERE isDeleted = 1 AND deletedAt < :cutoffTimestamp;
+DELETE FROM sessions WHERE isDeleted = 1 AND deletedAt < :cutoffTimestamp;
+```
+*(Where `:cutoffTimestamp = System.currentTimeMillis() - 30.days`)*.
