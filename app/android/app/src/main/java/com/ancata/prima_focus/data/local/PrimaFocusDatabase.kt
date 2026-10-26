@@ -114,7 +114,7 @@ abstract class PrimaFocusDatabase : RoomDatabase() {
         /**
          * Adds isDeleted, deletedAt, and syncVersion for robust P2P sync and tombstones.
          */
-        private val MIGRATION_4_5 = object : Migration(4, 5) {
+        internal val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE tasks ADD COLUMN isDeleted INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("ALTER TABLE tasks ADD COLUMN deletedAt INTEGER DEFAULT NULL")
@@ -129,7 +129,7 @@ abstract class PrimaFocusDatabase : RoomDatabase() {
         /**
          * Drops the unused events dead table.
          */
-        private val MIGRATION_5_6 = object : Migration(5, 6) {
+        internal val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("DROP TABLE IF EXISTS events")
             }
@@ -138,7 +138,7 @@ abstract class PrimaFocusDatabase : RoomDatabase() {
         /**
          * Adds the nullable per-task missedPolicy for recurring tasks (null = use global default).
          */
-        private val MIGRATION_6_7 = object : Migration(6, 7) {
+        internal val MIGRATION_6_7 = object : Migration(6, 7) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE tasks ADD COLUMN missedPolicy TEXT DEFAULT NULL")
             }
