@@ -89,7 +89,7 @@ fun EmojiPickerDialog(
                 onClick = { onEmojiSelected(customEmoji) },
                 enabled = customEmoji.isNotBlank()
             ) {
-                Text("Usar", color = MaterialTheme.colorScheme.primary)
+                Text("Usar")
             }
         },
         dismissButton = {

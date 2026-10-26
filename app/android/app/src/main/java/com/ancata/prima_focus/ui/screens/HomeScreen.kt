@@ -158,7 +158,7 @@ fun HomeScreen(
                 }
 
                 Icon(
-                    imageVector = Icons.Default.Check,
+                    imageVector = Icons.Default.CloudDone,
                     contentDescription = "Sincronizado",
                     tint = MaterialTheme.colorScheme.tertiary,
                     modifier = Modifier.size(16.dp)
@@ -277,7 +277,7 @@ fun HomeScreen(
                                         .fillMaxWidth()
                                         .padding(top = 8.dp, bottom = 4.dp)
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(Color.Black.copy(alpha = 0.25f))
+                                        .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.06f))
                                         .padding(12.dp)
                                 )
                             }
@@ -571,7 +571,7 @@ fun SecondaryTaskCard(
                             .fillMaxWidth()
                             .padding(top = 4.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color.Black.copy(alpha = 0.2f))
+                            .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.06f))
                             .padding(8.dp)
                     )
                 }

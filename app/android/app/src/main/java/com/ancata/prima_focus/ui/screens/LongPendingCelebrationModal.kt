@@ -48,6 +48,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.ancata.prima_focus.ui.theme.AccentSage
+import com.ancata.prima_focus.ui.theme.ConfettiCyan
+import com.ancata.prima_focus.ui.theme.ConfettiGold
+import com.ancata.prima_focus.ui.theme.ConfettiViolet
 import com.ancata.prima_focus.ui.theme.LocalPremiumGlows
 import com.ancata.prima_focus.ui.theme.PrimaryRose
 import com.ancata.prima_focus.ui.theme.RoseAccent
@@ -82,9 +85,9 @@ fun ConfettiCanvas(
             RoseGlow,
             RoseAccent,
             AccentSage,
-            Color(0xFFFBBF24), // Warm gold
-            Color(0xFFC084FC), // Lavender violet
-            Color(0xFF67E8F9)  // Soft cyan
+            ConfettiGold,
+            ConfettiViolet,
+            ConfettiCyan
         )
     }
 
@@ -287,7 +290,7 @@ fun LongPendingCelebrationModal(
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = glows.primaryAccent,
-                            contentColor = MaterialTheme.colorScheme.onBackground
+                            contentColor = MaterialTheme.colorScheme.onPrimary
                         )
                     ) {
                         Text(

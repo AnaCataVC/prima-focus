@@ -57,19 +57,25 @@ import com.ancata.prima_focus.utils.TimeUtils
 import com.ancata.prima_focus.utils.formatCategoryLine
 import com.ancata.prima_focus.widget.action.CompleteTaskGlanceAction
 import java.time.Instant
+import com.ancata.prima_focus.ui.theme.PrimaryRose
+import com.ancata.prima_focus.ui.theme.WidgetBackground
+import com.ancata.prima_focus.ui.theme.WidgetBadgeBackground
+import com.ancata.prima_focus.ui.theme.WidgetBadgeTextColor
+import com.ancata.prima_focus.ui.theme.WidgetItemBackground
+import com.ancata.prima_focus.ui.theme.WidgetTextCategory
+import com.ancata.prima_focus.ui.theme.WidgetTextMuted
+import com.ancata.prima_focus.ui.theme.WidgetTextPrimary
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
-// Widget surface colors
-private val WidgetBackground = Color(0xFFFFFFFF)
-private val WidgetItemBackground = Color(0xFFF5F5F5)
-private val TextPrimary = Color(0xFF000000)
-private val TextMuted = Color(0xFF666666)
-private val TextCategory = Color(0xFF888888)
-private val BadgeBackground = Color(0xFFFCE7F3)
-private val BadgeTextColor = Color(0xFFBE185D)
-private val AccentRose = Color(0xFFF472B6)
+// Widget surface colors — reference centralized design tokens
+private val TextPrimary = WidgetTextPrimary
+private val TextMuted = WidgetTextMuted
+private val TextCategory = WidgetTextCategory
+private val BadgeBackground = WidgetBadgeBackground
+private val BadgeTextColor = WidgetBadgeTextColor
+private val AccentRose = PrimaryRose
 
 private val ContentPadding = 12.dp
 

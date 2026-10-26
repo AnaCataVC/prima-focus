@@ -219,7 +219,7 @@ fun MainApp(
                 onClick = { showInboxModal = true },
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Inbox", tint = MaterialTheme.colorScheme.onPrimary)
+                Icon(Icons.Default.Add, contentDescription = "Nueva tarea", tint = MaterialTheme.colorScheme.onPrimary)
             }
         }
     ) { innerPadding ->

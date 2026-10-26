@@ -117,7 +117,7 @@ fun RecurrenceSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Repeticion",
+                    text = "Repetición",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.onBackground
                 )
@@ -209,7 +209,7 @@ fun RecurrenceSheet(
             if (previewDate != null) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Proxima: $previewDate",
+                    text = "Próxima: $previewDate",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                 )
@@ -225,7 +225,7 @@ fun RecurrenceSheet(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "Eliminar repeticion",
+                        text = "Eliminar repetición",
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                     )

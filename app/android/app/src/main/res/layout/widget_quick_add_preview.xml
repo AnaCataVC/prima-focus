@@ -19,7 +19,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Agregar Tarea"
-            android:textColor="#666666"
+            android:textColor="@color/widget_text_muted"
             android:textSize="12sp"
             android:textStyle="bold" />
 
@@ -29,7 +29,7 @@
             android:background="@drawable/widget_circle_bg"
             android:gravity="center"
             android:text="+"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/white"
             android:textSize="17sp"
             android:textStyle="bold" />
     </LinearLayout>
@@ -50,7 +50,7 @@
             android:background="@drawable/widget_chip_bg"
             android:gravity="center"
             android:text="Trabajo"
-            android:textColor="#000000"
+            android:textColor="@color/widget_text_primary"
             android:textSize="12sp" />
 
         <TextView
@@ -61,7 +61,7 @@
             android:background="@drawable/widget_chip_bg"
             android:gravity="center"
             android:text="Salud"
-            android:textColor="#000000"
+            android:textColor="@color/widget_text_primary"
             android:textSize="12sp" />
 
         <TextView
@@ -71,7 +71,7 @@
             android:background="@drawable/widget_chip_bg"
             android:gravity="center"
             android:text="Casa"
-            android:textColor="#000000"
+            android:textColor="@color/widget_text_primary"
             android:textSize="12sp" />
     </LinearLayout>
 

@@ -512,7 +512,7 @@ fun TaskListItem(
                             .fillMaxWidth()
                             .padding(top = 6.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color.Black.copy(alpha = 0.2f))
+                            .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.06f))
                             .padding(8.dp)
                     )
                 }
@@ -671,7 +671,7 @@ fun CompletedTaskListItem(
                             .fillMaxWidth()
                             .padding(top = 4.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color.Black.copy(alpha = 0.2f))
+                            .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.06f))
                             .padding(8.dp)
                     )
                 }

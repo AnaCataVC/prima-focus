@@ -9,8 +9,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -105,12 +105,12 @@ fun TimerScreen(
                     },
                     navigationIcon = {
                         IconButton(onClick = onMinimize) {
-                            Icon(Icons.Default.Close, contentDescription = "Minimize", tint = MaterialTheme.colorScheme.onBackground)
+                            Icon(Icons.Default.Close, contentDescription = "Minimizar", tint = MaterialTheme.colorScheme.onBackground)
                         }
                     },
                     actions = {
                         IconButton(onClick = { showMenu = !showMenu }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "Options", tint = MaterialTheme.colorScheme.onBackground)
+                            Icon(Icons.Default.MoreVert, contentDescription = "Opciones", tint = MaterialTheme.colorScheme.onBackground)
                         }
                         DropdownMenu(
                             expanded = showMenu,
@@ -233,7 +233,7 @@ fun TimerScreen(
                             }
                     )
                     Icon(
-                        imageVector = if (isRunning) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        imageVector = if (isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (isRunning) "Pausar" else "Reanudar",
                         tint = glows.primaryAccent,
                         modifier = Modifier.size(48.dp)

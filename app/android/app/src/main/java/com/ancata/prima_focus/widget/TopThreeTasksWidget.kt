@@ -57,18 +57,25 @@ import com.ancata.prima_focus.data.prefs.UserPreferences
 import com.ancata.prima_focus.utils.TimeUtils
 import com.ancata.prima_focus.utils.formatCategoryLine
 import com.ancata.prima_focus.widget.action.CompleteTaskGlanceAction
+import com.ancata.prima_focus.ui.theme.AccentSage
+import com.ancata.prima_focus.ui.theme.PrimaryRose
+import com.ancata.prima_focus.ui.theme.PriorityMediumAmber
+import com.ancata.prima_focus.ui.theme.RoseAccent
+import com.ancata.prima_focus.ui.theme.WidgetBackground
+import com.ancata.prima_focus.ui.theme.WidgetItemBackground
+import com.ancata.prima_focus.ui.theme.WidgetTextCategory
+import com.ancata.prima_focus.ui.theme.WidgetTextMuted
+import com.ancata.prima_focus.ui.theme.WidgetTextPrimary
 import java.time.LocalDate
 
-// Widget surface colors — match existing widget_rounded_bg (white + gray border)
-private val WidgetBackground = Color(0xFFFFFFFF)
-private val WidgetItemBackground = Color(0xFFF5F5F5)
-private val TextPrimary = Color(0xFF000000)
-private val TextMuted = Color(0xFF666666)
-private val TextCategory = Color(0xFF888888)
-private val AccentRose = Color(0xFFF472B6)     // PrimaryRose from Color.kt
-private val PriorityHigh = Color(0xFFEC4899)   // RoseAccent
-private val PriorityMedium = Color(0xFFF59E0B) // Amber
-private val PriorityLow = Color(0xFF4ADE80)    // AccentSage
+// Widget surface colors — reference centralized design tokens
+private val TextPrimary = WidgetTextPrimary
+private val TextMuted = WidgetTextMuted
+private val TextCategory = WidgetTextCategory
+private val AccentRose = PrimaryRose
+private val PriorityHigh = RoseAccent
+private val PriorityMedium = PriorityMediumAmber
+private val PriorityLow = AccentSage
 
 private val ContentPadding = 12.dp
 private val RowGap = 6.dp

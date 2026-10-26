@@ -19,6 +19,9 @@ import androidx.compose.ui.unit.sp
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import com.ancata.prima_focus.ui.theme.LocalPremiumGlows
+import com.ancata.prima_focus.ui.theme.StatusNeutral
+import com.ancata.prima_focus.ui.theme.StatusSuccess
+import com.ancata.prima_focus.ui.theme.StatusWarning
 import com.ancata.prima_focus.ui.viewmodel.TaskViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,19 +74,19 @@ fun QuickReviewModal(
                 StatusButton(
                     text = "Sí",
                     selected = completedState == "yes",
-                    selectedColor = Color(0xFF34C759), // Accent Green
+                    selectedColor = StatusSuccess,
                     onClick = { completedState = "yes" }
                 )
                 StatusButton(
                     text = "Parcial",
                     selected = completedState == "partial",
-                    selectedColor = Color(0xFFFF9F0A), // Orange
+                    selectedColor = StatusWarning,
                     onClick = { completedState = "partial" }
                 )
                 StatusButton(
                     text = "No",
                     selected = completedState == "no",
-                    selectedColor = Color(0xFF8E8E93), // Gray
+                    selectedColor = StatusNeutral,
                     onClick = { completedState = "no" }
                 )
             }
@@ -144,7 +147,7 @@ fun QuickReviewModal(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            OutlinedButton(
+                            TextButton(
                                 onClick = {
                                     viewModel.postponeTask(taskId, reason = completedState ?: "postponed") { success ->
                                         if (!success) {
@@ -155,8 +158,7 @@ fun QuickReviewModal(
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onBackground),
-                                border = null
+                                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onBackground)
                             ) {
                                 Text("Posponer")
                             }
@@ -191,7 +193,7 @@ fun QuickReviewModal(
                 ),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Guardar", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                Text("Guardar", fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
             Text(
                 text = "Se guardará en Historial",

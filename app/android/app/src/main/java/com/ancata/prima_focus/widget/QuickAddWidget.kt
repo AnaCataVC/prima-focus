@@ -37,14 +37,18 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.ancata.prima_focus.MainActivity
+import com.ancata.prima_focus.ui.theme.PrimaryRose
+import com.ancata.prima_focus.ui.theme.WidgetBackground
+import com.ancata.prima_focus.ui.theme.WidgetItemBackground
+import com.ancata.prima_focus.ui.theme.WidgetTextMuted
+import com.ancata.prima_focus.ui.theme.WidgetTextPrimary
 import com.ancata.prima_focus.utils.Constants
 
-// Widget surface colors — match existing widget_rounded_bg (white + gray border)
-private val WidgetBackground = Color(0xFFFFFFFF)
-private val ChipBackground = Color(0xFFF5F5F5)
-private val TextPrimary = Color(0xFF000000)
-private val TextMuted = Color(0xFF666666)
-private val AccentRose = Color(0xFFF472B6)  // PrimaryRose from Color.kt
+// Widget surface colors — reference centralized design tokens
+private val ChipBackground = WidgetItemBackground
+private val TextPrimary = WidgetTextPrimary
+private val TextMuted = WidgetTextMuted
+private val AccentRose = PrimaryRose
 
 private val ContentPadding = 12.dp
 

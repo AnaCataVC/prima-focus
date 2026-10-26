@@ -19,7 +19,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Más Aplazada"
-            android:textColor="#666666"
+            android:textColor="@color/widget_text_muted"
             android:textSize="13sp"
             android:textStyle="bold" />
 
@@ -30,7 +30,7 @@
             android:paddingHorizontal="8dp"
             android:paddingVertical="2dp"
             android:text="Aplazada hace 3d"
-            android:textColor="#BE185D"
+            android:textColor="@color/widget_badge_text"
             android:textSize="11sp"
             android:textStyle="bold" />
     </LinearLayout>
@@ -56,7 +56,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Revisar documentación técnica"
-                android:textColor="#000000"
+                android:textColor="@color/widget_text_primary"
                 android:textSize="14sp"
                 android:textStyle="bold"
                 android:maxLines="1" />
@@ -66,7 +66,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:text="💼 Trabajo • Documentos"
-                android:textColor="#888888"
+                android:textColor="@color/widget_text_category"
                 android:textSize="11sp"
                 android:maxLines="1" />
         </LinearLayout>
@@ -79,7 +79,7 @@
             android:background="@drawable/widget_circle_bg"
             android:gravity="center"
             android:text="✓"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/white"
             android:textSize="16sp"
             android:textStyle="bold" />
     </LinearLayout>

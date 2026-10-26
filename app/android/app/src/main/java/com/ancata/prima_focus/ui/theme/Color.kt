@@ -33,3 +33,23 @@ val LightRoseShadow = Color(0x33EC4899)
 val LightBottomNavBackground = Color(0xCCFFF7F9)
 val AccentSageDeep = Color(0xFF15803D) // AccentSage darkened for contrast on light surfaces
 val ErrorRoseDeep = Color(0xFFE11D48) // ErrorRose darkened for contrast on light surfaces
+
+// Quick Review Status Tokens
+val StatusSuccess = Color(0xFF34C759)
+val StatusWarning = Color(0xFFFF9F0A)
+val StatusNeutral = Color(0xFF8E8E93)
+
+// Long-Pending Celebration Confetti Tokens
+val ConfettiGold = Color(0xFFFBBF24)
+val ConfettiViolet = Color(0xFFC084FC)
+val ConfettiCyan = Color(0xFF67E8F9)
+
+// Shared Widget Surface Tokens
+val WidgetBackground = Color(0xFFFFFFFF)
+val WidgetItemBackground = Color(0xFFF5F5F5)
+val WidgetTextPrimary = Color(0xFF000000)
+val WidgetTextMuted = Color(0xFF666666)
+val WidgetTextCategory = Color(0xFF888888)
+val WidgetBadgeBackground = Color(0xFFFCE7F3)
+val WidgetBadgeTextColor = Color(0xFFBE185D)
+val PriorityMediumAmber = Color(0xFFF59E0B)
