@@ -79,7 +79,6 @@ cd app/android; ./gradlew assembleRelease
 ## 5. Release & Artifact Management Protocol
 
 This repository is the single source of truth for code, documentation, and official releases:
-1. **Automated CI/CD Release**: Pushing a tag (`git tag vX.Y.Z && git push origin vX.Y.Z`) triggers `.github/workflows/release.yml`. The workflow executes JVM unit tests in `:shared` and `:app`, builds the release APK in `app/android`, calculates its `.sha256` checksum, and publishes both deliverables (`prima-focus-vX.Y.Z.apk` and `prima-focus-vX.Y.Z.apk.sha256`) to GitHub Releases.
+1. **Automated CI/CD Release**: Pushing a tag (`git tag vX.Y.Z && git push origin vX.Y.Z`) triggers `.github/workflows/release.yml`. The workflow executes JVM unit tests in `:shared` and `:app`, builds the release APK in `app/android`, and publishes the deliverable (`prima-focus-vX.Y.Z.apk`) to GitHub Releases (GitHub natively computes and displays the SHA-256 digest on the web UI).
 2. **Version Bump Verification**: Check current git tags in this repository (`git tag`) and ensure `versionCode` and `versionName` in `app/android/app/build.gradle.kts` match the semantic release tag before pushing.
-3. **Cryptographic Integrity**: Every released APK must always have its matching `.sha256` checksum file attached in GitHub Releases.
-4. **Single Source of Truth**: All architectural documentation, database schemas, and guides live in `docs/`.
+3. **Single Source of Truth**: All architectural documentation, database schemas, and guides live in `docs/`.
