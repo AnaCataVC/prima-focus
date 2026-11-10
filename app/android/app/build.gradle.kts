@@ -22,12 +22,23 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            val ciKeystore = rootProject.file("keystore/debug.keystore")
+            val localKeystore = file(System.getProperty("user.home") + "/.android/debug.keystore")
+            storeFile = if (ciKeystore.exists()) ciKeystore else localKeystore
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             optimization {
                 enable = false
             }
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
