@@ -32,3 +32,30 @@ Modifier
     .background(glows.glassSurface) // Efecto cristal superior
 ```
 De esta forma se preserva la textura y la paleta de colores del efecto Glassmorphism, pero se bloquea visualmente lo que está detrás.
+
+## 3. Desplazamiento Vertical y Soporte para Teclado (IME) en Formularios Extensos
+
+**Problema:**
+Al situar el botón primario de acción al final de un `Column` dentro de un `ModalBottomSheet`, si el contenedor no define un modificador de desplazamiento (`verticalScroll`), la altura combinada de los campos (título, notas multilínea, categoría, subcategoría, chips de fecha y recurrencia) supera el espacio de pantalla disponible. Esto se agrava de manera crítica cuando el teclado en pantalla (IME) de Android se despliega, reduciendo drásticamente el viewport y empujando el botón "Guardar Tarea" fuera del área visible sin permitir al usuario deslizar con el dedo.
+
+**Lección Aprendida y Solución:**
+Cualquier formulario presentado en un `ModalBottomSheet` debe implementar desplazamiento vertical reactivo al teclado:
+1. Declarar `val scrollState = rememberScrollState()`.
+2. Encadenar `Modifier.imePadding()` y `Modifier.verticalScroll(scrollState)` en la `Column` principal.
+```kotlin
+val scrollState = rememberScrollState()
+
+Column(
+    modifier = Modifier
+        .fillMaxWidth()
+        .imePadding()
+        .verticalScroll(scrollState)
+        .padding(24.dp)
+        .padding(bottom = 32.dp)
+) {
+    // Campos del formulario y botón de acción al final
+}
+```
+Esto garantiza que:
+- El teclado en pantalla desplace adecuadamente el área visible hacia arriba.
+- El usuario pueda desplazarse libremente con el dedo para acceder y pulsar el botón de guardado en cualquier tamaño de pantalla o densidad de contenido.
